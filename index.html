@@ -2,142 +2,105 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Información del Producto</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Buscar Productos</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
       background: #f4f4f4;
-      color: #333;
-      margin: 0;
-      padding: 0;
-    }
-    .container {
-      max-width: 800px;
-      margin: 2rem auto;
-      background: #fff;
-      padding: 2rem;
-      border-radius: 10px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    }
-    h1, h2 {
-      text-align: center;
-    }
-    .logo {
-      display: block;
-      margin: 0 auto 1rem;
-      width: 120px;
-    }
-    .info {
-      display: grid;
-      grid-template-columns: 1fr 2fr;
-      gap: 1rem;
-      margin-bottom: 2rem;
-    }
-    .info div {
-      padding: 0.5rem;
-    }
-    .alerta {
-      background: #ffe9e9;
-      color: #a30000;
-      padding: 1rem;
-      border: 1px solid #ff9e9e;
-      border-radius: 5px;
-      margin-bottom: 1.5rem;
-      display: none;
-    }
-    .historial {
-      margin-top: 2rem;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    table, th, td {
-      border: 1px solid #ccc;
-    }
-    th, td {
-      padding: 0.75rem;
-      text-align: left;
-    }
-    .caducado {
-      color: red;
-      font-weight: bold;
     }
   </style>
 </head>
-<body>
-  <div class="container">
-    <img src="centrum.png" alt="Logo de la Empresa" class="logo"/>
-    <h1>Información del Producto</h1>
+<body class="min-h-screen bg-gradient-to-br from-green-900 to-green-700 text-white">
+  <div class="max-w-4xl mx-auto p-6 bg-white text-gray-800 rounded-2xl shadow-2xl mt-10">
+    <div class="flex flex-col items-center">
+      <img src="centrum.png" alt="Logo de la Empresa" class="w-28 mb-4"/>
+      <h1 class="text-3xl font-bold mb-6 text-center">Consulta de Productos en Inventario</h1>
 
-    <div class="alerta" id="alertaCaducidad">
-      ⚠ Este producto está próximo a caducar.
-    </div>
+      <input
+        id="busqueda"
+        type="text"
+        placeholder="Buscar por nombre o ID..."
+        class="w-full md:w-2/3 p-3 rounded-xl border border-green-700 focus:outline-none focus:ring-2 focus:ring-green-800 mb-6"
+        oninput="buscarProducto()"
+      />
 
-    <div class="info">
-      <div><strong>Producto:</strong></div><div id="nombreProducto">---</div>
-      <div><strong>Lote:</strong></div><div id="lote">---</div>
-      <div><strong>Caducidad:</strong></div><div id="caducidad">---</div>
-      <div><strong>Fabricante:</strong></div><div id="fabricante">---</div>
-      <div><strong>ID:</strong></div><div id="idProducto">---</div>
-    </div>
-
-    <div class="historial">
-      <h2>Historial</h2>
-      <table>
-        <thead>
+      <table class="w-full text-left border border-gray-300">
+        <thead class="bg-green-900 text-white">
           <tr>
-            <th>Fecha</th>
-            <th>Evento</th>
+            <th class="p-3">ID</th>
+            <th class="p-3">Producto</th>
+            <th class="p-3">Fabricante</th>
+            <th class="p-3">Lote</th>
+            <th class="p-3">Caducidad</th>
+            <th class="p-3">Cantidad</th>
           </tr>
         </thead>
-        <tbody id="tablaHistorial">
-          <tr><td colspan="2">Sin datos</td></tr>
+        <tbody id="tablaResultados" class="bg-white text-gray-900">
+          <tr><td colspan="6" class="p-3 text-center">Introduce un criterio de búsqueda...</td></tr>
         </tbody>
       </table>
     </div>
   </div>
 
   <script>
-    // Simulación de lectura desde el código QR
-    const datosQR = {
-      nombre: "Heparina Li",
-      lote: "A12345",
-      caducidad: "2025-04-28",
-      fabricante: "Bioreagents MX",
-      id: "SMN20250428123001"
-    };
-
-    // Llenado dinámico de los campos
-    document.getElementById("nombreProducto").textContent = datosQR.nombre;
-    document.getElementById("lote").textContent = datosQR.lote;
-    document.getElementById("caducidad").textContent = datosQR.caducidad;
-    document.getElementById("fabricante").textContent = datosQR.fabricante;
-    document.getElementById("idProducto").textContent = datosQR.id;
-
-    // Mostrar alerta si la caducidad es próxima
-    const fechaCad = new Date(datosQR.caducidad);
-    const hoy = new Date();
-    const diasDiferencia = (fechaCad - hoy) / (1000 * 60 * 60 * 24);
-
-    if (diasDiferencia <= 30) {
-      document.getElementById("alertaCaducidad").style.display = "block";
-    }
-
-    // Historial simulado
-    const historial = [
-      { fecha: "2025-01-15", evento: "Producto registrado en inventario." },
-      { fecha: "2025-04-10", evento: "Última inspección realizada." },
+    const inventario = [
+      {
+        id: "SMN20250428123001",
+        nombre: "Heparina Li",
+        fabricante: "Bioreagents MX",
+        lote: "A12345",
+        caducidad: "2025-04-28",
+        cantidad: 12
+      },
+      {
+        id: "SMN20250510140002",
+        nombre: "Reactivo PTTA",
+        fabricante: "Centrum Labs",
+        lote: "B98765",
+        caducidad: "2025-05-10",
+        cantidad: 6
+      },
+      {
+        id: "SMN20250601100003",
+        nombre: "CK-MB",
+        fabricante: "Analytic Corp",
+        lote: "C11111",
+        caducidad: "2025-06-01",
+        cantidad: 24
+      }
     ];
 
-    const tabla = document.getElementById("tablaHistorial");
-    tabla.innerHTML = "";
-    historial.forEach(item => {
-      const fila = document.createElement("tr");
-      fila.innerHTML = `<td>${item.fecha}</td><td>${item.evento}</td>`;
-      tabla.appendChild(fila);
-    });
+    function buscarProducto() {
+      const query = document.getElementById("busqueda").value.toLowerCase();
+      const resultados = inventario.filter(item =>
+        item.nombre.toLowerCase().includes(query) ||
+        item.id.toLowerCase().includes(query)
+      );
+
+      const tabla = document.getElementById("tablaResultados");
+      tabla.innerHTML = "";
+
+      if (resultados.length === 0) {
+        tabla.innerHTML = `<tr><td colspan='6' class='p-3 text-center'>No se encontraron resultados.</td></tr>`;
+        return;
+      }
+
+      resultados.forEach(prod => {
+        const row = document.createElement("tr");
+        row.className = "border-b hover:bg-green-100 hover:text-black transition duration-150";
+        row.innerHTML = `
+          <td class="p-3">${prod.id}</td>
+          <td class="p-3">${prod.nombre}</td>
+          <td class="p-3">${prod.fabricante}</td>
+          <td class="p-3">${prod.lote}</td>
+          <td class="p-3">${prod.caducidad}</td>
+          <td class="p-3">${prod.cantidad}</td>
+        `;
+        tabla.appendChild(row);
+      });
+    }
   </script>
 </body>
 </html>
