@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Información del Producto</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f4f4;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 800px;
+      margin: 2rem auto;
+      background: #fff;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    .logo {
+      display: block;
+      margin: 0 auto 1rem;
+      width: 120px;
+    }
+    .info {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .info div {
+      padding: 0.5rem;
+    }
+    .alerta {
+      background: #ffe9e9;
+      color: #a30000;
+      padding: 1rem;
+      border: 1px solid #ff9e9e;
+      border-radius: 5px;
+      margin-bottom: 1.5rem;
+      display: none;
+    }
+    .historial {
+      margin-top: 2rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    table, th, td {
+      border: 1px solid #ccc;
+    }
+    th, td {
+      padding: 0.75rem;
+      text-align: left;
+    }
+    .caducado {
+      color: red;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img src="logo.png" alt="Logo de la Empresa" class="logo"/>
+    <h1>Información del Producto</h1>
+
+    <div class="alerta" id="alertaCaducidad">
+      ⚠ Este producto está próximo a caducar.
+    </div>
+
+    <div class="info">
+      <div><strong>Producto:</strong></div><div id="nombreProducto">---</div>
+      <div><strong>Lote:</strong></div><div id="lote">---</div>
+      <div><strong>Caducidad:</strong></div><div id="caducidad">---</div>
+      <div><strong>Fabricante:</strong></div><div id="fabricante">---</div>
+      <div><strong>ID:</strong></div><div id="idProducto">---</div>
+    </div>
+
+    <div class="historial">
+      <h2>Historial</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Evento</th>
+          </tr>
+        </thead>
+        <tbody id="tablaHistorial">
+          <tr><td colspan="2">Sin datos</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    // Simulación de lectura desde el código QR
+    const datosQR = {
+      nombre: "Heparina Li",
+      lote: "A12345",
+      caducidad: "2025-04-28",
+      fabricante: "Bioreagents MX",
+      id: "SMN20250428123001"
+    };
+
+    // Llenado dinámico de los campos
+    document.getElementById("nombreProducto").textContent = datosQR.nombre;
+    document.getElementById("lote").textContent = datosQR.lote;
+    document.getElementById("caducidad").textContent = datosQR.caducidad;
+    document.getElementById("fabricante").textContent = datosQR.fabricante;
+    document.getElementById("idProducto").textContent = datosQR.id;
+
+    // Mostrar alerta si la caducidad es próxima
+    const fechaCad = new Date(datosQR.caducidad);
+    const hoy = new Date();
+    const diasDiferencia = (fechaCad - hoy) / (1000 * 60 * 60 * 24);
+
+    if (diasDiferencia <= 30) {
+      document.getElementById("alertaCaducidad").style.display = "block";
+    }
+
+    // Historial simulado
+    const historial = [
+      { fecha: "2025-01-15", evento: "Producto registrado en inventario." },
+      { fecha: "2025-04-10", evento: "Última inspección realizada." },
+    ];
+
+    const tabla = document.getElementById("tablaHistorial");
+    tabla.innerHTML = "";
+    historial.forEach(item => {
+      const fila = document.createElement("tr");
+      fila.innerHTML = `<td>${item.fecha}</td><td>${item.evento}</td>`;
+      tabla.appendChild(fila);
+    });
+  </script>
+</body>
+</html>
