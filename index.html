@@ -25,6 +25,9 @@
         class="w-full md:w-2/3 p-3 rounded-xl border border-green-700 focus:outline-none focus:ring-2 focus:ring-green-800 mb-6"
         oninput="buscarProducto()"
       />
+      
+      <button onclick="solicitarPin()" class="bg-green-800 text-white font-semibold px-4 py-2 rounded-xl shadow hover:bg-green-700 transition mb-4">Modo: <span id="modoLabel">Entrada</span></button>
+      <div id="usuarioActivo" class="mb-4 text-sm text-gray-700"></div>
 
       <table class="w-full text-left border border-gray-300">
         <thead class="bg-green-900 text-white">
@@ -100,6 +103,29 @@
         `;
         tabla.appendChild(row);
       });
+    }
+ // Control de modo con PIN
+    const pines = {
+      "0112": "Santos",
+      "2704": "Fabiola",
+      "1704": "Aida",
+      "1103": "Johnatan"
+    };
+
+    let modo = "entrada";
+    let usuario = null;
+
+    function solicitarPin() {
+      const pin = prompt("Introduce tu NIP de 4 dígitos (ddmm de nacimiento):");
+      if (pin in pines) {
+        usuario = pines[pin];
+        modo = (modo === "entrada") ? "salida" : "entrada";
+        document.getElementById("modoLabel").textContent = modo.charAt(0).toUpperCase() + modo.slice(1);
+        document.getElementById("usuarioActivo").textContent = `Modo actual: ${modo.toUpperCase()} | Usuario: ${usuario}`;
+        alert(`Modo cambiado a ${modo.toUpperCase()} por ${usuario}`);
+      } else {
+        alert("NIP incorrecto. Intenta de nuevo.");
+      }
     }
   </script>
 </body>
