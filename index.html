@@ -40,55 +40,39 @@
             <th class="p-3">Lote</th>
             <th class="p-3">Caducidad</th>
             <th class="p-3">Cantidad</th>
+            <th class="p-3">Acción</th>
           </tr>
         </thead>
         <tbody id="tablaResultados" class="bg-white text-gray-900">
-          <tr><td colspan="6" class="p-3 text-center">Introduce un criterio de búsqueda...</td></tr>
+          <tr><td colspan="7" class="p-3 text-center">Introduce un criterio de búsqueda...</td></tr>
         </tbody>
       </table>
     </div>
   </div>
 
   <script>
-    const inventario = [
-      {
-        id: "SMN20250428123001",
-        nombre: "Heparina Li",
-        fabricante: "Bioreagents MX",
-        lote: "A12345",
-        caducidad: "2025-04-28",
-        cantidad: 12
-      },
-      {
-        id: "SMN20250510140002",
-        nombre: "Reactivo PTTA",
-        fabricante: "Centrum Labs",
-        lote: "B98765",
-        caducidad: "2025-05-10",
-        cantidad: 6
-      },
-      {
-        id: "SMN20250601100003",
-        nombre: "CK-MB",
-        fabricante: "Analytic Corp",
-        lote: "C11111",
-        caducidad: "2025-06-01",
-        cantidad: 24
-      }
-    ];
+    const API_URL = "https://inventario-api-ltpb.onrender.com";
 
     function buscarProducto() {
-      const query = document.getElementById("busqueda").value.toLowerCase();
-      const resultados = inventario.filter(item =>
-        item.nombre.toLowerCase().includes(query) ||
-        item.id.toLowerCase().includes(query)
-      );
+      const query = document.getElementById("busqueda").value.trim();
+      if (!query) return;
 
+      fetch(`${API_URL}/buscar_producto?nombre=${encodeURIComponent(query)}`)
+        .then(res => res.json())
+        .then(data => mostrarResultados(data))
+        .catch(err => {
+          console.error("Error al buscar producto:", err);
+          const tabla = document.getElementById("tablaResultados");
+          tabla.innerHTML = `<tr><td colspan='7' class='p-3 text-center text-red-600'>Error al conectar con el servidor</td></tr>`;
+        });
+    }
+
+    function mostrarResultados(resultados) {
       const tabla = document.getElementById("tablaResultados");
       tabla.innerHTML = "";
 
       if (resultados.length === 0) {
-        tabla.innerHTML = `<tr><td colspan='6' class='p-3 text-center'>No se encontraron resultados.</td></tr>`;
+        tabla.innerHTML = `<tr><td colspan='7' class='p-3 text-center'>No se encontraron resultados.</td></tr>`;
         return;
       }
 
@@ -102,12 +86,48 @@
           <td class="p-3">${prod.lote}</td>
           <td class="p-3">${prod.caducidad}</td>
           <td class="p-3">${prod.cantidad}</td>
+          <td class="p-3">
+            <button onclick="registrarMovimiento('${prod.lote}')" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Registrar</button>
+          </td>
         `;
         tabla.appendChild(row);
       });
     }
 
-    // Control de modo con PIN
+    function registrarMovimiento(lote) {
+      if (!usuario) {
+        alert("Debes identificarte con tu NIP antes de registrar un movimiento.");
+        return;
+      }
+
+      const cantidadStr = prompt(`¿Cuántas unidades quieres ${modo === 'entrada' ? 'ingresar' : 'retirar'} del lote ${lote}?`);
+      const cantidad = parseInt(cantidadStr);
+      if (isNaN(cantidad) || cantidad <= 0) {
+        alert("Cantidad no válida.");
+        return;
+      }
+
+      fetch(`${API_URL}/registrar_movimiento`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lote: lote,
+          tipo: modo,
+          cantidad: cantidad,
+          usuario: usuario
+        })
+      })
+        .then(res => res.json())
+        .then(data => {
+          alert(data.mensaje);
+          buscarProducto(); // Actualiza tabla
+        })
+        .catch(err => {
+          console.error("Error al registrar movimiento:", err);
+          alert("Ocurrió un error al registrar el movimiento.");
+        });
+    }
+
     const pines = {
       "0112": "Santos",
       "2704": "Fabiola",
