@@ -34,7 +34,7 @@
       <table class="w-full text-left border border-gray-300">
         <thead class="bg-green-900 text-white">
           <tr>
-            <th class="p-3">REF</th>
+            <th class="p-3">ID</th>
             <th class="p-3">Producto</th>
             <th class="p-3">Fabricante</th>
             <th class="p-3">Lote</th>
@@ -133,7 +133,6 @@
       "2704": "Fabiola",
       "1704": "Aida",
       "1103": "Johnatan"
-      "0311": "Silvia"
     };
 
     let modo = "entrada";
@@ -160,11 +159,66 @@
           modoIcon.textContent = "🟢";
         }
 
-        alert(`Modo cambiado a ${modo.toUpperCase()} para ${usuario}`);
+        alert(`Modo cambiado a ${modo.toUpperCase()} por ${usuario}`);
       } else {
         alert("NIP incorrecto. Intenta de nuevo.");
       }
     }
   </script>
+<!-- Indicador de conexión y botón para activar backend -->
+<div style="position: fixed; bottom: 10px; left: 10px; z-index: 9999;">
+  <div id="apiStatus" style="
+    background: rgba(0,0,0,0.5);
+    color: white;
+    padding: 6px 10px;
+    border-radius: 10px;
+    font-size: 18px;
+    font-weight: bold;
+    display: inline-block;
+  ">
+    ⭕
+  </div>
+
+  <button id="activarBtn" onclick="window.open(API_URL, '_blank')" style="
+    margin-top: 5px;
+    display: none;
+    background-color: #dc2626;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  ">
+    ⚠️ Backend apagado — Activar
+  </button>
+</div>
+
+<script>
+  const statusEl = document.getElementById("apiStatus");
+  const activarBtn = document.getElementById("activarBtn");
+
+  async function verificarConexion() {
+    try {
+      const res = await fetch(`${API_URL}/`, { method: 'GET' });
+      if (res.ok) {
+        statusEl.textContent = "🟢";
+        activarBtn.style.display = "none";
+      } else {
+        statusEl.textContent = "⭕";
+        activarBtn.style.display = "inline-block";
+      }
+    } catch (e) {
+      statusEl.textContent = "⭕";
+      activarBtn.style.display = "inline-block";
+    }
+  }
+
+  // Verifica al cargar y cada 30 segundos
+  verificarConexion();
+  setInterval(verificarConexion, 30000);
+</script>
+
 </body>
 </html>
