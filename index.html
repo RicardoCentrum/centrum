@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Buscar Productos</title>
+  <title>Inventario QR</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body {
@@ -28,11 +28,6 @@
       backdrop-filter: blur(6px);
     }
   </style>
-  <script>
-    if (window.innerWidth <= 768 && !location.pathname.includes("mobile")) {
-      location.href = "index_qr_mobile.html";
-    }
-  </script>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-green-900 to-green-700 text-white">
   <div class="max-w-4xl mx-auto p-6 bg-white text-gray-800 rounded-2xl shadow-2xl mt-10">
@@ -43,8 +38,8 @@
       <input id="busqueda" type="text" placeholder="Buscar por nombre o ID..." class="w-full md:w-2/3 p-3 rounded-xl border border-green-700 focus:outline-none focus:ring-2 focus:ring-green-800 mb-4" oninput="buscarProducto()" />
       <input id="inputQR" type="text" class="hidden" />
 
-      <button id="modoBtn" onclick="solicitarPin()" class="bg-green-800 text-white font-semibold px-4 py-2 rounded-xl shadow hover:bg-green-700 transition mb-4">
-        <span id="modoIcon">🟢</span> Modo: <span id="modoLabel">Entrada</span>
+      <button id="modoBtn" onclick="document.getElementById('selectorModo').classList.remove('hidden')" class="bg-gray-700 text-white font-semibold px-4 py-2 rounded-xl shadow mb-4">
+        <span id="modoIcon">⚪</span> Modo: <span id="modoLabel">Inactivo</span>
       </button>
 
       <button onclick="entradaManual()" class="bg-yellow-600 text-white font-semibold px-4 py-2 rounded-xl shadow hover:bg-yellow-500 transition mb-4">
@@ -71,15 +66,94 @@
     </div>
   </div>
 
+  <!-- Indicador de conexión como botón -->
+  <div style="position: fixed; bottom: 10px; left: 10px; z-index: 9999;">
+    <button id="apiStatus" onclick="activarBackend()" style="
+      background: rgba(0,0,0,0.5);
+      color: white;
+      padding: 6px 10px;
+      border-radius: 10px;
+      font-size: 18px;
+      font-weight: bold;
+      display: inline-block;
+      border: none;
+      cursor: pointer;">
+      ⭕
+    </button>
+  </div>
+
+  <!-- Selector visual de modo -->
+  <div id="selectorModo" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50 hidden">
+    <div class="bg-white p-6 rounded-xl shadow-xl text-center max-w-sm mx-auto">
+      <h2 class="text-xl font-bold mb-4 text-gray-800">Selecciona un modo de operación</h2>
+      <div class="flex flex-col gap-4">
+        <button onclick="activarModo('entrada')" class="bg-green-700 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow">🟢 Modo Entrada</button>
+        <button onclick="activarModo('salida')" class="bg-red-700 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow">🔴 Modo Salida</button>
+      </div>
+    </div>
+  </div>
+
   <div id="mensajeQR"></div>
 
   <script>
     const API_URL = "https://inventario-api-ltpb.onrender.com";
-
-    let modo = "entrada";
+    let modo = null;
     let usuario = null;
     let bufferQR = "";
     let scanTimeout = null;
+
+    const pines = {
+      "0112": "Santos",
+      "2704": "Fabiola",
+      "1704": "Aida",
+      "1103": "Johnatan"
+    };
+
+    function activarModo(modoSeleccionado) {
+      const pin = prompt("Introduce tu NIP de 4 dígitos:");
+      if (!(pin in pines)) {
+        alert("NIP incorrecto");
+        return;
+      }
+      modo = modoSeleccionado;
+      usuario = pines[pin];
+
+      const modoBtn = document.getElementById("modoBtn");
+      const modoIcon = document.getElementById("modoIcon");
+
+      if (modo === "salida") {
+        modoBtn.className = "bg-red-700 text-white font-semibold px-4 py-2 rounded-xl shadow mb-4";
+        modoIcon.textContent = "🔴";
+      } else {
+        modoBtn.className = "bg-green-800 text-white font-semibold px-4 py-2 rounded-xl shadow mb-4";
+        modoIcon.textContent = "🟢";
+      }
+
+      document.getElementById("modoLabel").textContent = modo.charAt(0).toUpperCase() + modo.slice(1);
+      document.getElementById("usuarioActivo").textContent = `Modo actual: ${modo.toUpperCase()} | Usuario: ${usuario}`;
+      document.getElementById("selectorModo").classList.add("hidden");
+      alert(`Modo ${modo.toUpperCase()} activado por ${usuario}`);
+    }
+
+    async function verificarConexion() {
+  const statusEl = document.getElementById("apiStatus");
+  try {
+    const res = await fetch(`${API_URL}/`);
+    if (res.ok) {
+      statusEl.textContent = "🟢";
+    } else {
+      statusEl.textContent = "⭕";
+    }
+  } catch (e) {
+    statusEl.textContent = "⭕";
+  }
+}
+
+        function activarBackend() {
+      if (document.getElementById("apiStatus").textContent === "⭕") {
+        window.open(API_URL, "_blank");
+      }
+    }
 
     function buscarProducto() {
       const query = document.getElementById("busqueda").value.trim();
@@ -88,8 +162,7 @@
         .then(res => res.json())
         .then(data => mostrarResultados(data))
         .catch(() => {
-          const tabla = document.getElementById("tablaResultados");
-          tabla.innerHTML = `<tr><td colspan='6' class='p-3 text-center text-red-600'>Error al conectar con el servidor</td></tr>`;
+          document.getElementById("tablaResultados").innerHTML = `<tr><td colspan='6' class='p-3 text-center text-red-600'>Error al conectar con el servidor</td></tr>`;
         });
     }
 
@@ -132,18 +205,14 @@
     }
 
     function registrarQR(contenido) {
-      if (!usuario) {
-        mostrarMensajeQR({ status: "error", mensaje: "Debes ingresar tu NIP" });
+      if (!modo || !usuario) {
+        document.getElementById("selectorModo").classList.remove("hidden");
         return;
       }
       fetch(`${API_URL}/registrar_qr`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contenido: contenido,
-          modo: modo,
-          usuario: usuario
-        })
+        body: JSON.stringify({ contenido: contenido, modo: modo, usuario: usuario })
       })
         .then(res => res.json())
         .then(data => {
@@ -171,39 +240,9 @@
       }
     });
 
-    const pines = {
-      "0112": "Santos",
-      "2704": "Fabiola",
-      "1704": "Aida",
-      "1103": "Johnatan"
-    };
-
-    function solicitarPin() {
-      const pin = prompt("Introduce tu NIP de 4 dígitos (ddmm de nacimiento):");
-      if (pin in pines) {
-        usuario = pines[pin];
-        modo = (modo === "entrada") ? "salida" : "entrada";
-        document.getElementById("modoLabel").textContent = modo.charAt(0).toUpperCase() + modo.slice(1);
-        document.getElementById("usuarioActivo").textContent = `Modo actual: ${modo.toUpperCase()} | Usuario: ${usuario}`;
-
-        const modoBtn = document.getElementById("modoBtn");
-        const modoIcon = document.getElementById("modoIcon");
-
-        if (modo === "salida") {
-          modoBtn.classList.remove("bg-green-800", "hover:bg-green-700");
-          modoBtn.classList.add("bg-red-700", "hover:bg-red-600");
-          modoIcon.textContent = "🔴";
-        } else {
-          modoBtn.classList.remove("bg-red-700", "hover:bg-red-600");
-          modoBtn.classList.add("bg-green-800", "hover:bg-green-700");
-          modoIcon.textContent = "🟢";
-        }
-
-        alert(`Modo cambiado a ${modo.toUpperCase()} por ${usuario}`);
-      } else {
-        alert("NIP incorrecto. Intenta de nuevo.");
-      }
-    }
+    // Ejecutar conexión al iniciar y repetir cada 30 segundos
+    verificarConexion();
+    setInterval(verificarConexion, 30000);
   </script>
 </body>
 </html>
