@@ -34,13 +34,14 @@
       <table class="w-full text-left border border-gray-300">
         <thead class="bg-green-900 text-white">
           <tr>
-            <th class="p-3">ID</th>
+            <th class="p-3">REF</th>
             <th class="p-3">Producto</th>
             <th class="p-3">Fabricante</th>
             <th class="p-3">Lote</th>
             <th class="p-3">Caducidad</th>
             <th class="p-3">Cantidad</th>
             <th class="p-3">Acción</th>
+            
           </tr>
         </thead>
         <tbody id="tablaResultados" class="bg-white text-gray-900">
@@ -80,7 +81,7 @@
         const row = document.createElement("tr");
         row.className = "border-b hover:bg-green-100 hover:text-black transition duration-150";
         row.innerHTML = `
-          <td class="p-3">${prod.id}</td>
+          <td class="p-3">${prod.referencia}</td>
           <td class="p-3">${prod.nombre}</td>
           <td class="p-3">${prod.fabricante}</td>
           <td class="p-3">${prod.lote}</td>
