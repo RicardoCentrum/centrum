@@ -10,14 +10,29 @@
       font-family: 'Segoe UI', sans-serif;
       background: #f4f4f4;
     }
+    #mensajeQR {
+      position: fixed;
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 24px 32px;
+      font-weight: 600;
+      border-radius: 16px;
+      font-size: 20px;
+      color: white;
+      display: none;
+      z-index: 9999;
+      text-align: center;
+      max-width: 80%;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+      backdrop-filter: blur(6px);
+    }
   </style>
-
-<script>
-  if (window.innerWidth <= 768 && !location.pathname.includes("mobile")) {
-    location.href = "index_qr_mobile.html";
-  }
-</script>
-
+  <script>
+    if (window.innerWidth <= 768 && !location.pathname.includes("mobile")) {
+      location.href = "index_qr_mobile.html";
+    }
+  </script>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-green-900 to-green-700 text-white">
   <div class="max-w-4xl mx-auto p-6 bg-white text-gray-800 rounded-2xl shadow-2xl mt-10">
@@ -25,14 +40,7 @@
       <img src="centrum.png" alt="Logo de la Empresa" class="w-28 mb-4"/>
       <h1 class="text-3xl font-bold mb-6 text-center">Consulta de Productos en Inventario</h1>
 
-      <input
-        id="busqueda"
-        type="text"
-        placeholder="Buscar por nombre o ID..."
-        class="w-full md:w-2/3 p-3 rounded-xl border border-green-700 focus:outline-none focus:ring-2 focus:ring-green-800 mb-4"
-        oninput="buscarProducto()"
-      />
-
+      <input id="busqueda" type="text" placeholder="Buscar por nombre o ID..." class="w-full md:w-2/3 p-3 rounded-xl border border-green-700 focus:outline-none focus:ring-2 focus:ring-green-800 mb-4" oninput="buscarProducto()" />
       <input id="inputQR" type="text" class="hidden" />
 
       <button id="modoBtn" onclick="solicitarPin()" class="bg-green-800 text-white font-semibold px-4 py-2 rounded-xl shadow hover:bg-green-700 transition mb-4">
@@ -63,26 +71,10 @@
     </div>
   </div>
 
-  <div id="mensajeQR" style="
-    position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    padding: 15px 20px;
-    font-weight: bold;
-    border-radius: 12px;
-    font-size: 16px;
-    color: white;
-    display: none;
-    z-index: 9999;
-    box-shadow: 0 0 10px rgba(0,0,0,0.3);
-  "></div>
+  <div id="mensajeQR"></div>
 
   <script>
     const API_URL = "https://inventario-api-ltpb.onrender.com";
-
-    const inputQR = document.getElementById("inputQR");
-    const mensajeQR = document.getElementById("mensajeQR");
 
     let modo = "entrada";
     let usuario = null;
@@ -92,11 +84,10 @@
     function buscarProducto() {
       const query = document.getElementById("busqueda").value.trim();
       if (!query) return;
-
       fetch(`${API_URL}/buscar_producto?nombre=${encodeURIComponent(query)}`)
         .then(res => res.json())
         .then(data => mostrarResultados(data))
-        .catch(err => {
+        .catch(() => {
           const tabla = document.getElementById("tablaResultados");
           tabla.innerHTML = `<tr><td colspan='6' class='p-3 text-center text-red-600'>Error al conectar con el servidor</td></tr>`;
         });
@@ -105,12 +96,10 @@
     function mostrarResultados(resultados) {
       const tabla = document.getElementById("tablaResultados");
       tabla.innerHTML = "";
-
       if (resultados.length === 0) {
         tabla.innerHTML = `<tr><td colspan='6' class='p-3 text-center'>No se encontraron resultados.</td></tr>`;
         return;
       }
-
       resultados.forEach(prod => {
         const row = document.createElement("tr");
         row.className = "border-b hover:bg-green-100 hover:text-black transition duration-150";
@@ -127,19 +116,18 @@
     }
 
     function mostrarMensajeQR(data) {
+      const mensajeQR = document.getElementById("mensajeQR");
       mensajeQR.style.display = "block";
-
       if (data.status === "ok") {
         mensajeQR.style.backgroundColor = "#047857";
-        mensajeQR.textContent = `✅ ${data.mensaje}: ${data.referencia} - ${data.nombre}`;
+        mensajeQR.innerHTML = `✅<br>Nuevo producto agregado:<br><strong>${data.referencia}</strong><br>${data.nombre}`;
       } else if (data.status === "repetido") {
-        mensajeQR.style.backgroundColor = "#0d9488";
-        mensajeQR.textContent = `ℹ️ ${data.mensaje}: ${data.referencia} - ${data.nombre}`;
+        mensajeQR.style.backgroundColor = "#00bfff";
+        mensajeQR.innerHTML = `📦<br>Producto escaneado anteriormente:<br><strong>${data.referencia}</strong><br>${data.nombre}`;
       } else {
         mensajeQR.style.backgroundColor = "#dc2626";
-        mensajeQR.textContent = `❌ ${data.mensaje}`;
+        mensajeQR.innerHTML = `❌<br>${data.mensaje}`;
       }
-
       setTimeout(() => { mensajeQR.style.display = "none"; }, 2000);
     }
 
@@ -148,7 +136,6 @@
         mostrarMensajeQR({ status: "error", mensaje: "Debes ingresar tu NIP" });
         return;
       }
-
       fetch(`${API_URL}/registrar_qr`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
