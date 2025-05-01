@@ -11,6 +11,13 @@
       background: #f4f4f4;
     }
   </style>
+
+<script>
+  if (window.innerWidth <= 768 && !location.pathname.includes("mobile")) {
+    location.href = "index_qr_mobile.html";
+  }
+</script>
+
 </head>
 <body class="min-h-screen bg-gradient-to-br from-green-900 to-green-700 text-white">
   <div class="max-w-4xl mx-auto p-6 bg-white text-gray-800 rounded-2xl shadow-2xl mt-10">
@@ -26,9 +33,16 @@
         oninput="buscarProducto()"
       />
 
+      <input id="inputQR" type="text" class="hidden" />
+
       <button id="modoBtn" onclick="solicitarPin()" class="bg-green-800 text-white font-semibold px-4 py-2 rounded-xl shadow hover:bg-green-700 transition mb-4">
         <span id="modoIcon">🟢</span> Modo: <span id="modoLabel">Entrada</span>
       </button>
+
+      <button onclick="entradaManual()" class="bg-yellow-600 text-white font-semibold px-4 py-2 rounded-xl shadow hover:bg-yellow-500 transition mb-4">
+        Entrada manual
+      </button>
+
       <div id="usuarioActivo" class="mb-4 text-sm text-gray-700"></div>
 
       <table class="w-full text-left border border-gray-300">
@@ -40,19 +54,40 @@
             <th class="p-3">Lote</th>
             <th class="p-3">Caducidad</th>
             <th class="p-3">Cantidad</th>
-            <th class="p-3">Acción</th>
-            
           </tr>
         </thead>
         <tbody id="tablaResultados" class="bg-white text-gray-900">
-          <tr><td colspan="7" class="p-3 text-center">Introduce un criterio de búsqueda...</td></tr>
+          <tr><td colspan="6" class="p-3 text-center">Introduce un criterio de búsqueda...</td></tr>
         </tbody>
       </table>
     </div>
   </div>
 
+  <div id="mensajeQR" style="
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 15px 20px;
+    font-weight: bold;
+    border-radius: 12px;
+    font-size: 16px;
+    color: white;
+    display: none;
+    z-index: 9999;
+    box-shadow: 0 0 10px rgba(0,0,0,0.3);
+  "></div>
+
   <script>
     const API_URL = "https://inventario-api-ltpb.onrender.com";
+
+    const inputQR = document.getElementById("inputQR");
+    const mensajeQR = document.getElementById("mensajeQR");
+
+    let modo = "entrada";
+    let usuario = null;
+    let bufferQR = "";
+    let scanTimeout = null;
 
     function buscarProducto() {
       const query = document.getElementById("busqueda").value.trim();
@@ -62,9 +97,8 @@
         .then(res => res.json())
         .then(data => mostrarResultados(data))
         .catch(err => {
-          console.error("Error al buscar producto:", err);
           const tabla = document.getElementById("tablaResultados");
-          tabla.innerHTML = `<tr><td colspan='7' class='p-3 text-center text-red-600'>Error al conectar con el servidor</td></tr>`;
+          tabla.innerHTML = `<tr><td colspan='6' class='p-3 text-center text-red-600'>Error al conectar con el servidor</td></tr>`;
         });
     }
 
@@ -73,7 +107,7 @@
       tabla.innerHTML = "";
 
       if (resultados.length === 0) {
-        tabla.innerHTML = `<tr><td colspan='7' class='p-3 text-center'>No se encontraron resultados.</td></tr>`;
+        tabla.innerHTML = `<tr><td colspan='6' class='p-3 text-center'>No se encontraron resultados.</td></tr>`;
         return;
       }
 
@@ -87,47 +121,68 @@
           <td class="p-3">${prod.lote}</td>
           <td class="p-3">${prod.caducidad}</td>
           <td class="p-3">${prod.cantidad}</td>
-          <td class="p-3">
-            <button onclick="registrarMovimiento('${prod.lote}')" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Registrar</button>
-          </td>
         `;
         tabla.appendChild(row);
       });
     }
 
-    function registrarMovimiento(lote) {
+    function mostrarMensajeQR(data) {
+      mensajeQR.style.display = "block";
+
+      if (data.status === "ok") {
+        mensajeQR.style.backgroundColor = "#047857";
+        mensajeQR.textContent = `✅ ${data.mensaje}: ${data.referencia} - ${data.nombre}`;
+      } else if (data.status === "repetido") {
+        mensajeQR.style.backgroundColor = "#0d9488";
+        mensajeQR.textContent = `ℹ️ ${data.mensaje}: ${data.referencia} - ${data.nombre}`;
+      } else {
+        mensajeQR.style.backgroundColor = "#dc2626";
+        mensajeQR.textContent = `❌ ${data.mensaje}`;
+      }
+
+      setTimeout(() => { mensajeQR.style.display = "none"; }, 2000);
+    }
+
+    function registrarQR(contenido) {
       if (!usuario) {
-        alert("Debes identificarte con tu NIP antes de registrar un movimiento.");
+        mostrarMensajeQR({ status: "error", mensaje: "Debes ingresar tu NIP" });
         return;
       }
 
-      const cantidadStr = prompt(`¿Cuántas unidades quieres ${modo === 'entrada' ? 'ingresar' : 'retirar'} del lote ${lote}?`);
-      const cantidad = parseInt(cantidadStr);
-      if (isNaN(cantidad) || cantidad <= 0) {
-        alert("Cantidad no válida.");
-        return;
-      }
-
-      fetch(`${API_URL}/registrar_movimiento`, {
+      fetch(`${API_URL}/registrar_qr`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          lote: lote,
-          tipo: modo,
-          cantidad: cantidad,
+          contenido: contenido,
+          modo: modo,
           usuario: usuario
         })
       })
         .then(res => res.json())
         .then(data => {
-          alert(data.mensaje);
-          buscarProducto(); // Actualiza tabla
+          mostrarMensajeQR(data);
+          buscarProducto();
         })
-        .catch(err => {
-          console.error("Error al registrar movimiento:", err);
-          alert("Ocurrió un error al registrar el movimiento.");
+        .catch(() => {
+          mostrarMensajeQR({ status: "error", mensaje: "Imposible leer código QR" });
         });
     }
+
+    function entradaManual() {
+      const contenido = prompt("Pega el contenido del código QR:");
+      if (contenido) registrarQR(contenido);
+    }
+
+    window.addEventListener("keydown", function (e) {
+      if (scanTimeout) clearTimeout(scanTimeout);
+      if (e.key === "Enter") {
+        registrarQR(bufferQR);
+        bufferQR = "";
+      } else {
+        bufferQR += e.key;
+        scanTimeout = setTimeout(() => bufferQR = "", 300);
+      }
+    });
 
     const pines = {
       "0112": "Santos",
@@ -135,9 +190,6 @@
       "1704": "Aida",
       "1103": "Johnatan"
     };
-
-    let modo = "entrada";
-    let usuario = null;
 
     function solicitarPin() {
       const pin = prompt("Introduce tu NIP de 4 dígitos (ddmm de nacimiento):");
@@ -166,60 +218,5 @@
       }
     }
   </script>
-<!-- Indicador de conexión y botón para activar backend -->
-<div style="position: fixed; bottom: 10px; left: 10px; z-index: 9999;">
-  <div id="apiStatus" style="
-    background: rgba(0,0,0,0.5);
-    color: white;
-    padding: 6px 10px;
-    border-radius: 10px;
-    font-size: 18px;
-    font-weight: bold;
-    display: inline-block;
-  ">
-    ⭕
-  </div>
-
-  <button id="activarBtn" onclick="window.open(API_URL, '_blank')" style="
-    margin-top: 5px;
-    display: none;
-    background-color: #dc2626;
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    border-radius: 8px;
-    font-size: 14px;
-    cursor: pointer;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-  ">
-    ⚠️ Backend apagado — Activar
-  </button>
-</div>
-
-<script>
-  const statusEl = document.getElementById("apiStatus");
-  const activarBtn = document.getElementById("activarBtn");
-
-  async function verificarConexion() {
-    try {
-      const res = await fetch(`${API_URL}/`, { method: 'GET' });
-      if (res.ok) {
-        statusEl.textContent = "🟢";
-        activarBtn.style.display = "none";
-      } else {
-        statusEl.textContent = "⭕";
-        activarBtn.style.display = "inline-block";
-      }
-    } catch (e) {
-      statusEl.textContent = "⭕";
-      activarBtn.style.display = "inline-block";
-    }
-  }
-
-  // Verifica al cargar y cada 30 segundos
-  verificarConexion();
-  setInterval(verificarConexion, 30000);
-</script>
-
 </body>
 </html>
