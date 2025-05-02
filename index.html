@@ -196,11 +196,22 @@
       const mensajeQR = document.getElementById("mensajeQR");
       mensajeQR.style.display = "block";
       if (data.status === "ok") {
-        mensajeQR.style.backgroundColor = "#047857";
-        mensajeQR.innerHTML = `✅<br>Nuevo producto agregado:<br><strong>${data.referencia}</strong><br>${data.nombre}`;
-      } else if (data.status === "repetido") {
-        mensajeQR.style.backgroundColor = "#00bfff";
-        mensajeQR.innerHTML = `📦<br>Producto escaneado anteriormente:<br><strong>${data.referencia}</strong><br>${data.nombre}`;
+        if (data.color === "rojo") {
+            mensajeQR.style.backgroundColor = "#b91c1c"; // rojo fuerte
+            mensajeQR.innerHTML = `🛑<br>${data.mensaje}<br><strong>${data.referencia}</strong><br>${data.nombre}`;
+        } else {
+            mensajeQR.style.backgroundColor = "#047857"; // verde
+            mensajeQR.innerHTML = `✅<br>${data.mensaje}<br><strong>${data.referencia}</strong><br>${data.nombre}`;
+        }
+        } else if (data.status === "repetido") {
+        if (data.color === "dorado") {
+            mensajeQR.style.backgroundColor = "#d97706"; // dorado/ámbar
+            mensajeQR.innerHTML = `⚠️<br>${data.mensaje}<br><strong>${data.referencia}</strong><br>${data.nombre}`;
+        } else {
+            mensajeQR.style.backgroundColor = "#0ea5e9"; // azul cielo
+            mensajeQR.innerHTML = `📦<br>${data.mensaje}<br><strong>${data.referencia}</strong><br>${data.nombre}`;
+        }
+        
       } else {
         mensajeQR.style.backgroundColor = "#dc2626";
         mensajeQR.innerHTML = `❌<br>${data.mensaje}`;
