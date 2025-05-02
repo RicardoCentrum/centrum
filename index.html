@@ -42,7 +42,7 @@
         <span id="modoIcon">⚪</span> Modo: <span id="modoLabel">Inactivo</span>
       </button>
 
-      <button onclick="entradaManual()" class="bg-yellow-600 text-white font-semibold px-4 py-2 rounded-xl shadow hover:bg-yellow-500 transition mb-4">
+      <button onclick="entradaManual()" class="bg-teal-800 text-white font-semibold px-4 py-2 rounded-xl shadow hover:bg-teal-700 transition mb-4">
         Entrada manual
       </button>
 
@@ -177,7 +177,7 @@
         const row = document.createElement("tr");
         row.className = "border-b hover:bg-green-100 hover:text-black transition duration-150";
         row.innerHTML = `
-          <td class="p-3">${prod.referencia}</td>
+          <td class="p-3 text-blue-700 font-bold cursor-pointer underline" onclick="mostrarDetalleProducto(\`${prod.referencia}\`)">${prod.referencia}</td>
           <td class="p-3">${prod.nombre}</td>
           <td class="p-3">${prod.fabricante}</td>
           <td class="p-3">${prod.lote}</td>
@@ -240,9 +240,63 @@
       }
     });
 
-    // Ejecutar conexión al iniciar y repetir cada 30 segundos
+    
+function mostrarDetalleProducto(referencia) {
+  fetch(`${API_URL}/detalle_producto?referencia=${encodeURIComponent(referencia)}`)
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById("detalleReferencia").textContent = data.referencia;
+      document.getElementById("detalleNombre").textContent = data.nombre;
+      document.getElementById("detalleFabricante").textContent = data.fabricante;
+
+      const tablaLotes = document.getElementById("tablaLotes");
+      tablaLotes.innerHTML = "";
+      data.lotes.forEach(l => {
+        tablaLotes.innerHTML += `<tr><td class="p-2">${l.lote}</td><td class="p-2">${l.caducidad}</td><td class="p-2">${l.cantidad}</td></tr>`;
+      });
+
+      const tablaMovs = document.getElementById("tablaMovimientos");
+      tablaMovs.innerHTML = "";
+      data.movimientos.forEach(m => {
+        tablaMovs.innerHTML += `<tr><td class="p-2">${m.usuario}</td><td class="p-2">${m.tipo}</td><td class="p-2">${m.fecha}</td><td class="p-2">${m.lote}</td><td class="p-2">${m.cantidad}</td></tr>`;
+      });
+
+      document.getElementById("modalDetalleProducto").classList.remove("hidden");
+    })
+    .catch(() => alert("No se pudo cargar el detalle del producto."));
+}
+
+function cerrarModalDetalle() {
+  document.getElementById("modalDetalleProducto").classList.add("hidden");
+}
+
+
+// Ejecutar conexión al iniciar y repetir cada 30 segundos
     verificarConexion();
     setInterval(verificarConexion, 30000);
   </script>
+
+<!-- Modal para detalle de producto -->
+<div id="modalDetalleProducto" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 hidden">
+  <div class="bg-white rounded-xl p-6 max-w-2xl w-full shadow-xl text-center text-gray-800">
+    <button onclick="cerrarModalDetalle()" class="absolute top-2 right-4 text-gray-400 hover:text-red-600 text-xl font-bold">×</button>
+    <h2 id="detalleReferencia" class="text-3xl font-bold mb-2"></h2>
+    <p id="detalleNombre" class="text-xl font-semibold"></p>
+    <p id="detalleFabricante" class="text-md text-gray-600 mb-4"></p>
+
+    <h3 class="text-lg font-bold mt-4 mb-2 text-left">Lotes</h3>
+    <table class="w-full mb-4 text-sm border">
+      <thead><tr class="bg-green-900 text-white"><th class="p-2">Lote</th><th class="p-2">Caducidad</th><th class="p-2">Cantidad</th></tr></thead>
+      <tbody id="tablaLotes" class="text-gray-900 text-center"></tbody>
+    </table>
+
+    <h3 class="text-lg font-bold mt-4 mb-2 text-left">Movimientos</h3>
+    <table class="w-full text-sm border">
+      <thead><tr class="bg-gray-800 text-white"><th class="p-2">Usuario</th><th class="p-2">Tipo</th><th class="p-2">Fecha</th><th class="p-2">Lote</th><th class="p-2">Cantidad</th></tr></thead>
+      <tbody id="tablaMovimientos" class="text-gray-900 text-center"></tbody>
+    </table>
+  </div>
+</div>
+
 </body>
 </html>
