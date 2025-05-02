@@ -48,7 +48,7 @@
       </button>
 
       <button onclick="entradaManual()" class="bg-teal-800 text-white font-semibold px-4 py-2 rounded-xl shadow hover:bg-teal-700 transition mb-4">
-        Entrada manual
+        Escanear QR
       </button>
 
       <div id="usuarioActivo" class="mb-4 text-sm text-gray-700"></div>
@@ -234,16 +234,49 @@
         .then(data => {
           mostrarMensajeQR(data);
           buscarProducto();
+
+          // ✅ MOSTRAR DETALLE AUTOMÁTICAMENTE
+          if (data.referencia) {
+            mostrarDetalleProducto(data.referencia);
+          }
         })
         .catch(() => {
           mostrarMensajeQR({ status: "error", mensaje: "Imposible leer código QR" });
         });
     }
 
+
     function entradaManual() {
-      const contenido = prompt("Pega el contenido del código QR:");
-      if (contenido) registrarQR(contenido);
+      alert("Modo entrada manual activado. Escanea códigos uno por uno y pulsa Enter. Presiona ESC para salir.");
+
+      let continuar = true;
+
+      async function loopEntradaManual() {
+        while (continuar) {
+          const contenido = prompt("Escanea o pega el contenido del código QR:");
+          if (!contenido) break;
+
+          await registrarQRManual(contenido);
+        }
+      }
+
+      loopEntradaManual();
     }
+
+    async function registrarQRManual(contenido) {
+      const res = await fetch(`${API_URL}/registrar_qr`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contenido: contenido, modo: modo, usuario: usuario })
+      });
+
+      const data = await res.json();
+      mostrarMensajeQR(data);
+      if (data.referencia) {
+        mostrarDetalleProducto(data.referencia);
+      }
+    }
+
 
     window.addEventListener("keydown", function (e) {
       if (scanTimeout) clearTimeout(scanTimeout);
