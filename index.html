@@ -629,27 +629,27 @@ async function verificarConexion() {
 
 </script>
 <script>
-  document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") {
-      // Cierra modal PIN si está visible
-      if (!document.getElementById("modalPIN").classList.contains("hidden")) {
-        cerrarModalPIN();
-      }
-      // Cierra modal de detalle producto si está visible
-      if (document.getElementById("modalDetalleProducto") && 
-          !document.getElementById("modalDetalleProducto").classList.contains("hidden")) {
-        cerrarModalDetalle();
-      }
-      // Cierra tabla QR si está visible
-      if (!document.getElementById("modalQRTabla").classList.contains("hidden")) {
-        cerrarQRModal();
-      }
+async function verificarConexion() {
+  const statusEl = document.getElementById("apiStatus");
+  try {
+    const res = await fetch(`${API_URL}/`);
+    if (res.ok) {
+      statusEl.textContent = "🟢";
+      statusEl.title = "Conectado con el backend";
+    } else {
+      statusEl.textContent = "⭕";
+      statusEl.title = "Respuesta del backend no válida";
     }
-  });
+  } catch (e) {
+    statusEl.textContent = "⭕";
+    statusEl.title = "No se pudo conectar con el backend";
+  }
+}
+
 </script>
-<div id="apiStatus"
-     class="fixed bottom-4 left-4 text-2xl z-50 bg-white text-green-700 font-bold px-3 py-1 rounded-full shadow"
-     title="Estado de conexión con API">🟢</div>
+
+<div id="apiStatus" class="fixed bottom-4 left-4 text-2xl z-50 transition-all duration-300">⭕</div>
+
 </body>
 </html>
     
