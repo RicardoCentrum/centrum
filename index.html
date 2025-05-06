@@ -6,15 +6,6 @@
   <title>Inventario QR</title>
   <link rel="icon" type="image/x-icon" href="favicon.ico" />
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-
-  <script>
-    const supabaseUrl = 'https://ldjrpfsbpcfninntffoj.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo';
-    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
-    const API_URL = 'https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1'; // o la ruta exacta que uses para funciones
-    
-  </script>
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
@@ -38,37 +29,82 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.25);
       backdrop-filter: blur(6px);
     }
-    .modal {
-      position: fixed;
-      inset: 0;
-      background-color: rgba(0,0,0,0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 10000;
-    }
-    .modal-content {
-      background: white;
-      padding: 2rem;
-      border-radius: 1rem;
-      text-align: center;
-      max-width: 90%;
-      width: 300px;
-    }
   </style>
 </head>
 <body class="min-h-screen text-white">
   <div class="text-center mt-6">
-    <div class="mt-6 px-4 md:px-12">
-      <!-- Campo de búsqueda -->
-      <input
-        id="busqueda"
-        type="text"
-        placeholder="Buscar por nombre o ID..."
-        class="w-full md:w-2/3 p-3 rounded-xl border border-green-700 focus:outline-none focus:ring-2 focus:ring-green-800 mb-4 text-black bg-white"
-        oninput="buscarProducto()"
-      />
-    
+    <input
+      id="busqueda"
+      type="text"
+      placeholder="Buscar por nombre o ID..."
+      class="w-full md:w-2/3 p-3 rounded-xl border border-green-700 focus:outline-none focus:ring-2 focus:ring-green-800 mb-4 text-black bg-white"
+      oninput="buscarProducto()"
+    />
+
+    <div class="overflow-hidden rounded-xl border border-gray-300">
+      <table class="w-full text-left">
+        <thead style="background-color: #006064" class="text-white">
+          <tr>
+            <th class="p-3">REF</th>
+            <th class="p-3">Producto</th>
+            <th class="p-3">Fabricante</th>
+            <th class="p-3">Lote</th>
+            <th class="p-3">Caducidad</th>
+            <th class="p-3">Cantidad</th>
+          </tr>
+        </thead>
+        <tbody id="tablaResultados" class="bg-white text-black">
+          <tr><td colspan="6" class="p-3 text-center">Introduce un criterio de búsqueda...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script>
+    const supabaseUrl = 'https://ldjrpfsbpcfninntffoj.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo'; // reemplaza por tu key
+    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+    const API_URL = 'https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1';
+
+    async function buscarProducto() {
+      const query = document.getElementById("busqueda").value.trim();
+      if (!query) return;
+
+      const { data, error } = await supabase
+        .from("productos")
+        .select("*")
+        .or(`nombre.ilike.%${query}%,referencia.ilike.%${query}%`);
+
+      const tabla = document.getElementById("tablaResultados");
+      if (error || !data) {
+        console.error("Error al buscar producto:", error?.message);
+        tabla.innerHTML = `<tr><td colspan='6' class='p-3 text-center text-red-600'>Error al buscar en Supabase</td></tr>`;
+        return;
+      }
+
+      if (data.length === 0) {
+        tabla.innerHTML = `<tr><td colspan='6' class='p-3 text-center'>No se encontraron resultados.</td></tr>`;
+        return;
+      }
+
+      tabla.innerHTML = "";
+      data.forEach(prod => {
+        const row = document.createElement("tr");
+        row.className = "border-b hover:bg-green-100 hover:text-black transition duration-150";
+        row.innerHTML = `
+          <td class="p-3">${prod.referencia}</td>
+          <td class="p-3">${prod.nombre}</td>
+          <td class="p-3">${prod.fabricante}</td>
+          <td class="p-3">${prod.lote}</td>
+          <td class="p-3">${prod.caducidad}</td>
+          <td class="p-3">${prod.cantidad}</td>
+        `;
+        tabla.appendChild(row);
+      });
+    }
+    </script>
+
       <!-- Botón de modo -->
       <div class="mb-4">
         <button id="modoBtn"
@@ -78,27 +114,6 @@
         </button>
         <div id="usuarioActivo" class="text-sm mt-2 text-gray-300"></div>
       </div>
-    
-      <!-- Tabla de resultados con bordes redondeados -->
-      <div class="overflow-hidden rounded-xl border border-gray-300">
-        <table class="w-full text-left">
-          <thead style="background-color: #006064" class="text-white">
-            <tr>
-              <th class="p-3">REF</th>
-              <th class="p-3">Producto</th>
-              <th class="p-3">Fabricante</th>
-              <th class="p-3">Lote</th>
-              <th class="p-3">Caducidad</th>
-              <th class="p-3">Cantidad</th>
-              <th class="p-3">Acción</th>
-            </tr>
-          </thead>
-          <tbody id="tablaResultados" class="bg-white text-black">
-            <tr><td colspan="7" class="p-3 text-center">Introduce un criterio de búsqueda...</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
     
 <!-- Selector visual de modo -->
 <div id="selectorModo" role="dialog" aria-modal="true" aria-label="Selector de modo"
@@ -648,7 +663,14 @@ async function verificarConexion() {
 
 </script>
 
-<div id="apiStatus" class="fixed bottom-4 left-4 text-2xl z-50 transition-all duration-300">⭕</div>
+<div id="apiStatus" class="fixed bottom-4 left-4 text-3xl animate-bounce select-none pointer-events-none">⭕</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    verificarConexion();
+    setInterval(verificarConexion, 10000);
+  });
+</script>
 
 </body>
 </html>
