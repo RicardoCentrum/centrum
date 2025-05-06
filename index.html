@@ -348,6 +348,133 @@ function cerrarModalDetalle() {
       </table>
     </div>
   </div>
-  
+  <!-- Modal para detalle de producto -->
+<div id="modalDetalleProducto" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 hidden">
+  <div class="bg-white rounded-xl p-6 max-w-2xl w-full shadow-xl text-center text-gray-800 relative">
+    ... (contenido del modal detalle, sin cambios) ...
+  </div>
+</div>
+
+<!-- Modal para QR escaneados pendientes -->
+<div id="modalQRTabla" class="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 hidden">
+<div class="bg-white text-gray-900 p-6 rounded-xl max-w-4xl w-full relative">
+  <h2 class="text-2xl font-bold mb-4">Códigos escaneados</h2>
+  <table class="w-full mb-4 text-sm border">
+    <thead>
+      <tr class="bg-teal-900 text-white">
+        <th class="p-2">Referencia</th>
+        <th class="p-2">Nombre</th>
+        <th class="p-2">Fabricante</th>
+        <th class="p-2">Lote</th>
+        <th class="p-2">Caducidad</th>
+        <th class="p-2">Eliminar</th>
+      </tr>
+    </thead>
+    <tbody id="qrTablaBody"></tbody>
+  </table>
+  <div class="flex justify-between">
+    <button onclick="cerrarQRModal()" class="bg-gray-600 text-white px-4 py-2 rounded-lg">Cerrar</button>
+    <button onclick="enviarQRsSupabase()" class="bg-green-700 text-white px-6 py-2 rounded-lg font-bold">Autorizar envío</button>
+  </div>
+</div>
+</div>
+
+<script>
+const qrListaPendiente = [];
+
+function agregarFilaQR(producto) {
+qrListaPendiente.push(producto);
+actualizarTablaQR();
+document.getElementById('modalQRTabla').classList.remove('hidden');
+}
+
+function actualizarTablaQR() {
+const cuerpo = document.getElementById('qrTablaBody');
+cuerpo.innerHTML = '';
+qrListaPendiente.forEach((p, i) => {
+  const fila = document.createElement('tr');
+  fila.innerHTML = `
+    <td class="p-2">${p.referencia}</td>
+    <td class="p-2">${p.nombre}</td>
+    <td class="p-2">${p.fabricante}</td>
+    <td class="p-2">${p.lote}</td>
+    <td class="p-2">${p.caducidad}</td>
+    <td class="p-2 text-center"><button onclick="eliminarQR(${i})" class="text-red-600 font-bold">✖</button></td>
+  `;
+  cuerpo.appendChild(fila);
+});
+}
+
+function eliminarQR(index) {
+qrListaPendiente.splice(index, 1);
+actualizarTablaQR();
+}
+
+function cerrarQRModal() {
+document.getElementById('modalQRTabla').classList.add('hidden');
+}
+
+async function enviarQRsSupabase() {
+for (let p of qrListaPendiente) {
+  await fetch(`${API_URL}/registrar_movimiento`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      referencia: p.referencia,
+      lote: p.lote,
+      tipo: modo,
+      cantidad: 1,
+      usuario: usuario
+    })
+  });
+
+  await fetch(`${API_URL}/registrar_qr`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contenido: `R:${p.referencia}|L:${p.lote}|T:${p.timestamp}`,
+      modo: modo,
+      usuario: usuario
+    })
+  });
+}
+alert("QRs enviados exitosamente");
+qrListaPendiente.length = 0;
+cerrarQRModal();
+buscarProducto();
+}
+
+// reemplazo de registrarQR para acumular productos
+function registrarQR(contenido) {
+if (!modo || !usuario) {
+  document.getElementById("selectorModo").classList.remove("hidden");
+  return;
+}
+fetch(`${API_URL}/registrar_qr`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ contenido, modo, usuario })
+})
+  .then(res => res.json())
+  .then(data => {
+    mostrarMensajeQR(data);
+    if (data.status === "ok" || data.status === "repetido") {
+      const producto = {
+        referencia: data.referencia,
+        nombre: data.nombre || "-",
+        fabricante: "-",
+        lote: contenido.match(/L:([^|]+)/)?.[1] || "",
+        caducidad: "-",
+        timestamp: contenido.match(/T:([^|]+)/)?.[1] || ""
+      };
+      agregarFilaQR(producto);
+    }
+  })
+  .catch(() => {
+    mostrarMensajeQR({ status: "error", mensaje: "Imposible leer código QR" });
+  });
+}
+</script>
+
   </body>
   </html>
