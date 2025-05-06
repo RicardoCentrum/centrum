@@ -459,10 +459,15 @@ function cerrarModalDetalle() {
   document.getElementById("modalDetalleProducto").classList.add("hidden");
 }
 
+function verificarConexion() {
+  fetch(`${API_URL}/`, { method: 'GET' })
+    .then(() => console.log("✅ Conexión activa con el backend"))
+    .catch(() => console.warn("⚠️ No se pudo conectar con el backend"));
+}
 
 // Ejecutar conexión al iniciar y repetir cada 30 segundos
     verificarConexion();
-    setInterval(verificarConexion, 30000);
+    setInterval(verificarConexion, 10000);
   </script>
 
 <!-- Modal para QR escaneados pendientes -->
@@ -599,6 +604,28 @@ async function buscarProducto() {
 
   mostrarResultados(data);
 }
+async function verificarConexion() {
+  const statusEl = document.getElementById("apiStatus");
+  try {
+    const res = await fetch(`${API_URL}/`);
+    if (res.ok) {
+      statusEl.textContent = "🟢";
+      statusEl.classList.remove("text-red-600", "bg-gray-300");
+      statusEl.classList.add("text-green-700", "bg-white");
+      statusEl.title = "Conectado con el backend";
+    } else {
+      statusEl.textContent = "⭕";
+      statusEl.classList.remove("text-green-700", "bg-white");
+      statusEl.classList.add("text-red-600", "bg-gray-300");
+      statusEl.title = "Respuesta del backend no válida";
+    }
+  } catch (e) {
+    statusEl.textContent = "⭕";
+    statusEl.classList.remove("text-green-700", "bg-white");
+    statusEl.classList.add("text-red-600", "bg-gray-300");
+    statusEl.title = "No se pudo conectar con el backend";
+  }
+}
 
 </script>
 <script>
@@ -620,6 +647,9 @@ async function buscarProducto() {
     }
   });
 </script>
+<div id="apiStatus"
+     class="fixed bottom-4 left-4 text-2xl z-50 bg-white text-green-700 font-bold px-3 py-1 rounded-full shadow"
+     title="Estado de conexión con API">🟢</div>
 </body>
 </html>
     
