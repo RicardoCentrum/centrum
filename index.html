@@ -66,7 +66,16 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo'; // reemplaza por tu key
     const supabase = supabase.createClient(supabaseUrl, supabaseKey);
     const API_URL = 'https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1';
-
+      <!-- Botón de modo -->
+      <div class="mb-4">
+        <button id="modoBtn"
+                onclick="document.getElementById('selectorModo').classList.remove('hidden')"
+                class="bg-gray-700 text-white font-semibold px-4 py-2 rounded-xl shadow">
+          <span id="modoIcon">⚪</span> Modo: <span id="modoLabel">Inactivo</span>
+        </button>
+        <div id="usuarioActivo" class="text-sm mt-2 text-gray-300"></div>
+      </div>
+    
     async function buscarProducto() {
       const query = document.getElementById("busqueda").value.trim();
       if (!query) return;
@@ -105,16 +114,7 @@
     }
     </script>
 
-      <!-- Botón de modo -->
-      <div class="mb-4">
-        <button id="modoBtn"
-                onclick="document.getElementById('selectorModo').classList.remove('hidden')"
-                class="bg-gray-700 text-white font-semibold px-4 py-2 rounded-xl shadow">
-          <span id="modoIcon">⚪</span> Modo: <span id="modoLabel">Inactivo</span>
-        </button>
-        <div id="usuarioActivo" class="text-sm mt-2 text-gray-300"></div>
-      </div>
-    
+
 <!-- Selector visual de modo -->
 <div id="selectorModo" role="dialog" aria-modal="true" aria-label="Selector de modo"
      class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50 hidden">
