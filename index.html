@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Inventario QR - Centrum</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -36,27 +36,43 @@
       Usuario: <span id="usuarioActivo">-</span> | Modo: <span id="modoLabel" class="font-semibold">Entrada</span>
     </div>
 
-    <input type="text" id="inputQR" placeholder="Escanea el código QR" class="w-full p-3 mb-4 rounded-xl border text-center" autofocus />
+    <input type="text" id="inputQR" placeholder="Escanea QR aquí" class="w-full p-3 mb-4 rounded-xl border text-center"/>
 
-    <table class="w-full text-xs border border-gray-300">
+    <div id="info_producto">
+      <p><strong>Nombre:</strong> <span id="campo_nombre"></span></p>
+      <p><strong>Fabricante:</strong> <span id="campo_fabricante"></span></p>
+    </div>
+
+    <h3 class="mt-4 font-semibold">Lotes disponibles:</h3>
+    <table id="tabla_lotes" class="w-full text-xs border border-gray-300 bg-white text-gray-800">
       <thead class="bg-gray-800 text-white">
         <tr>
-          <th class="p-2">REF</th>
+          <th class="p-2">Lote</th>
+          <th class="p-2">Cantidad</th>
+          <th class="p-2">Caducidad</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <h3 class="mt-6 font-semibold">Escaneos recientes:</h3>
+    <table id="tablaQR" class="w-full text-xs border border-gray-300 bg-white text-gray-800">
+      <thead class="bg-gray-700 text-white">
+        <tr>
+          <th class="p-2">Referencia</th>
           <th class="p-2">Lote</th>
           <th class="p-2">Estado</th>
           <th class="p-2">Eliminar</th>
         </tr>
       </thead>
-      <tbody id="tablaQR" class="bg-white text-gray-800"></tbody>
+      <tbody></tbody>
     </table>
-
-    <button onclick="enviarSupabase()" class="mt-4 w-full bg-green-800 text-white py-2 rounded-xl">Enviar a Supabase</button>
   </div>
 
-  <!-- Bloque para búsqueda de referencia -->
+  <!-- Bloque de búsqueda avanzada -->
   <div class="bg-white bg-opacity-90 rounded-2xl shadow-xl p-6 w-full max-w-3xl text-gray-800">
     <h2 class="text-xl font-bold mb-4 text-center">🔍 Búsqueda de Reactivos</h2>
-    <input type="text" id="refBusqueda" placeholder="Buscar por referencia..." class="w-full p-3 mb-4 rounded-xl border text-center" oninput="buscarReferencia()" />
+    <input type="text" id="refBusqueda" placeholder="Buscar por referencia..." class="w-full p-3 mb-4 rounded-xl border text-center" oninput="buscarReferencia(this.value)" />
 
     <div id="detalleProducto" class="mb-4 hidden">
       <h3 class="text-lg font-bold mb-2">Detalles del Producto</h3>
@@ -90,7 +106,7 @@
   <div id="notificacion" class="modal text-center font-bold"></div>
 
   <script>
-    const API_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1";
+    const API_URL = 'https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/buscar_referencia';
     let modo = "entrada";
     let usuario = null;
 
@@ -109,7 +125,7 @@
         usuario = pines[pin];
         modo = (modo === "entrada") ? "salida" : "entrada";
         document.getElementById("modoLabel").textContent = modo.toUpperCase();
-        document.getElementById("usuarioActivo").textContent = `${usuario}`;
+        document.getElementById("usuarioActivo").textContent = usuario;
         notificar(`Modo ${modo.toUpperCase()} activado`, '#1e3a8a');
       } else {
         notificar("NIP incorrecto", '#b91c1c');
@@ -145,7 +161,7 @@
     }
 
     function agregarFila(ref, lote, estado) {
-      const tabla = document.getElementById("tablaQR");
+      const tabla = document.getElementById("tablaQR").querySelector("tbody");
       const fila = document.createElement("tr");
       fila.innerHTML = `
         <td class='p-1'>${ref}</td>
@@ -156,10 +172,6 @@
       tabla.appendChild(fila);
     }
 
-    function enviarSupabase() {
-      notificar("Datos enviados a Supabase", '#16a34a');
-    }
-
     function notificar(mensaje, color, icono = '') {
       const div = document.getElementById("notificacion");
       div.style.backgroundColor = color;
@@ -168,54 +180,32 @@
       setTimeout(() => div.style.display = "none", 2500);
     }
 
-    function buscarReferencia() {
-      const ref = document.getElementById("refBusqueda").value.trim();
-      if (ref.length < 4) return;
-      fetch(`/buscar_referencia?ref=${ref}`)
-        .then(r => r.json())
-        .then(datos => mostrarDetalles(ref, datos));
-    }
-
-    function mostrarDetalles(ref, productos) {
-      if (!productos.length) return;
-      document.getElementById("detalleProducto").classList.remove("hidden");
-      const info = productos[0];
-      document.getElementById("infoProducto").innerHTML = `
-        <strong>Nombre:</strong> ${info.nombre || '-'}<br>
-        <strong>Fabricante:</strong> ${info.fabricante || '-'}<br>
-        <strong>Referencia:</strong> ${info.referencia}
-      `;
-
-      const tablaLotes = document.getElementById("tablaLotes");
-      tablaLotes.innerHTML = "";
-      const agrupados = {};
-      productos.forEach(p => {
-        const k = p.lote;
-        if (!agrupados[k]) agrupados[k] = { cantidad: 0, caducidad: p.caducidad };
-        agrupados[k].cantidad++;
-      });
-      for (let lote in agrupados) {
-        tablaLotes.innerHTML += `
-          <tr>
-            <td class='p-2'>${lote}</td>
-            <td class='p-2'>${agrupados[lote].caducidad || '-'}</td>
-            <td class='p-2'>${agrupados[lote].cantidad}</td>
-          </tr>`;
-      }
-
-      const tablaMov = document.getElementById("tablaMovimientos");
-      tablaMov.innerHTML = "";
-      productos.forEach(p => {
-        const fecha = new Date(Number(p.timestamp)).toLocaleString();
-        const accion = p.usuario ? "Entrada" : "Desconocida";
-        tablaMov.innerHTML += `
-          <tr>
-            <td class='p-1'>${fecha}</td>
-            <td class='p-1'>${p.usuario || '-'}</td>
-            <td class='p-1'>${accion}</td>
-            <td class='p-1'>${p.lote}</td>
-          </tr>`;
-      });
+    function buscarReferencia(ref) {
+      if (!ref) return;
+      fetch(`${API_URL}?ref=${encodeURIComponent(ref)}`)
+        .then(response => {
+          if (!response.ok) throw new Error("No se encontró la referencia");
+          return response.json();
+        })
+        .then(data => {
+          document.getElementById("campo_nombre").textContent = data["Descripción del artículo"];
+          document.getElementById("campo_fabricante").textContent = data["Nombre SN"];
+          const tbody = document.querySelector("#tabla_lotes tbody");
+          tbody.innerHTML = "";
+          (data.lotes || []).forEach(lote => {
+            const fila = document.createElement("tr");
+            fila.innerHTML = `
+              <td>${lote["No. Lote"]}</td>
+              <td>${lote["Cantidad Inventario"]}</td>
+              <td>${lote["Caducidad"]}</td>
+            `;
+            tbody.appendChild(fila);
+          });
+        })
+        .catch(error => {
+          console.error("Error al buscar referencia:", error);
+          alert("Producto no encontrado o error de conexión.");
+        });
     }
   </script>
 </body>
