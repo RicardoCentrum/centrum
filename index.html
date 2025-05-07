@@ -19,12 +19,13 @@
       padding: 20px;
       background: rgba(255, 255, 255, 0.9);
       border-radius: 1rem;
-      box-shadow: 0 0 15px rgba(0,0,0,0.5);
+      box-shadow: 0 0 15px rgba(0, 48, 107, 0.5);
       display: none;
       z-index: 10000;
     }
   </style>
 </head>
+
 <body class="min-h-screen flex flex-col items-center justify-center text-white">
   <div class="bg-white bg-opacity-80 rounded-2xl shadow-xl p-6 w-full max-w-xl text-gray-800">
     <div class="flex items-center justify-between mb-4">
@@ -42,9 +43,9 @@
     </div>
 
     <input type="text" id="inputQR" placeholder="Escanea el código QR" class="w-full p-3 mb-4 rounded-xl border text-center" autofocus />
-
+    
     <table class="w-full text-xs border border-gray-300">
-      <thead class="bg-gray-800 text-white">
+      <thead class="bg-teal-800 text-white">
         <tr>
           <th class="p-2">REF</th>
           <th class="p-2">Lote</th>
@@ -66,6 +67,24 @@
     let usuario = null;
     let registrosQR = [];
 
+    function calcularDiasRestantes(fecha) {
+      if (!fecha) return Infinity;
+      const partes = fecha.split("/");
+      if (partes.length !== 3) return Infinity;
+
+      const dia = parseInt(partes[0], 10);
+      const mes = parseInt(partes[1], 10) - 1; // Los meses en JS son 0-based
+      const anio = parseInt(partes[2], 10);
+
+      const fechaCad = new Date(anio, mes, dia);
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0); // Ignora la hora para evitar desfaces
+
+      const diff = fechaCad - hoy;
+      return Math.floor(diff / (1000 * 60 * 60 * 24));
+    }
+
+
     document.getElementById("inputQR").addEventListener("keydown", function(e) {
       if (e.key === "Enter") {
         const contenido = e.target.value.trim();
@@ -73,6 +92,40 @@
         e.target.value = "";
       }
     });
+    async function mostrarAlertasCaducidad() {
+      try {
+        const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos?select=referencia,nombre,fabricante,lote,caducidad,cantidad", {
+          headers: {
+            "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo",
+            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo"
+          }
+        });
+        const data = await res.json();
+        const urgentes = data.filter(p => calcularDiasRestantes(p.caducidad) <= 30);
+        if (!urgentes.length) return;
+
+        let html = "<ul class='space-y-2'>";
+        urgentes.forEach(p => {
+          html += `<li class="text-sm">
+            <strong>${p.referencia}</strong> - ${p.nombre}<br>
+            Lote: <span class="font-semibold">${p.lote}</span>, Caduca: <span class="text-red-600 font-semibold">${p.caducidad}</span>
+          </li>`;
+        });
+        html += "</ul>";
+
+        const cont = document.getElementById("contenidoCaducidad");
+        cont.innerHTML = html;
+        document.getElementById("alertaCaducidad").classList.remove("hidden");
+
+        // Ocultar automáticamente a los 5 segundos
+        setTimeout(() => {
+          document.getElementById("alertaCaducidad").classList.add("hidden");
+        }, 5000);
+      } catch (err) {
+        console.error("Error cargando productos urgentes:", err);
+      }
+    }
+
 
     function extraerDatosQR(qr) {
       const match = qr.match(/R:(.*?)\|L:(.*?)\|T:(.*)/);
@@ -86,7 +139,7 @@
 
     function solicitarPin() {
       const pin = prompt("NIP (ddmm):");
-      const pines = { "0112": "Santos", "2704": "Fabiola", "1704": "Aida", "1103": "Johnatan" };
+      const pines = { "0512": "Santos", "2704": "Fabiola", "1704": "Aida", "1103": "Johnatan", "3101": "Albino", "2009": "Sofi", "2811": "Danna", "0311": "Silvia", "1005": "Luis", "0303": "Alex" };
       if (pines[pin]) {
         usuario = pines[pin];
         modo = (modo === "entrada") ? "salida" : "entrada";
@@ -172,54 +225,82 @@
         return;
       }
 
+      // Si se escanea un código QR/barra con formato completo, extraer referencia
+      const match = ref.match(/R:(.*?)\|/);
+      if (match) {
+        ref = match[1]; // extrae solo la referencia
+      }
+
       fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/buscar_referencia?ref=${encodeURIComponent(ref)}`)
         .then(res => {
           if (!res.ok) throw new Error("No encontrado");
           return res.json();
         })
         .then(data => {
-        let html = `<p><strong>${data.nombre}</strong><br>Fabricante: ${data.fabricante}</p>`;
-        if (data.lotes && data.lotes.length) {
+          let html = `<div class="text-center"><strong>${data.nombre}</strong><br>Fabricante: ${data.fabricante}</div>`;
+          if (data.lotes && data.lotes.length) {
             html += `
-            <table class="text-base mt-2 w-full border border-gray-300 text-center">
+              <table class="text-base mt-2 w-full border border-gray-300 text-center">
                 <thead class="bg-gray-200 font-semibold">
-                <tr>
+                  <tr>
                     <th class="p-2">Lote</th>
                     <th class="p-2">Cantidad</th>
                     <th class="p-2">Caducidad</th>
-                </tr>
+                    <th class="p-2">⚠️</th>
+                  </tr>
                 </thead>
                 <tbody>`;
             data.lotes.forEach(l => {
-            html += `
+              const dias = calcularDiasRestantes(l.caducidad);
+              let icono = "❗";
+              if (dias <= 30) {
+                icono = "❗❗❗";
+              } else if (dias <= 60) {
+                icono = "❗❗";
+              }
+
+              html += `
                 <tr>
-                    <td class="p-2">${l.lote}</td>
-                    <td class="p-2">${l.cantidad}</td>
-                    <td class="p-2">${l.caducidad}</td>
+                  <td class="p-2">${l.lote}</td>
+                  <td class="p-2">${l.cantidad}</td>
+                  <td class="p-2">${l.caducidad}</td>
+                  <td class="p-2 <span title="Días restantes">${icono}</span></td>
                 </tr>`;
             });
+
             html += `</tbody></table>`;
-        }
-        document.getElementById("resultadoBusqueda").innerHTML = html;
-      })
-      .catch(() => {
-        document.getElementById("resultadoBusqueda").innerHTML = "<p class='text-red-600'>Producto no encontrado</p>";
-      });
+          }
+          document.getElementById("resultadoBusqueda").innerHTML = html;
+        })
+        .catch(() => {
+          document.getElementById("resultadoBusqueda").innerHTML = "<p class='text-red-600'>Producto no encontrado</p>";
+        });
     }
+    window.addEventListener("DOMContentLoaded", mostrarAlertasCaducidad);
   </script>
+<!-- Ventana de alerta -->
+<div id="alertaCaducidad" class="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-60 hidden">
+  <div class="bg-white bg-opacity-80 rounded-2xl shadow-xl p-6 w-[95%] max-w-5xl text-gray-800">
+    <h2 class="text-xl font-bold mb-4">⚠️ Productos por caducar</h2>
+    <div id="contenidoCaducidad" class="text-sm mb-4"></div>
+    <button onclick="document.getElementById('alertaCaducidad').classList.add('hidden')" class="mt-2 bg-red-600 text-white px-4 py-2 rounded-xl hover:bg-red-700">
+      Cerrar
+    </button>
+  </div>
+</div>
 
   <div id="versionInfo" style="
     position: fixed;
     bottom: 10px;
     right: 15px;
     background: rgba(0,0,0,0.5);
-    color: white;
+    color: rgb(161, 200, 255);
     font-size: 0.75rem;
     padding: 4px 8px;
     border-radius: 6px;
     z-index: 9999;
   ">
-    v1.0.7
+    v1.0.8
   </div>
 </body>
 </html>
