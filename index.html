@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Inventario QR - Centrum</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -31,11 +31,12 @@
       <h1 class="text-2xl font-bold">Inventario QR - Centrum</h1>
       <button onclick="solicitarPin()" class="bg-gray-800 text-white px-3 py-1 rounded-xl">🔒 Cambiar modo</button>
     </div>
+
     <div class="mt-4">
-        <input type="text" id="refBusqueda" placeholder="Buscar por referencia..." class="w-full p-3 mb-4 rounded-xl border text-center" oninput="buscarReferencia(this.value)" />
-        <div id="resultadoBusqueda" class="text-sm text-gray-700"></div>
-      </div>
-      
+      <input type="text" id="refBusqueda" placeholder="Buscar por referencia..." class="w-full p-3 mb-4 rounded-xl border text-center" oninput="buscarReferencia(this.value)" />
+      <div id="resultadoBusqueda" class="text-sm text-gray-700"></div>
+    </div>
+
     <div class="mb-3 text-center text-sm text-gray-600">
       Usuario: <span id="usuarioActivo">-</span> | Modo: <span id="modoLabel" class="font-semibold">Entrada</span>
     </div>
@@ -164,33 +165,47 @@
       div.style.display = "block";
       setTimeout(() => div.style.display = "none", 2500);
     }
+
     function buscarReferencia(ref) {
-        if (!ref || ref.length < 2) {
-            document.getElementById("resultadoBusqueda").innerHTML = "";
-            return;
-        }
+      if (!ref || ref.length < 2) {
+        document.getElementById("resultadoBusqueda").innerHTML = "";
+        return;
+      }
 
-        fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/buscar_referencia?ref=${encodeURIComponent(ref)}`)
-            .then(res => {
-            if (!res.ok) throw new Error("No encontrado");
-            return res.json();
-            })
-            .then(data => {
-            let html = `<p><strong>${data["Descripción del artículo"]}</strong><br>Fabricante: ${data["Nombre SN"]}</p>`;
-            if (data.lotes && data.lotes.length) {
-                html += `<table class="text-xs mt-2"><tr><th>Lote</th><th>Cantidad</th><th>Caducidad</th></tr>`;
-                data.lotes.forEach(l => {
-                html += `<tr><td>${l["No. Lote"]}</td><td>${l["Cantidad Inventario"]}</td><td>${l["Caducidad"]}</td></tr>`;
-                });
-                html += `</table>`;
-            }
-            document.getElementById("resultadoBusqueda").innerHTML = html;
-            })
-            .catch(() => {
-            document.getElementById("resultadoBusqueda").innerHTML = "<p class='text-red-600'>Producto no encontrado</p>";
+      fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/buscar_referencia?ref=${encodeURIComponent(ref)}`)
+        .then(res => {
+          if (!res.ok) throw new Error("No encontrado");
+          return res.json();
+        })
+        .then(data => {
+          let html = `<p><strong>${data.nombre}</strong><br>Fabricante: ${data.fabricante}</p>`;
+          if (data.lotes && data.lotes.length) {
+            html += `<table class="text-xs mt-2"><tr><th>Lote</th><th>Cantidad</th><th>Caducidad</th></tr>`;
+            data.lotes.forEach(l => {
+              html += `<tr><td>${l.lote}</td><td>${l.cantidad}</td><td>${l.caducidad}</td></tr>`;
             });
-        }
-
+            html += `</table>`;
+          }
+          document.getElementById("resultadoBusqueda").innerHTML = html;
+        })
+        .catch(() => {
+          document.getElementById("resultadoBusqueda").innerHTML = "<p class='text-red-600'>Producto no encontrado</p>";
+        });
+    }
   </script>
+
+  <div id="versionInfo" style="
+    position: fixed;
+    bottom: 10px;
+    right: 15px;
+    background: rgba(0,0,0,0.5);
+    color: white;
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    border-radius: 6px;
+    z-index: 9999;
+  ">
+    v1.0.5
+  </div>
 </body>
 </html>
