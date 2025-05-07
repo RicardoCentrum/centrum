@@ -201,8 +201,11 @@
             html += `</tbody></table>`;
         }
         document.getElementById("resultadoBusqueda").innerHTML = html;
-        })
-
+      })
+      .catch(() => {
+        document.getElementById("resultadoBusqueda").innerHTML = "<p class='text-red-600'>Producto no encontrado</p>";
+      });
+    }
   </script>
 
   <div id="versionInfo" style="
@@ -216,7 +219,7 @@
     border-radius: 6px;
     z-index: 9999;
   ">
-    v1.0.6
+    v1.0.7
   </div>
 </body>
 </html>
