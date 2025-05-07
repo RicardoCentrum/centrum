@@ -54,13 +54,12 @@
   </div>
 
   <div id="notificacion" class="modal text-center font-bold"></div>
-
-  <script>
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo'; // Reemplaza con tu clave anónima de Supabase
-    const EDGE_URL = 'https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr';
+ <script>
+     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo'; // Reemplaza con tu clave anónima de Supabase
+    const API_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1";
     let modo = "entrada";
     let usuario = null;
-
+  
     document.getElementById("inputQR").addEventListener("keydown", function(e) {
       if (e.key === "Enter") {
         const contenido = e.target.value.trim();
@@ -68,7 +67,7 @@
         e.target.value = "";
       }
     });
-
+  
     function solicitarPin() {
       const pin = prompt("NIP (ddmm):");
       const pines = { "0112": "Santos", "2704": "Fabiola", "1704": "Aida", "1103": "Johnatan" };
@@ -82,14 +81,35 @@
         notificar("NIP incorrecto", '#b91c1c');
       }
     }
-
+  
     function procesarQR(codigo) {
-      const partes = codigo.split('|');
-      const ref = partes.find(p => p.startsWith('R:'))?.replace('R:', '') || '-';
-      const lote = partes.find(p => p.startsWith('L:'))?.replace('L:', '') || '-';
-      agregarFila(ref, lote, "Pendiente");
+      fetch("/registrar_qr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ codigo, modo, usuario })
+      })
+        .then(res => res.json())
+        .then(data => manejarRespuestaQR(data))
+        .catch(() => notificar("No se puede leer QR", '#6b7280', '❌'));
     }
-
+  
+    function manejarRespuestaQR(data) {
+      let color = '#6b7280', icono = '❌', estado = 'Error';
+  
+      if (data.status === 'ok') {
+        color = '#1e3a8a'; icono = '✅'; estado = 'Agregado';
+        if (modo === 'salida') estado = 'Retirado';
+      } else if (data.status === 'repetido') {
+        color = (modo === 'entrada') ? '#0ea5e9' : '#facc15';
+        icono = '⚠️'; estado = (modo === 'entrada') ? 'Ya ingresado' : 'Ya retirado';
+      } else {
+        estado = 'QR inválido';
+      }
+  
+      notificar(`${icono} ${estado}`, color);
+      if (data.referencia && data.lote) agregarFila(data.referencia, data.lote, estado);
+    }
+  
     function agregarFila(ref, lote, estado) {
       const tabla = document.getElementById("tablaQR");
       const fila = document.createElement("tr");
@@ -101,80 +121,58 @@
       `;
       tabla.appendChild(fila);
     }
-
+  
     function enviarSupabase() {
-  const filas = document.querySelectorAll("#tablaQR tr");
-  const registros = [];
-
-  filas.forEach(fila => {
-    const celdas = fila.querySelectorAll("td");
-    const referencia = celdas[0]?.innerText.trim();
-    const lote = celdas[1]?.innerText.trim();
-
-    if (referencia && lote && modo && usuario) {
-      registros.push({
-        referencia,
-        lote,
-        modo,
-        usuario
+      const filas = document.querySelectorAll("#tablaQR tr");
+      const registros = [];
+  
+      filas.forEach(fila => {
+        const celdas = fila.querySelectorAll("td");
+        const referencia = celdas[0]?.innerText.trim();
+        const lote = celdas[1]?.innerText.trim();
+  
+        if (referencia && lote && modo && usuario) {
+          registros.push({
+            referencia,
+            lote,
+            modo,
+            usuario
+          });
+        }
       });
-    }
-  });
-
-  if (registros.length === 0) {
-    notificar("No hay datos para enviar", "#f97316", "⚠️");
-    return;
-  }
-
-  fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ registros })
-  })
-    .then(res => res.json())
-    .then(respuesta => {
-      if (respuesta.resultados) {
-        let ok = 0, repetidos = 0, errores = 0;
-        respuesta.resultados.forEach(r => {
-          if (r.status === "ok") ok++;
-          else if (r.status === "repetido") repetidos++;
-          else errores++;
-        });
-
-        notificar(`✅ ${ok} nuevos · ⚠️ ${repetidos} repetidos · ❌ ${errores} con error`, "#0f766e");
-        document.getElementById("tablaQR").innerHTML = "";
-      } else {
-        notificar("Error inesperado al registrar", "#dc2626", "❌");
+  
+      if (registros.length === 0) {
+        notificar("No hay datos para enviar", "#f97316", "⚠️");
+        return;
       }
-    })
-    .catch(err => {
-      console.error("Error:", err);
-      notificar("Error de conexión al enviar", "#dc2626", "❌");
-    });
-}
-
-      fetch(EDGE_URL, {
+  
+      fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "apikey": SUPABASE_KEY,
-          "Authorization": `Bearer ${SUPABASE_KEY}`
-        },
-        body: JSON.stringify({ registros: datos })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ registros })
       })
-      .then(res => {
-        if (!res.ok) throw new Error("Error en Supabase");
-        return res.json();
-      })
-      .then(() => {
-        notificar("Datos enviados a Supabase", '#16a34a');
-        document.getElementById("tablaQR").innerHTML = "";
-      })
-      .catch(() => {
-        notificar("Error al enviar a Supabase", '#b91c1c');
-      });
+        .then(res => res.json())
+        .then(respuesta => {
+          if (respuesta.resultados) {
+            let ok = 0, repetidos = 0, errores = 0;
+            respuesta.resultados.forEach(r => {
+              if (r.status === "ok") ok++;
+              else if (r.status === "repetido") repetidos++;
+              else errores++;
+            });
+  
+            notificar(`✅ ${ok} nuevos · ⚠️ ${repetidos} repetidos · ❌ ${errores} con error`, "#0f766e");
+            document.getElementById("tablaQR").innerHTML = "";
+          } else {
+            notificar("Error inesperado al registrar", "#dc2626", "❌");
+          }
+        })
+        .catch(err => {
+          console.error("Error:", err);
+          notificar("Error de conexión al enviar", "#dc2626", "❌");
+        });
     }
-
+  
     function notificar(mensaje, color, icono = '') {
       const div = document.getElementById("notificacion");
       div.style.backgroundColor = color;
@@ -183,5 +181,6 @@
       setTimeout(() => div.style.display = "none", 2500);
     }
   </script>
+  
 </body>
 </html>
