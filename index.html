@@ -83,7 +83,7 @@
     }
   
     function procesarQR(codigo) {
-      fetch("/registrar_qr", {
+        fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ codigo, modo, usuario })
