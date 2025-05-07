@@ -1,677 +1,222 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Inventario QR</title>
-  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inventario QR - Centrum</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body {
-      font-family: 'Segoe UI', sans-serif;
       background: url('bcg_centrum.png') no-repeat center center fixed;
       background-size: cover;
+      font-family: 'Segoe UI', sans-serif;
     }
-    #mensajeQR {
+    .modal {
       position: fixed;
-      top: 40%;
+      top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      padding: 24px 32px;
-      font-weight: 600;
-      border-radius: 16px;
-      font-size: 20px;
-      color: white;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 1rem;
+      box-shadow: 0 0 15px rgba(0,0,0,0.5);
       display: none;
-      z-index: 9999;
-      text-align: center;
-      max-width: 80%;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-      backdrop-filter: blur(6px);
+      z-index: 10000;
     }
   </style>
 </head>
-<body class="min-h-screen text-white">
-  <div class="text-center mt-6">
-    <input
-      id="busqueda"
-      type="text"
-      placeholder="Buscar por nombre o ID..."
-      class="w-full md:w-2/3 p-3 rounded-xl border border-green-700 focus:outline-none focus:ring-2 focus:ring-green-800 mb-4 text-black bg-white"
-      oninput="buscarProducto()"
-    />
+<body class="min-h-screen flex flex-col items-center justify-center text-white">
+  <div class="bg-white bg-opacity-80 rounded-2xl shadow-xl p-6 w-full max-w-xl text-gray-800 mb-8">
+    <div class="flex items-center justify-between mb-4">
+      <h1 class="text-2xl font-bold">Inventario QR - Centrum</h1>
+      <button onclick="solicitarPin()" class="bg-gray-800 text-white px-3 py-1 rounded-xl">🔒 Cambiar modo</button>
+    </div>
 
-    <div class="overflow-hidden rounded-xl border border-gray-300">
-      <table class="w-full text-left">
-        <thead style="background-color: #006064" class="text-white">
+    <div class="mb-3 text-center text-sm text-gray-600">
+      Usuario: <span id="usuarioActivo">-</span> | Modo: <span id="modoLabel" class="font-semibold">Entrada</span>
+    </div>
+
+    <input type="text" id="inputQR" placeholder="Escanea el código QR" class="w-full p-3 mb-4 rounded-xl border text-center" autofocus />
+
+    <table class="w-full text-xs border border-gray-300">
+      <thead class="bg-gray-800 text-white">
+        <tr>
+          <th class="p-2">REF</th>
+          <th class="p-2">Lote</th>
+          <th class="p-2">Estado</th>
+          <th class="p-2">Eliminar</th>
+        </tr>
+      </thead>
+      <tbody id="tablaQR" class="bg-white text-gray-800"></tbody>
+    </table>
+
+    <button onclick="enviarSupabase()" class="mt-4 w-full bg-green-800 text-white py-2 rounded-xl">Enviar a Supabase</button>
+  </div>
+
+  <!-- Bloque para búsqueda de referencia -->
+  <div class="bg-white bg-opacity-90 rounded-2xl shadow-xl p-6 w-full max-w-3xl text-gray-800">
+    <h2 class="text-xl font-bold mb-4 text-center">🔍 Búsqueda de Reactivos</h2>
+    <input type="text" id="refBusqueda" placeholder="Buscar por referencia..." class="w-full p-3 mb-4 rounded-xl border text-center" oninput="buscarReferencia()" />
+
+    <div id="detalleProducto" class="mb-4 hidden">
+      <h3 class="text-lg font-bold mb-2">Detalles del Producto</h3>
+      <div id="infoProducto" class="text-sm mb-2"></div>
+      <h4 class="font-semibold mt-3">Lotes disponibles:</h4>
+      <table class="w-full text-xs border border-gray-300 mb-4">
+        <thead class="bg-gray-800 text-white">
           <tr>
-            <th class="p-3">REF</th>
-            <th class="p-3">Producto</th>
-            <th class="p-3">Fabricante</th>
-            <th class="p-3">Lote</th>
-            <th class="p-3">Caducidad</th>
-            <th class="p-3">Cantidad</th>
+            <th class="p-2">Lote</th>
+            <th class="p-2">Caducidad</th>
+            <th class="p-2">Cantidad</th>
           </tr>
         </thead>
-        <tbody id="tablaResultados" class="bg-white text-black">
-          <tr><td colspan="6" class="p-3 text-center">Introduce un criterio de búsqueda...</td></tr>
-        </tbody>
+        <tbody id="tablaLotes" class="bg-white text-gray-800"></tbody>
+      </table>
+      <h4 class="font-semibold">Movimientos registrados:</h4>
+      <table class="w-full text-xs border border-gray-300">
+        <thead class="bg-gray-800 text-white">
+          <tr>
+            <th class="p-2">Fecha</th>
+            <th class="p-2">Usuario</th>
+            <th class="p-2">Acción</th>
+            <th class="p-2">Lote</th>
+          </tr>
+        </thead>
+        <tbody id="tablaMovimientos" class="bg-white text-gray-800"></tbody>
       </table>
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <div id="notificacion" class="modal text-center font-bold"></div>
+
   <script>
-    const supabaseUrl = 'https://ldjrpfsbpcfninntffoj.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo'; // reemplaza por tu key
-    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
-    const API_URL = 'https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1';
-      <!-- Botón de modo -->
-      <div class="mb-4">
-        <button id="modoBtn"
-                onclick="document.getElementById('selectorModo').classList.remove('hidden')"
-                class="bg-gray-700 text-white font-semibold px-4 py-2 rounded-xl shadow">
-          <span id="modoIcon">⚪</span> Modo: <span id="modoLabel">Inactivo</span>
-        </button>
-        <div id="usuarioActivo" class="text-sm mt-2 text-gray-300"></div>
-      </div>
-    
-    async function buscarProducto() {
-      const query = document.getElementById("busqueda").value.trim();
-      if (!query) return;
+    const API_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1";
+    let modo = "entrada";
+    let usuario = null;
 
-      const { data, error } = await supabase
-        .from("productos")
-        .select("*")
-        .or(`nombre.ilike.%${query}%,referencia.ilike.%${query}%`);
-
-      const tabla = document.getElementById("tablaResultados");
-      if (error || !data) {
-        console.error("Error al buscar producto:", error?.message);
-        tabla.innerHTML = `<tr><td colspan='6' class='p-3 text-center text-red-600'>Error al buscar en Supabase</td></tr>`;
-        return;
-      }
-
-      if (data.length === 0) {
-        tabla.innerHTML = `<tr><td colspan='6' class='p-3 text-center'>No se encontraron resultados.</td></tr>`;
-        return;
-      }
-
-      tabla.innerHTML = "";
-      data.forEach(prod => {
-        const row = document.createElement("tr");
-        row.className = "border-b hover:bg-green-100 hover:text-black transition duration-150";
-        row.innerHTML = `
-          <td class="p-3">${prod.referencia}</td>
-          <td class="p-3">${prod.nombre}</td>
-          <td class="p-3">${prod.fabricante}</td>
-          <td class="p-3">${prod.lote}</td>
-          <td class="p-3">${prod.caducidad}</td>
-          <td class="p-3">${prod.cantidad}</td>
-        `;
-        tabla.appendChild(row);
-      });
-    }
-    </script>
-
-
-<!-- Selector visual de modo -->
-<div id="selectorModo" role="dialog" aria-modal="true" aria-label="Selector de modo"
-     class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50 hidden">
-  <div class="bg-white p-6 rounded-xl shadow-xl text-center max-w-sm mx-auto">
-    <h2 class="text-xl font-bold mb-4 text-gray-800">Selecciona un modo de operación</h2>
-    <div class="flex flex-col gap-4">
-      <button onclick="activarModo('entrada')"
-              class="bg-green-700 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow">
-        🟢 Modo Entrada
-      </button>
-      <button onclick="activarModo('salida')"
-              class="bg-red-700 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow">
-        🔴 Modo Salida
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- Modal para ingreso de PIN -->
-<div id="modalPIN" class="modal hidden">
-  <div class="modal-content text-black">
-    <h2 class="text-xl font-semibold mb-4">Introduce tu NIP</h2>
-    <input type="password" id="pinInput" maxlength="4" class="w-full border p-2 rounded mb-4" autofocus />
-    <div class="flex justify-end gap-4">
-      <button onclick="cerrarModalPIN()" class="bg-gray-500 text-white px-4 py-2 rounded">Cancelar</button>
-      <button onclick="validarPIN()" class="bg-green-700 text-white px-4 py-2 rounded font-bold">Aceptar</button>
-    </div>
-  </div>
-</div>
-
-<div id="mensajeQR" aria-live="polite"></div>
-<script>
-  document.addEventListener('keydown', (e) => {
-    if (e.key === "Escape") cerrarModalPIN();
-  });
-</script>
-
-<script>
-  const pines = {
-    "0112": "Santos",
-    "2704": "Fabiola",
-    "1704": "Aida",
-    "1103": "Johnatan"
-  };
-
-  let modo = null;
-  let usuario = null;
-  let bufferQR = "";
-  let scanTimeout = null;
-
-  function activarModo(modoSeleccionado) {
-    window.modoPendiente = modoSeleccionado;
-    document.getElementById("selectorModo").classList.add("hidden");
-    document.getElementById("modalPIN").classList.remove("hidden");
-    document.getElementById("pinInput").value = '';
-    document.getElementById("pinInput").focus();
-  }
-
-  function cerrarModalPIN() {
-    document.getElementById("modalPIN").classList.add("hidden");
-    document.getElementById("pinInput").value = '';
-    window.modoPendiente = null;
-  }
-
-  function validarPIN() {
-    const pin = document.getElementById("pinInput").value.trim();
-    if (!(pin in pines)) {
-      alert("NIP incorrecto");
-      return;
-    }
-
-    usuario = pines[pin];
-    modo = window.modoPendiente;
-
-    const modoBtn = document.getElementById("modoBtn");
-    const modoIcon = document.getElementById("modoIcon");
-
-    modoBtn.className = modo === "salida"
-      ? "bg-red-700 text-white font-semibold px-4 py-2 rounded-xl shadow mb-4"
-      : "bg-green-800 text-white font-semibold px-4 py-2 rounded-xl shadow mb-4";
-
-    modoIcon.textContent = modo === "salida" ? "🔴" : "🟢";
-    document.getElementById("modoLabel").textContent = modo.charAt(0).toUpperCase() + modo.slice(1);
-    document.getElementById("usuarioActivo").textContent = `Modo actual: ${modo.toUpperCase()} | Usuario: ${usuario}`;
-
-    cerrarModalPIN();
-  }
-
-  function buscarProducto() {
-      const query = document.getElementById("busqueda").value.trim();
-      if (!query) return;
-
-      fetch(`${API_URL}/buscar_producto?nombre=${encodeURIComponent(query)}`)
-        .then(res => {
-          if (!res.ok) throw new Error("Error al buscar producto");
-          return res.json();
-        })
-        .then(data => mostrarResultados(data))
-        .catch(err => {
-          console.error("Error al buscar producto:", err);
-          const tabla = document.getElementById("tablaResultados");
-          tabla.innerHTML = `<tr><td colspan='7' class='p-3 text-center text-red-600'>Error al conectar con el servidor</td></tr>`;
-        });
-    }
-   
-    function mostrarResultados(resultados) {
-      const tabla = document.getElementById("tablaResultados");
-      tabla.innerHTML = "";
-
-      if (!resultados || resultados.length === 0) {
-        tabla.innerHTML = `<tr><td colspan='7' class='p-3 text-center'>No se encontraron resultados.</td></tr>`;
-        return;
-      }
-
-      resultados.forEach(prod => {
-        const row = document.createElement("tr");
-        row.className = "border-b hover:bg-green-100 hover:text-black transition duration-150";
-        row.innerHTML = `
-          <td class="p-3">${prod.referencia}</td>
-          <td class="p-3">${prod.nombre}</td>
-          <td class="p-3">${prod.fabricante}</td>
-          <td class="p-3">${prod.lote}</td>
-          <td class="p-3">${prod.caducidad}</td>
-          <td class="p-3">${prod.cantidad}</td>
-          <td class="p-3">
-            <button onclick="registrarMovimiento('${prod.lote}')" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Registrar</button>
-          </td>
-        `;
-        tabla.appendChild(row);
-      });
-    }     
-    function mostrarMensajeQR(data) {
-      const mensajeQR = document.getElementById("mensajeQR");
-      mensajeQR.style.display = "block";
-
-      // Determinar el color y el ícono a usar
-      let fondo = "#6b7280"; // gris por defecto
-      let icono = "❌";
-      let contenido = "";
-
-      if (data.status === "ok") {
-        if (modo === "salida") {
-          fondo = "#b91c1c"; // rojo fuerte
-          icono = "🛑";
-        } else {
-          fondo = "#047857"; // verde
-          icono = "✅";
-        }
-        contenido = `${icono}<br>${data.mensaje}<br><strong>${data.referencia}</strong><br>${data.nombre}`;
-
-      } else if (data.status === "repetido") {
-        if (modo === "salida") {
-          fondo = "#e8ba00"; // amarillo (extraído anteriormente)
-          icono = "⚠️";
-        } else {
-          fondo = "#0ea5e9"; // azul (ya escaneado)
-          icono = "📦";
-        }
-        contenido = `${icono}<br>${data.mensaje}<br><strong>${data.referencia}</strong><br>${data.nombre}`;
-
-      } else if (data.status === "error") {
-        fondo = "#6b7280"; // gris
-        icono = "❌";
-        contenido = `${icono}<br>${data.mensaje || "Imposible leer código QR"}`;
-      }
-
-      mensajeQR.style.backgroundColor = fondo;
-      mensajeQR.innerHTML = contenido;
-
-      setTimeout(() => {
-        mensajeQR.style.display = "none";
-      }, 2500);
-    }
-
-    function registrarQR(contenido) {
-      if (!modo || !usuario) {
-        document.getElementById("selectorModo").classList.remove("hidden");
-        return;
-      }
-
-      // Validación mínima del contenido del QR antes de enviarlo
-      if (!contenido || !contenido.includes("R:") || !contenido.includes("L:") || !contenido.includes("T:")) {
-        mostrarMensajeQR({ status: "error", mensaje: "Formato de QR inválido o incompleto." });
-        return;
-      }
-
-      fetch(`${API_URL}/registrar_qr`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contenido: contenido,
-          modo: modo,
-          usuario: usuario
-        })
-      })
-        .then(res => {
-          if (!res.ok) {
-            throw new Error("Error del servidor");
-          }
-          return res.json();
-        })
-        .then(data => {
-          mostrarMensajeQR(data);
-          buscarProducto();
-
-          // Mostrar detalles si hay referencia
-          if (data.referencia) {
-            mostrarDetalleProducto(data.referencia);
-          }
-        })
-        .catch((err) => {
-          console.error("Error al registrar QR:", err);
-          mostrarMensajeQR({ status: "error", mensaje: "Imposible leer código QR o sin conexión." });
-        });
-    }
-
-    function mostrarDetalleProducto(referencia) {
-      if (!referencia) return;
-
-      fetch(`${API_URL}/detalle_producto?referencia=${encodeURIComponent(referencia)}`)
-        .then(res => {
-          if (!res.ok) throw new Error("Error en la respuesta");
-          return res.json();
-        })
-        .then(data => {
-          if (!data || !data.referencia) {
-            alert("No se encontraron detalles del producto.");
-            return;
-          }
-
-          document.getElementById("detalleReferencia").textContent = data.referencia || "-";
-          document.getElementById("detalleNombre").textContent = data.nombre || "-";
-          document.getElementById("detalleFabricante").textContent = data.fabricante || "-";
-
-          const tablaLotes = document.getElementById("tablaLotes");
-          tablaLotes.innerHTML = "";
-          (data.lotes || []).forEach(l => {
-            tablaLotes.innerHTML += `<tr>
-              <td class="p-2">${l.lote}</td>
-              <td class="p-2">${l.caducidad}</td>
-              <td class="p-2">${l.cantidad}</td>
-            </tr>`;
-          });
-
-          const tablaMovs = document.getElementById("tablaMovimientos");
-          tablaMovs.innerHTML = "";
-          (data.movimientos || []).forEach(m => {
-            tablaMovs.innerHTML += `<tr>
-              <td class="p-2">${m.usuario}</td>
-              <td class="p-2">${m.tipo}</td>
-              <td class="p-2">${m.fecha}</td>
-              <td class="p-2">${m.lote}</td>
-              <td class="p-2">${m.cantidad}</td>
-            </tr>`;
-          });
-
-          document.getElementById("modalDetalleProducto").classList.remove("hidden");
-        })
-        .catch(err => {
-          console.error(err);
-          alert("Error al cargar el detalle del producto.");
-        });
-    }
-
-    function entradaManual() {
-      if (!modo || !usuario) {
-        alert("Debes activar primero un modo de operación y confirmar tu NIP.");
-        document.getElementById("selectorModo").classList.remove("hidden");
-        return;
-      }
-
-      alert("Modo entrada manual activado. Escanea códigos uno por uno y pulsa Enter. Presiona ESC para salir.");
-
-      let continuar = true;
-
-      async function loopEntradaManual() {
-        while (continuar) {
-          const contenido = prompt("Escanea o pega el contenido del código QR:");
-          if (!contenido) break;
-
-          await registrarQRManual(contenido);
-        }
-      }
-
-      loopEntradaManual();
-    }
-
-    async function registrarQRManual(contenido) {
-      if (!contenido || !contenido.includes("R:") || !contenido.includes("L:") || !contenido.includes("T:")) {
-        mostrarMensajeQR({ status: "error", mensaje: "Formato de QR inválido o incompleto." });
-        return;
-      }
-
-      try {
-        const res = await fetch(`${API_URL}/registrar_qr`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ contenido: contenido, modo: modo, usuario: usuario })
-        });
-
-        if (!res.ok) throw new Error("Error del servidor");
-
-        const data = await res.json();
-        mostrarMensajeQR(data);
-
-        if (data.referencia) {
-          mostrarDetalleProducto(data.referencia);
-        }
-
-      } catch (err) {
-        console.error("Error al registrar manual:", err);
-        mostrarMensajeQR({ status: "error", mensaje: "Fallo en el envío o lectura del QR" });
-      }
-    }
-
-    // Captura rápida de escaneo QR con teclado (simula escáner)
-    window.addEventListener("keydown", function (e) {
-      if (scanTimeout) clearTimeout(scanTimeout);
-
+    document.getElementById("inputQR").addEventListener("keydown", function(e) {
       if (e.key === "Enter") {
-        if (bufferQR.trim()) {
-          registrarQR(bufferQR.trim());
-          bufferQR = "";
-        }
-      } else if (!e.ctrlKey && !e.altKey && !e.metaKey) {
-        bufferQR += e.key;
-        scanTimeout = setTimeout(() => bufferQR = "", 300);
+        const contenido = e.target.value.trim();
+        if (contenido) procesarQR(contenido);
+        e.target.value = "";
       }
     });
 
-function mostrarDetalleProducto(referencia) {
-  fetch(`${API_URL}/detalle_producto?referencia=${encodeURIComponent(referencia)}`)
-    .then(res => res.json())
-    .then(data => {
-      document.getElementById("detalleReferencia").textContent = data.referencia;
-      document.getElementById("detalleNombre").textContent = data.nombre;
-      document.getElementById("detalleFabricante").textContent = data.fabricante;
+    function solicitarPin() {
+      const pin = prompt("NIP (ddmm):");
+      const pines = { "0112": "Santos", "2704": "Fabiola", "1704": "Aida", "1103": "Johnatan" };
+      if (pines[pin]) {
+        usuario = pines[pin];
+        modo = (modo === "entrada") ? "salida" : "entrada";
+        document.getElementById("modoLabel").textContent = modo.toUpperCase();
+        document.getElementById("usuarioActivo").textContent = `${usuario}`;
+        notificar(`Modo ${modo.toUpperCase()} activado`, '#1e3a8a');
+      } else {
+        notificar("NIP incorrecto", '#b91c1c');
+      }
+    }
+
+    function procesarQR(codigo) {
+      fetch("/registrar_qr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ codigo, modo, usuario })
+      })
+        .then(res => res.json())
+        .then(data => manejarRespuestaQR(data))
+        .catch(() => notificar("No se puede leer QR", '#6b7280', '❌'));
+    }
+
+    function manejarRespuestaQR(data) {
+      let color = '#6b7280', icono = '❌', estado = 'Error';
+
+      if (data.status === 'ok') {
+        color = '#1e3a8a'; icono = '✅'; estado = 'Agregado';
+        if (modo === 'salida') estado = 'Retirado';
+      } else if (data.status === 'repetido') {
+        color = (modo === 'entrada') ? '#0ea5e9' : '#facc15';
+        icono = '⚠️'; estado = (modo === 'entrada') ? 'Ya ingresado' : 'Ya retirado';
+      } else {
+        estado = 'QR inválido';
+      }
+
+      notificar(`${icono} ${estado}`, color);
+      if (data.referencia && data.lote) agregarFila(data.referencia, data.lote, estado);
+    }
+
+    function agregarFila(ref, lote, estado) {
+      const tabla = document.getElementById("tablaQR");
+      const fila = document.createElement("tr");
+      fila.innerHTML = `
+        <td class='p-1'>${ref}</td>
+        <td class='p-1'>${lote}</td>
+        <td class='p-1'>${estado}</td>
+        <td class='p-1 text-center'><button onclick='this.parentNode.parentNode.remove()' class='text-red-600'>✖</button></td>
+      `;
+      tabla.appendChild(fila);
+    }
+
+    function enviarSupabase() {
+      notificar("Datos enviados a Supabase", '#16a34a');
+    }
+
+    function notificar(mensaje, color, icono = '') {
+      const div = document.getElementById("notificacion");
+      div.style.backgroundColor = color;
+      div.textContent = `${icono} ${mensaje}`;
+      div.style.display = "block";
+      setTimeout(() => div.style.display = "none", 2500);
+    }
+
+    function buscarReferencia() {
+      const ref = document.getElementById("refBusqueda").value.trim();
+      if (ref.length < 4) return;
+      fetch(`/buscar_referencia?ref=${ref}`)
+        .then(r => r.json())
+        .then(datos => mostrarDetalles(ref, datos));
+    }
+
+    function mostrarDetalles(ref, productos) {
+      if (!productos.length) return;
+      document.getElementById("detalleProducto").classList.remove("hidden");
+      const info = productos[0];
+      document.getElementById("infoProducto").innerHTML = `
+        <strong>Nombre:</strong> ${info.nombre || '-'}<br>
+        <strong>Fabricante:</strong> ${info.fabricante || '-'}<br>
+        <strong>Referencia:</strong> ${info.referencia}
+      `;
 
       const tablaLotes = document.getElementById("tablaLotes");
       tablaLotes.innerHTML = "";
-      data.lotes.forEach(l => {
-        tablaLotes.innerHTML += `<tr><td class="p-2">${l.lote}</td><td class="p-2">${l.caducidad}</td><td class="p-2">${l.cantidad}</td></tr>`;
+      const agrupados = {};
+      productos.forEach(p => {
+        const k = p.lote;
+        if (!agrupados[k]) agrupados[k] = { cantidad: 0, caducidad: p.caducidad };
+        agrupados[k].cantidad++;
       });
+      for (let lote in agrupados) {
+        tablaLotes.innerHTML += `
+          <tr>
+            <td class='p-2'>${lote}</td>
+            <td class='p-2'>${agrupados[lote].caducidad || '-'}</td>
+            <td class='p-2'>${agrupados[lote].cantidad}</td>
+          </tr>`;
+      }
 
-      const tablaMovs = document.getElementById("tablaMovimientos");
-      tablaMovs.innerHTML = "";
-      data.movimientos.forEach(m => {
-        tablaMovs.innerHTML += `<tr><td class="p-2">${m.usuario}</td><td class="p-2">${m.tipo}</td><td class="p-2">${m.fecha}</td><td class="p-2">${m.lote}</td><td class="p-2">${m.cantidad}</td></tr>`;
+      const tablaMov = document.getElementById("tablaMovimientos");
+      tablaMov.innerHTML = "";
+      productos.forEach(p => {
+        const fecha = new Date(Number(p.timestamp)).toLocaleString();
+        const accion = p.usuario ? "Entrada" : "Desconocida";
+        tablaMov.innerHTML += `
+          <tr>
+            <td class='p-1'>${fecha}</td>
+            <td class='p-1'>${p.usuario || '-'}</td>
+            <td class='p-1'>${accion}</td>
+            <td class='p-1'>${p.lote}</td>
+          </tr>`;
       });
-
-      document.getElementById("modalDetalleProducto").classList.remove("hidden");
-    })
-    .catch(() => alert("No se pudo cargar el detalle del producto."));
-}
-
-function cerrarModalDetalle() {
-  document.getElementById("modalDetalleProducto").classList.add("hidden");
-}
-
-function verificarConexion() {
-  fetch(`${API_URL}/`, { method: 'GET' })
-    .then(() => console.log("✅ Conexión activa con el backend"))
-    .catch(() => console.warn("⚠️ No se pudo conectar con el backend"));
-}
-
-// Ejecutar conexión al iniciar y repetir cada 30 segundos
-    verificarConexion();
-    setInterval(verificarConexion, 10000);
+    }
   </script>
-
-<!-- Modal para QR escaneados pendientes -->
-<div id="modalQRTabla" class="fixed inset-0 bg-black bg-opacity-80 flex justify-center items-center z-50 hidden">
-  <div class="bg-white text-gray-900 p-4 rounded-xl max-w-sm w-full relative">
-    <h2 class="text-lg font-bold mb-4">Códigos escaneados</h2>
-    <table class="w-full mb-4 text-xs border">
-      <thead>
-        <tr class="bg-green-900 text-white">
-          <th class="p-1">Referencia</th>
-          <th class="p-1">Nombre</th>
-          <th class="p-1">Fabricante</th>
-          <th class="p-1">Lote</th>
-          <th class="p-1">Caducidad</th>
-          <th class="p-1">❌</th>
-        </tr>
-      </thead>
-      <tbody id="qrTablaBody"></tbody>
-    </table>
-    <div class="flex justify-between">
-      <button onclick="cerrarQRModal()" class="bg-gray-600 text-white px-3 py-1 rounded">Cerrar</button>
-      <button onclick="enviarQRsSupabase()" class="bg-green-700 text-white px-3 py-1 rounded font-bold">Enviar</button>
-    </div>
-  </div>
-</div>
-
-<script>
-
-const qrListaPendiente = [];
-
-function agregarFilaQR(producto) {
-  const existe = qrListaPendiente.some(p =>
-    p.referencia === producto.referencia &&
-    p.lote === producto.lote &&
-    p.timestamp === producto.timestamp
-  );
-  if (!existe) {
-    qrListaPendiente.push(producto);
-    actualizarTablaQR();
-    document.getElementById('modalQRTabla').classList.remove('hidden');
-  }
-}
-
-function actualizarTablaQR() {
-  const cuerpo = document.getElementById('qrTablaBody');
-  cuerpo.innerHTML = '';
-  qrListaPendiente.forEach((p, i) => {
-    const fila = document.createElement('tr');
-    fila.innerHTML = `
-      <td class="p-1">${p.referencia}</td>
-      <td class="p-1">${p.nombre}</td>
-      <td class="p-1">${p.fabricante}</td>
-      <td class="p-1">${p.lote}</td>
-      <td class="p-1">${p.caducidad}</td>
-      <td class="p-1 text-center"><button onclick="eliminarQR(${i})" class="text-red-600 font-bold">✖</button></td>
-    `;
-    cuerpo.appendChild(fila);
-  });
-}
-
-function eliminarQR(index) {
-  qrListaPendiente.splice(index, 1);
-  actualizarTablaQR();
-}
-
-function cerrarQRModal() {
-  document.getElementById('modalQRTabla').classList.add('hidden');
-}
-
-async function enviarQRsSupabase() {
-  for (let p of qrListaPendiente) {
-    await fetch(`${API_URL}/registrar_movimiento`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        referencia: p.referencia,
-        lote: p.lote,
-        tipo: modo,
-        cantidad: 1,
-        usuario: usuario
-      })
-    });
-    await fetch(`${API_URL}/registrar_qr`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contenido: `R:${p.referencia}|L:${p.lote}|T:${p.timestamp}`,
-        modo: modo,
-        usuario: usuario
-      })
-    });
-  }
-  alert("Envío completo");
-  qrListaPendiente.length = 0;
-  cerrarQRModal();
-  buscarProducto();
-}
-
-function registrarQR(contenido) {
-  if (!usuario) {
-    mostrarMensajeQR({ status: "error", mensaje: "NIP no ingresado" });
-    return;
-  }
-
-  fetch(`${API_URL}/registrar_qr`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contenido, modo, usuario })
-  })
-    .then(res => res.json())
-    .then(data => {
-      mostrarMensajeQR(data);
-      buscarProducto(); // simplemente la llamas aquí
-    })
-    .catch(() => mostrarMensajeQR({ status: "error", mensaje: "Imposible leer QR" }));
-}
-
-async function buscarProducto() {
-  const query = document.getElementById("busqueda").value.trim();
-  if (!query) return;
-
-  const { data, error } = await supabase
-    .from("productos")
-    .select("*")
-    .or(`nombre.ilike.%${query}%,referencia.ilike.%${query}%`);
-
-  if (error) {
-    console.error("Error al buscar producto:", error.message);
-    document.getElementById("tablaResultados").innerHTML = `
-      <tr><td colspan='7' class='p-3 text-center text-red-600'>Error al buscar en Supabase</td></tr>
-    `;
-    return;
-  }
-
-  mostrarResultados(data);
-}
-async function verificarConexion() {
-  const statusEl = document.getElementById("apiStatus");
-  try {
-    const res = await fetch(`${API_URL}/`);
-    if (res.ok) {
-      statusEl.textContent = "🟢";
-      statusEl.classList.remove("text-red-600", "bg-gray-300");
-      statusEl.classList.add("text-green-700", "bg-white");
-      statusEl.title = "Conectado con el backend";
-    } else {
-      statusEl.textContent = "⭕";
-      statusEl.classList.remove("text-green-700", "bg-white");
-      statusEl.classList.add("text-red-600", "bg-gray-300");
-      statusEl.title = "Respuesta del backend no válida";
-    }
-  } catch (e) {
-    statusEl.textContent = "⭕";
-    statusEl.classList.remove("text-green-700", "bg-white");
-    statusEl.classList.add("text-red-600", "bg-gray-300");
-    statusEl.title = "No se pudo conectar con el backend";
-  }
-}
-
-</script>
-<script>
-async function verificarConexion() {
-  const statusEl = document.getElementById("apiStatus");
-  try {
-    const res = await fetch(`${API_URL}/`);
-    if (res.ok) {
-      statusEl.textContent = "🟢";
-      statusEl.title = "Conectado con el backend";
-    } else {
-      statusEl.textContent = "⭕";
-      statusEl.title = "Respuesta del backend no válida";
-    }
-  } catch (e) {
-    statusEl.textContent = "⭕";
-    statusEl.title = "No se pudo conectar con el backend";
-  }
-}
-
-</script>
-
-<div id="apiStatus" class="fixed bottom-4 left-4 text-3xl animate-bounce select-none pointer-events-none">⭕</div>
-
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    verificarConexion();
-    setInterval(verificarConexion, 10000);
-  });
-</script>
-
 </body>
 </html>
-    
