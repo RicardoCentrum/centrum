@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Inventario QR - Centrum</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="icon" href="favicon.ico" type="image/x-icon" />
   <style>
     body {
       background: url('bcg_centrum.png') no-repeat center center fixed;
@@ -23,8 +24,16 @@
       display: none;
       z-index: 10000;
     }
+  
   </style>
 </head>
+<div class="text-center mb-4">
+  <img src="centrum.png" alt="Logo Centrum" class="mx-auto h-20 mb-2" />
+  <h1 class="text-5xl font-bold tracking-widest text-white-100">R.I.C.A.R.D.O.</h1>
+  <p class="text-1x1 text-gray-100 font-medium max-w-2xl mx-auto">
+    <strong>R</strong>egistro <strong>I</strong>nteligente de <strong>C</strong>ontrol, <strong>A</strong>lmacenamiento y <strong>R</strong>egistro <strong>D</strong>e <strong>O</strong>peraciones
+  </p>
+</div>
 
 <body class="min-h-screen flex flex-col items-center justify-center text-white">
   <div class="bg-white bg-opacity-80 rounded-2xl shadow-xl p-6 w-full max-w-xl text-gray-800">
@@ -35,7 +44,7 @@
 
     <div class="mt-4">
       <input type="text" id="refBusqueda" placeholder="Buscar por referencia..." class="w-full p-3 mb-4 rounded-xl border text-center" oninput="buscarReferencia(this.value)" />
-      <div id="resultadoBusqueda" class="text-sm text-gray-700"></div>
+      <div id="resultadoBusqueda" class="text-sm text-gray-800"></div>
     </div>
 
     <div class="mb-3 text-center text-sm text-gray-600">
@@ -43,6 +52,11 @@
     </div>
 
     <input type="text" id="inputQR" placeholder="Escanea el código QR" class="w-full p-3 mb-4 rounded-xl border text-center" autofocus />
+    <div class="text-center mt-2 mb-4">
+      <button onclick="mostrarAlertasCaducidad()" class="bg-yellow-500 bg-opacity-20 px-4 py-1 rounded-xl hover:bg-yellow-600 font-semibold shadow">
+        ⚠️ Ver productos proximos a caducar
+      </button>
+    </div>
     
     <table class="w-full text-xs border border-gray-300">
       <thead class="bg-teal-800 text-white">
@@ -237,11 +251,19 @@
           return res.json();
         })
         .then(data => {
-          let html = `<div class="text-center"><strong>${data.nombre}</strong><br>Fabricante: ${data.fabricante}</div>`;
+          let html = `
+            <div class="flex items-center justify-between bg-white/80 rounded-xl px-4 py-2 shadow mb-2">
+              <div class="text-left">
+                <div class="font-bold text-base text-gray-800">${data.nombre}</div>
+                <div class="text-sm text-gray-600">Fabricante: ${data.fabricante}</div>
+              </div>
+              <button onclick="verMovimientos('${ref}', '${data.lotes[0]?.lote || ""}')" title="Ver movimientos"
+                class="text-2xl text-blue-600 hover:text-blue-800">📚</button>
+            </div>`;
           if (data.lotes && data.lotes.length) {
             html += `
               <table class="text-base mt-2 w-full border border-gray-300 text-center">
-                <thead class="bg-gray-200 font-semibold">
+                <thead class="bg-teal-800 bg-opacity-40 font-semibold">
                   <tr>
                     <th class="p-2">Lote</th>
                     <th class="p-2">Cantidad</th>
@@ -276,8 +298,52 @@
           document.getElementById("resultadoBusqueda").innerHTML = "<p class='text-red-600'>Producto no encontrado</p>";
         });
     }
-    window.addEventListener("DOMContentLoaded", mostrarAlertasCaducidad);
+    function verMovimientos(referencia, lote) {
+      fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/movimientos?referencia=eq.${referencia}&lote=eq.${lote}&select=usuario,modo,timestamp`, {
+        headers: {
+          "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo",
+          "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo"
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (!data.length) {
+          document.getElementById("movimientosContenido").innerHTML = "<p class='text-sm text-center text-gray-600'>No hay movimientos registrados.</p>";
+        } else {
+          let html = `<table class="w-full text-sm text-left border mt-2">
+            <thead class="bg-teal-00">
+              <tr><th class="p-2">Fecha</th><th class="p-2">Usuario</th><th class="p-2">Acción</th></tr>
+            </thead><tbody>`;
+          data.forEach(mov => {
+            const fecha = new Date(Number(mov.timestamp)).toLocaleString();
+            html += `<tr>
+              <td class="p-2">${fecha}</td>
+              <td class="p-2">${mov.usuario || '-'}</td>
+              <td class="p-2 capitalize">${mov.modo || '-'}</td>
+            </tr>`;
+          });
+          html += "</tbody></table>";
+          document.getElementById("movimientosContenido").innerHTML = html;
+        }
+        document.getElementById("modalMovimientos").classList.remove("hidden");
+      });
+    }
+
+    //window.addEventListener("DOMContentLoaded", mostrarAlertasCaducidad);
   </script>
+ <!-- Ventana de moviemientos -->
+  <div id="modalMovimientos" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50 hidden">
+    <div class="bg-white rounded-xl p-6 w-[90%] max-w-lg text-gray-800">
+      <h2 class="text-lg font-bold mb-4 text-center">📋 Movimientos del producto</h2>
+      <div id="movimientosContenido" class="max-h-64 overflow-y-auto text-sm"></div>
+      <div class="text-center mt-4">
+        <button onclick="document.getElementById('modalMovimientos').classList.add('hidden')" class="bg-red-600 text-white px-4 py-2 rounded-xl hover:bg-red-700">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+  
 <!-- Ventana de alerta -->
 <div id="alertaCaducidad" class="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-60 hidden">
   <div class="bg-white bg-opacity-80 rounded-2xl shadow-xl p-6 w-[95%] max-w-5xl text-gray-800">
@@ -288,6 +354,14 @@
     </button>
   </div>
 </div>
+<script>
+  document.addEventListener("keydown", function (e) {
+    const alerta = document.getElementById("alertaCaducidad");
+    if (!alerta.classList.contains("hidden") && e.key === "Enter") {
+      alerta.classList.add("hidden");
+    }
+  });
+</script>
 
   <div id="versionInfo" style="
     position: fixed;
@@ -300,7 +374,7 @@
     border-radius: 6px;
     z-index: 9999;
   ">
-    v1.0.8
+    v1.1.0
   </div>
 </body>
 </html>
