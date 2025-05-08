@@ -36,17 +36,25 @@
   <img src="centrum.png" alt="Logo Centrum" class="mx-auto h-28 mb-2" />
   <h1 class="text-5xl font-bold tracking-widest text-white-100">R.I.C.A.R.D.O.</h1>
   <p class="text-1x1 text-gray-100 font-medium max-w-2xl mx-auto">
-    <strong>R</strong>egistro <strong>I</strong>nteligente de <strong>C</strong>ontrol, <strong>A</strong>lmacenamiento y <strong>R</strong>egistro <strong>D</strong>e <strong>O</strong>peraciones
+    <strong>R</strong>egistro <strong>I</strong>nteligente de <strong>C</strong>ontrol, <strong>A</strong>lmacenamiento y <strong>R</strong>egistro <strong>D</strong>igital de <strong>O</strong>peraciones
   </p>
+</div>
+<!-- Modal de selección de modo -->
+<div id="modalModo" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
+  <div class="bg-white p-6 rounded-2xl shadow-lg text-center w-[90%] max-w-xs text-gray-800">
+    <h2 class="text-lg font-bold mb-4">Selecciona el modo de operación</h2>
+    <button onclick="seleccionarModo('entrada')" class="w-full mb-2 px-4 py-2 bg-green-800 text-white rounded-xl hover:bg-green-800">📥 Entrada</button>
+    <button onclick="seleccionarModo('salida')" class="w-full px-4 py-2 bg-red-800 text-white rounded-xl hover:bg-red-800">📤 Salida</button>
+  </div>
 </div>
 
 <body class="min-h-screen flex flex-col items-center justify-center text-white">
   <div class="bg-white bg-opacity-80 rounded-2xl shadow-xl p-6 w-full max-w-xl text-gray-800">
     <div class="flex items-center justify-between mb-4">
       <h1 class="text-2xl font-bold">Inventario QR - Centrum</h1>
-      <button id="modoBtn" onclick="mostrarMenuModo()" class="bg-gray-500 text-white px-3 py-1 rounded-xl flex items-center gap-2">
+      <button id="btnModo" onclick="mostrarMenuModo()" class="bg-gray-500 text-white px-3 py-1 rounded-xl flex items-center gap-2">
         🔒 Modo inactivo
-      </button>
+      </button>      
           </div>
 
     <div class="mt-4">
@@ -54,9 +62,18 @@
       <div id="resultadoBusqueda" class="text-sm text-gray-800"></div>
     </div>
 
-    <div class="mb-3 text-center text-sm text-gray-600">
-      Usuario: <span id="usuarioActivo">-</span> | Modo: <span id="modoLabel" class="font-semibold">Entrada</span>
+    <div class="mb-4 px-4 py-3  rounded-xl bg-white/70 text-black font-semibold text-center shadow">
+      <div class="text-base">
+        Usuario actual:
+        <span id="usuarioActivo" class="text-lg font-extrabold ml-2">-</span>
+      </div>
+      <div class="mt-2">
+        <span id="modoLabel" class="inline-block font-bold px-3 py-1 rounded-xl text-white bg-gray-400 text-sm">
+          INACTIVO
+        </span>
+      </div>
     </div>
+    
 
     <input type="text" id="inputQR" placeholder="Escanea el código QR" class="w-full p-3 mb-4 rounded-xl border text-center" autofocus />
     <div class="text-center mt-2 mb-4">
@@ -189,7 +206,7 @@
       const pines = { "0512": "Santos", "2704": "Fabiola", "1704": "Aida", "1103": "Johnatan", "3101": "Albino", "2009": "Sofi", "2811": "Danna", "0311": "Silvia", "1005": "Luis", "0303": "Alex" };
       if (pines[pin]) {
         usuario = pines[pin];
-        modo = (modo === "entrada") ? "salida" : "entrada";
+        modo = (modo === "entrada") ? "modo salida" : "entrada";
         document.getElementById("modoLabel").textContent = modo.toUpperCase();
         document.getElementById("usuarioActivo").textContent = `${usuario}`;
         notificar(`Modo ${modo.toUpperCase()} activado`, '#1e3a8a');
@@ -382,6 +399,180 @@
       alerta.classList.add("hidden");
     }
   });
+  
+  const pines = {
+    "0512": "Santos",
+    "2704": "Fabiola",
+    "1704": "Aida",
+    "1103": "Johnatan",
+    "3101": "Albino",
+    "2009": "Sofi",
+    "2811": "Danna",
+    "0311": "Silvia",
+    "1005": "Luis",
+    "0303": "Alex"
+  };
+
+  function mostrarMenuModo() {
+  const contenedor = document.createElement("div");
+  contenedor.classList.add("modal-modo");  // ← te ayudará a cerrarlo luego si hace falta
+  contenedor.innerHTML = `
+    <div class="fixed inset-0 bg-white bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white text-gray-800 p-6 rounded-xl text-center space-y-4 w-72 shadow-xl">
+        <h2 class="font-bold text-lg mb-2">Selecciona el modo</h2>
+        <button onclick="solicitarPinModo('entrada', this)" class="bg-green-600 text-white px-4 py-2 rounded-xl w-full hover:bg-green-700">📥 Modo Entrada</button>
+        <button onclick="solicitarPinModo('salida', this)" class="bg-red-600 text-white px-4 py-2 rounded-xl w-full hover:bg-red-700">📤 Modo Salida</button>
+        <button onclick="this.closest('.fixed').remove()" class="text-sm text-gray-500 hover:text-gray-800">Cancelar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(contenedor);
+}
+
+function solicitarPinModo(tipo, boton) {
+  let pinValido = false;
+  const contenedor = boton.closest(".modal-modo");
+
+  while (!pinValido) {
+    const pin = prompt("NIP (ddmm):");
+    if (pines[pin]) {
+      usuario = pines[pin];
+      modo = tipo;
+      pinValido = true;
+
+      // Actualiza botón principal
+      const icono = modo === "entrada" ? "📥" : "📤";
+      const color = modo === "entrada" ? "bg-green-800" : "bg-red-800";
+      actualizarBotonModo(modo.charAt(0).toUpperCase() + modo.slice(1), color, icono);
+
+      // Actualiza usuario y modo
+      document.getElementById("usuarioActivo").textContent = usuario;
+
+      const modoLabel = document.getElementById("modoLabel");
+      modoLabel.textContent = modo.toUpperCase();
+      modoLabel.className = "font-bold px-2 py-1 rounded-lg text-white " + (modo === "entrada" ? "bg-green-800" : "bg-red-800");
+
+      notificar(`Modo ${modo.toUpperCase()} activado`, '#003f40');
+      contenedor.remove(); // Cierra el modal
+    } else {
+      alert("NIP incorrecto. Intenta nuevamente.");
+    }
+  }
+}
+
+  function actualizarBotonModo(texto, claseColor, icono) {
+    const btn = document.getElementById("btnModo");
+    btn.className = `px-3 py-1 rounded-xl text-white ${claseColor}`;
+    btn.innerHTML = `${icono} Modo ${texto}`;
+  }
+
+
+</script>
+
+<script>
+  async function enviarSupabase() {
+    if (!registrosQR.length) {
+      notificar("No hay datos para enviar", "#f59e0b", "⚠️");
+      return;
+    }
+
+    try {
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ registros: registrosQR })
+      });
+
+      const res = await response.json();
+      const resultados = res.resultados || [];
+
+      resultados.forEach(r => {
+        let color = "#3b82f6";
+        let icono = "ℹ️";
+        let mensaje = "";
+
+        if (r.status === "ok") {
+          if (r.color === "verde") {
+            color = "#047857";
+            icono = "✅";
+            mensaje = `Producto agregado: ${r.referencia}`;
+          } else if (r.color === "rojo") {
+            color = "#b91c1c";
+            icono = "🛑";
+            mensaje = `Producto se va a retirar: ${r.referencia}`;
+          }
+        } else if (r.status === "repetido" && r.color === "azul") {
+          color = "#0284c7";
+          icono = "📦";
+          mensaje = `Ya escaneado anteriormente: ${r.referencia}`;
+        } else if (r.status === "extraido_previo") {
+          color = "#facc15";
+          icono = "⚠️";
+          mensaje = `Producto ya extraído por ${r.usuario} el ${r.fecha}`;
+        } else if (r.status === "nuevo_producto") {
+          mostrarModalCreacion(r.referencia, r.lote);
+          return; // Pausa la notificación hasta que se confirme
+        } else {
+          color = "#6b7280";
+          icono = "❌";
+          mensaje = r.mensaje || "Error al procesar QR";
+        }
+
+        notificar(mensaje, color, icono);
+      });
+
+      registrosQR = [];
+      document.getElementById("tablaQR").innerHTML = "";
+    } catch (err) {
+      console.error("Error al enviar:", err);
+      notificar("Error al enviar", "#b91c1c", "❌");
+    }
+  }
+
+  function mostrarModalCreacion(ref, lote) {
+    const modal = document.createElement("div");
+    modal.className = "fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50";
+    modal.innerHTML = `
+      <div class="bg-white text-gray-800 p-6 rounded-xl w-full max-w-sm text-center shadow-xl">
+        <h2 class="text-lg font-bold mb-4">🆕 Crear nuevo producto</h2>
+        <p class="mb-2">Referencia: <strong>${ref}</strong></p>
+        <p class="mb-4">Lote: <strong>${lote}</strong></p>
+        <input type="text" id="nombreNuevo" class="w-full mb-2 p-2 border rounded" placeholder="Nombre del producto" />
+        <input type="text" id="fabricanteNuevo" class="w-full mb-4 p-2 border rounded" placeholder="Fabricante" />
+        <button onclick="confirmarNuevoProducto('${ref}', '${lote}')" class="bg-green-700 text-white px-4 py-2 rounded-xl hover:bg-green-800">Crear</button>
+        <button onclick="this.closest('.fixed').remove()" class="ml-4 text-sm text-gray-600 hover:text-gray-900">Cancelar</button>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+
+  function confirmarNuevoProducto(ref, lote) {
+    const nombre = document.getElementById("nombreNuevo").value.trim();
+    const fabricante = document.getElementById("fabricanteNuevo").value.trim();
+    if (!nombre || !fabricante) {
+      alert("Debes ingresar nombre y fabricante");
+      return;
+    }
+
+    fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo",
+        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo"
+      },
+      body: JSON.stringify({ referencia: ref, lote: lote, nombre: nombre, fabricante: fabricante, cantidad: 1 })
+    })
+    .then(() => {
+      document.querySelector(".fixed").remove();
+      notificar("Producto creado correctamente", "#22c55e", "🆕");
+      agregarFila(ref, lote, "Nuevo");
+      buscarReferencia(ref);
+    })
+    .catch(() => {
+      alert("Error al crear producto");
+    });
+  }
+</script>
+
 </script>
 
   <div id="versionInfo" style="
