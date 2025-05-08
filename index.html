@@ -234,7 +234,11 @@
       registrosQR.push(fila);
       agregarFila(fila.referencia, fila.lote, "Preparado");
       notificar("Código agregado a la tabla", "#16a34a", "✅");
+      console.log("Fila agregada:", fila);
+      console.log("Total registros:", registrosQR.length);
+
     }
+    
     function enviarSupabase() {
       if (!registrosQR.length) {
         notificar("No hay datos para enviar", "#f59e0b", "⚠️");
@@ -591,7 +595,7 @@ function solicitarPinModo(tipo, boton) {
     border-radius: 6px;
     z-index: 9999;
   ">
-    v1.1.5
+    v1.1.6
   </div>
 </body>
 </html>
