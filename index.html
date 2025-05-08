@@ -195,11 +195,12 @@
       const match = qr.match(/R:(.*?)\|L:(.*?)\|T:(.*)/);
       if (!match) return null;
       return {
-        referencia: match[1],
-        lote: match[2],
-        timestamp: match[3]
+        referencia: match[1].trim(),
+        lote: match[2].trim(),
+        timestamp: match[3].trim()
       };
     }
+
 
     function solicitarPin() {
       const pin = prompt("NIP (ddmm):");
@@ -590,7 +591,7 @@ function solicitarPinModo(tipo, boton) {
     border-radius: 6px;
     z-index: 9999;
   ">
-    v1.1.4
+    v1.1.5
   </div>
 </body>
 </html>
