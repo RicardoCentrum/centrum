@@ -32,7 +32,7 @@
   <img src="medinova.png" alt="Logo Medinova" class="h-20 mt-1" />
 </div>
 
-<div class="text-center mb-4">
+<div class="text-center mb-10">
   <img src="centrum.png" alt="Logo Centrum" class="mx-auto h-28 mb-2" />
   <h1 class="text-5xl font-bold tracking-widest text-white-100">R.I.C.A.R.D.O.</h1>
   <p class="text-1x1 text-gray-100 font-medium max-w-2xl mx-auto">
@@ -44,8 +44,10 @@
   <div class="bg-white bg-opacity-80 rounded-2xl shadow-xl p-6 w-full max-w-xl text-gray-800">
     <div class="flex items-center justify-between mb-4">
       <h1 class="text-2xl font-bold">Inventario QR - Centrum</h1>
-      <button onclick="solicitarPin()" class="bg-gray-800 text-white px-3 py-1 rounded-xl">🔒 Cambiar modo</button>
-    </div>
+      <button id="modoBtn" onclick="mostrarMenuModo()" class="bg-gray-500 text-white px-3 py-1 rounded-xl flex items-center gap-2">
+        🔒 Modo inactivo
+      </button>
+          </div>
 
     <div class="mt-4">
       <input type="text" id="refBusqueda" placeholder="Buscar por referencia..." class="w-full p-3 mb-4 rounded-xl border text-center" oninput="buscarReferencia(this.value)" />
