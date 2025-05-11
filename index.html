@@ -36,7 +36,7 @@
   <img src="centrum.png" alt="Logo Centrum" class="mx-auto h-28 mb-2" />
   <h1 class="text-5xl font-bold tracking-widest text-white-100">R.I.C.A.R.D.O.</h1>
   <p class="text-1x1 text-gray-100 font-medium max-w-2xl mx-auto">
-    <strong>R</strong>egistro <strong>I</strong>nteligente de <strong>C</strong>ontrol, <strong>A</strong>lmacenamiento y <strong>R</strong>egistro <strong>D</strong>igital de <strong>O</strong>peraciones
+    <strong>R</strong>egistro <strong>I</strong>nteligente de <strong>C</strong>ontrol, <strong>A</strong>lmacenamiento y <strong>R</strong>astreo <strong>D</strong>igital de <strong>O</strong>peraciones
   </p>
 </div>
 <!-- Modal de selección de modo -->
@@ -45,6 +45,39 @@
     <h2 class="text-lg font-bold mb-4">Selecciona el modo de operación</h2>
     <button onclick="seleccionarModo('entrada')" class="w-full mb-2 px-4 py-2 bg-green-800 text-white rounded-xl hover:bg-green-800">📥 Entrada</button>
     <button onclick="seleccionarModo('salida')" class="w-full px-4 py-2 bg-red-800 text-white rounded-xl hover:bg-red-800">📤 Salida</button>
+  </div>
+</div>
+<div id="modalAviso" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
+  bg-gray-800 text-white text-center px-8 py-5 text-xl rounded-2xl shadow-lg z-50 hidden max-w-lg">
+</div>
+<div id="overlayColor" class="fixed inset-0 z-40 hidden transition-opacity"></div>
+<!-- Modal NIP y unidad -->
+<div id="modalPinUnidad" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+  <div class="bg-white text-gray-800 p-6 rounded-2xl shadow-xl w-full max-w-md space-y-4">
+    <h2 class="text-lg font-bold text-center">Acceso requerido</h2>
+
+    <div>
+      <label for="inputNIP" class="block text-sm font-semibold mb-1">NIP (ddmm):</label>
+      <input id="inputNIP" type="password" maxlength="4"
+             class="w-full px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500" />
+    </div>
+
+    <div id="unidadDestinoGroup" class="hidden">
+      <label for="inputUnidad" class="block text-sm font-semibold mb-1">Clave unidad destino:</label>
+      <input id="inputUnidad" type="text" placeholder="Ej: C03128"
+             class="w-full px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase" />
+    </div>
+
+    <div id="pinError" class="text-sm text-red-600 hidden">❌ NIP o unidad no válidos.</div>
+
+    <div class="flex justify-end gap-2 mt-4">
+      <button onclick="cerrarModalPin()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400">
+        Cancelar
+      </button>
+      <button onclick="validarPinYUnidad()" class="px-4 py-2 bg-teal-600 text-white rounded-xl hover:bg-teal-700">
+        Confirmar
+      </button>
+    </div>
   </div>
 </div>
 
@@ -100,10 +133,62 @@
   <div id="notificacion" class="modal text-center font-bold"></div>
 
   <script>
-    const API_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr";
+const VALIDAR_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/validar_qr";
+const API_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr";
     let modo = "entrada";
     let usuario = null;
     let registrosQR = [];
+    let qrsPendientes = [];  // lo que se ha validado pero aún no enviado
+    const unidadesDestino = {
+  "C03442": "C.S. GALEANA",
+  "C03441": "C.S. HIDALGO",
+  "C03438": "C.S. NUEVO CASAS GRANDES",
+  "C03443": "CAAPS ANAPRA",
+  "C03439": "CESSA COLINAS",
+  "C03440": "CESSA ZARAGOZA",
+  "C03435": "H.C. NUEVO CASAS GRANDES",
+  "C03436": "HIE JUAREZ",
+  "C03420": "HOSPITAL DE LA MUJER CD JUAREZ",
+  "C03419": "HOSPITAL GENERAL CD JUAREZ",
+  "C03127": "HGZ 6",
+  "C03131": "HGS 22",
+  "C03135": "HGR 02",
+  "C03133": "HGZ UMAA 35",
+  "C03134": "HGR 66",
+  "C03448": "C.S. GUACHOCHI",
+  "C03447": "C.S. JIMENEZ",
+  "C03446": "H. GPE Y CALVO",
+  "C03132": "H.G.Z.M.F. 23",
+  "C03122": "H.R.O. No. 26",
+  "C03124": "H.R.O. No. 36",
+  "C03445": "HOSPITAL CAMARGO",
+  "C03421": "HOSPITAL DE JIMENEZ",
+  "C03422": "HOSPITAL GINECOLOGIA PARRAL",
+  "C03444": "HOSPITAL PARRAL",
+  "C03451": "CESSA ALDAMA",
+  "C03433": "CESSA MADERA",
+  "C03415": "HOSPITAL CENTRAL",
+  "C03424": "HG CUAUHTEMOC",
+  "C03416": "HGO CUAUHTEMOC",
+  "C03432": "CESSA TIERRA NUEVA",
+  "C03431": "CS CREEL",
+  "C03428": "CS TEMORIS",
+  "C03123": "HRO No. 18 SAN JUANITO",
+  "C03430": "C.S. DELICIAS",
+  "C03425": "H.C. OJINAGA",
+  "C03417": "H.R. DELICIAS",
+  "C03434": "C.S. SANTA ISABEL",
+  "C03429": "CAAPS NOGALES",
+  "C03427": "C.S. SAN FELIPE",
+  "C03426": "H.C. GOMEZ FARIAS",
+  "C03418": "HIE CHIHUAHUA",
+  "C03423": "H.G. DR. SALVADOR ZUBIRAN",
+  "C03128": "H.G.Z.M.F. 11",
+  "C03130": "H.G.Z.M.F. 16",
+  "C03129": "HGO No. 15",
+  "C03126": "HGR No. 1"
+};
+
 
     function calcularDiasRestantes(fecha) {
       if (!fecha) return Infinity;
@@ -126,10 +211,14 @@
     document.getElementById("inputQR").addEventListener("keydown", function(e) {
       if (e.key === "Enter") {
         const contenido = e.target.value.trim();
-        if (contenido) procesarQR(contenido);
-        e.target.value = "";
+        if (contenido) {
+          procesarQR(contenido);
+          e.target.value = "";
+        }
       }
     });
+
+
     async function mostrarAlertasCaducidad() {
       try {
         const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos?select=referencia,nombre,fabricante,lote,caducidad,cantidad", {
@@ -192,15 +281,16 @@
     }
 
     function extraerDatosQR(qr) {
-      const match = qr.match(/R:(.*?)\|L:(.*?)\|T:(.*)/);
+      const limpio = qr.replace(/\s+/g, ''); // elimina TODOS los espacios
+      const match = limpio.match(/R:(.*?)\|L:(.*?)\|T:(.*)/);
       if (!match) return null;
+
       return {
-        referencia: match[1].trim(),
-        lote: match[2].trim(),
-        timestamp: match[3].trim()
+        referencia: match[1],
+        lote: match[2],
+        timestamp: match[3]
       };
     }
-
 
     function solicitarPin() {
       const pin = prompt("NIP (ddmm):");
@@ -215,57 +305,155 @@
         notificar("NIP incorrecto", '#b91c1c');
       }
     }
+    let timeoutAviso = null;
 
-    function procesarQR(codigo) {
-      const datos = extraerDatosQR(codigo);
-      if (!datos) {
-        notificar("Formato de QR inválido", "#dc2626", "❌");
+    function mostrarModal(mensaje, color) {
+      const modal = document.getElementById("modalAviso");
+      const overlay = document.getElementById("overlayColor");
+
+      // Limpia timeout anterior
+      if (timeoutAviso) {
+        clearTimeout(timeoutAviso);
+      }
+
+      // Muestra modal
+      modal.textContent = mensaje;
+      modal.style.backgroundColor = color;
+      modal.style.display = "block";
+
+      // Muestra overlay de fondo
+      if (overlay) {
+        overlay.style.backgroundColor = color;
+        overlay.style.display = "block";
+        overlay.style.opacity = "0.6";
+      }
+
+      // Oculta todo después de 2.5s
+      timeoutAviso = setTimeout(() => {
+        modal.style.display = "none";
+        if (overlay) overlay.style.display = "none";
+        timeoutAviso = null;
+      }, 2500);
+    }
+    async function procesarQR(contenido) {
+      const datos = extraerDatosQR(contenido);
+      if (!datos || !datos.referencia || !datos.lote || !datos.timestamp) {
+        mostrarModal("❌ QR incompleto o ilegible", "#6b7280");
         return;
       }
 
-      const fila = {
-        referencia: datos.referencia,
-        lote: datos.lote,
-        timestamp: datos.timestamp,  // ✅ se agregó aquí
-        modo,
-        usuario
+      if (!usuario || !modo || modo === "inactivo") {
+        mostrarModal("⚠️ Selecciona un modo y un usuario", "#f59e0b");
+        return;
+      }
+
+      if (qrsPendientes.some(q => q.timestamp === datos.timestamp)) {
+        mostrarModal("📦 Ya escaneado localmente", "#0284c7");
+        return;
+      }
+
+      const validarPayload = {
+        registros: [{ ...datos, modo }]
       };
 
-      registrosQR.push(fila);
-      agregarFila(fila.referencia, fila.lote, "Preparado");
-      notificar("Código agregado a la tabla", "#16a34a", "✅");
-      console.log("Fila agregada:", fila);
-      console.log("Total registros:", registrosQR.length);
-
-    }
-    
-    function enviarSupabase() {
-      if (!registrosQR.length) {
-        notificar("No hay datos para enviar", "#f59e0b", "⚠️");
-        return;
-      }   
-    fetch(API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ registros: registrosQR })
-    })
-      .then(res => res.json())
-      .then(res => {
-        const resultados = res.resultados || [];
-        resultados.forEach(r => {
-          console.log("Resultado:", r);
+      try {
+        const res = await fetch(VALIDAR_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(validarPayload)
         });
-        notificar("Registros enviados correctamente", "#1d4ed8", "✅");
-        registrosQR = [];
-        document.getElementById("tablaQR").innerHTML = "";
-      })
-      .catch(err => {
-        console.error("Error:", err);
-        notificar("Error al enviar", "#b91c1c", "❌");
-      });
+
+        const json = await res.json();
+        const r = json.resultados?.[0];
+
+        if (!r) {
+          mostrarModal("❌ Validación fallida", "#6b7280");
+          return;
+        }
+
+        if (r.status === "ok" || r.status === "nuevo_producto") {
+          qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
+          agregarFila(datos.referencia, datos.lote, r.status === "ok" ? "Preparado" : "Producto nuevo");
+          mostrarModal(r.status === "ok" ? "✅ Producto agregado" : "✅ Producto nuevo", r.color === "verde" ? "#047857" : "#22c55e");
+
+        } else if (r.status === "repetido") {
+          mostrarModal("📦 Ya escaneado anteriormente", "#0284c7");
+
+        } else if (r.status === "extraido_previo") {
+          const unidad = r.unidad_destino ? ` a ${r.unidad_destino}` : "";
+          mostrarModal(`⚠️ Ya extraído por ${r.usuario}${unidad}`, "#facc15");
+
+        } else if (r.status === "error" && r.mensaje) {
+          mostrarModal(`⚠️ ${r.mensaje}`, "#6b7280");
+
+        } else {
+          mostrarModal("❌ Error en validación", "#6b7280");
+        }
+
+      } catch (err) {
+        console.error("Error de red en validación:", err);
+        mostrarModal("❌ Error de conexión", "#b91c1c");
+      }
     }
+
+    async function enviarSupabase() {
+      if (!qrsPendientes.length) {
+        mostrarModal("⚠️ No hay registros para enviar", "#f59e0b");
+        return;
+      }
+
+      if (modo === "inactivo") {
+        mostrarMenuModo();
+        return;
+      }
+
+      registrosQR = [...qrsPendientes];  // ← lo validado se prepara para envío
+
+      const payload = { registros: registrosQR };
+
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        const json = await res.json();
+        console.log("Supabase dice:", json);
+        mostrarModal("✅ Datos enviados a Base de Datos", "#003f40");
+
+        registrosQR = [];
+        qrsPendientes = [];
+        document.getElementById("tablaQR").innerHTML = "";
+        document.getElementById("tablaContenedora").classList.add("hidden");
+
+      } catch (err) {
+        console.error("Error enviando:", err);
+        mostrarModal("❌ Error al enviar a Base de Datos", "#b91c1c");
+      }
+    }
+
+
+
+    function agregarFila(ref, lote, estado) {
+      const tabla = document.getElementById("tablaQR");
+      const contenedor = document.getElementById("tablaContenedora");
+
+      if (contenedor.classList.contains("hidden")) {
+        contenedor.classList.remove("hidden");
+        setTimeout(() => contenedor.classList.remove("opacity-0"), 10);
+      }
+
+      const fila = document.createElement("tr");
+      fila.innerHTML = `
+        <td class='p-1'>${ref}</td>
+        <td class='p-1'>${lote}</td>
+        <td class='p-1'>${estado}</td>
+        <td class='p-1 text-center'><button onclick='eliminarFila(this)' class='text-red-600'>✖</button></td>
+      `;
+      tabla.appendChild(fila);
+    }
+
 
     function notificar(mensaje, color, icono = '') {
       const div = document.getElementById("notificacion");
@@ -432,157 +620,110 @@
   document.body.appendChild(contenedor);
 }
 
+let modoSeleccionado = null;
+let unidadSeleccionada = null;
+
 function solicitarPinModo(tipo, boton) {
-  let pinValido = false;
-  const contenedor = boton.closest(".modal-modo");
+  // 🔴 Cierra el modal anterior si existe
+  const modalAnterior = boton.closest('.modal-modo');
+  if (modalAnterior) modalAnterior.remove();
 
-  while (!pinValido) {
-    const pin = prompt("NIP (ddmm):");
-    if (pines[pin]) {
-      usuario = pines[pin];
-      modo = tipo;
-      pinValido = true;
+  // 🔵 Continúa con lógica actual
+  modoSeleccionado = tipo;
+  unidadSeleccionada = null;
+  document.getElementById("inputNIP").value = "";
+  document.getElementById("inputUnidad").value = "";
+  document.getElementById("pinError").classList.add("hidden");
 
-      // Actualiza botón principal
-      const icono = modo === "entrada" ? "📥" : "📤";
-      const color = modo === "entrada" ? "bg-green-800" : "bg-red-800";
-      actualizarBotonModo(modo.charAt(0).toUpperCase() + modo.slice(1), color, icono);
+  // Mostrar campo de unidad solo si es salida
+  const unidadGroup = document.getElementById("unidadDestinoGroup");
+  unidadGroup.classList.toggle("hidden", tipo !== "salida");
 
-      // Actualiza usuario y modo
-      document.getElementById("usuarioActivo").textContent = usuario;
+  // Mostrar modal de NIP y unidad
+  document.getElementById("modalPinUnidad").classList.remove("hidden");
+  document.getElementById("inputNIP").focus();
 
-      const modoLabel = document.getElementById("modoLabel");
-      modoLabel.textContent = modo.toUpperCase();
-      modoLabel.className = "font-bold px-2 py-1 rounded-lg text-white " + (modo === "entrada" ? "bg-green-800" : "bg-red-800");
-
-      notificar(`Modo ${modo.toUpperCase()} activado`, '#003f40');
-      contenedor.remove(); // Cierra el modal
-    } else {
-      alert("NIP incorrecto. Intenta nuevamente.");
-    }
-  }
 }
 
-  function actualizarBotonModo(texto, claseColor, icono) {
+  document.getElementById("inputNIP").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      const unidadGroup = document.getElementById("unidadDestinoGroup");
+      if (!unidadGroup.classList.contains("hidden")) {
+        document.getElementById("inputUnidad").focus(); // Modo salida → ir al campo unidad
+      } else {
+        validarPinYUnidad(); // Modo entrada → confirmar directamente
+      }
+    }
+  });
+
+  document.getElementById("inputUnidad").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      validarPinYUnidad(); // Ya estamos en campo unidad → confirmar
+    }
+  });
+
+
+
+function cerrarModalPin() {
+  document.getElementById("modalPinUnidad").classList.add("hidden");
+}
+function validarPinYUnidad() {
+  const pin = document.getElementById("inputNIP").value.trim();
+  const unidad = document.getElementById("inputUnidad").value.trim().toUpperCase();
+  const esSalida = modoSeleccionado === "salida";
+
+  if (!pines[pin]) {
+    document.getElementById("pinError").classList.remove("hidden");
+    return;
+  }
+
+  if (esSalida && !unidadesDestino[unidad]) {
+    document.getElementById("pinError").classList.remove("hidden");
+    return;
+  }
+
+  // ✅ Datos válidos
+  document.getElementById("pinError").classList.add("hidden");
+  document.getElementById("modalPinUnidad").classList.add("hidden");
+
+  usuario = pines[pin];
+  if (esSalida) {
+    usuario += ` → ${unidadesDestino[unidad]}`;
+    unidadSeleccionada = unidad;
+  }
+
+  modo = modoSeleccionado;
+
+  const icono = modo === "entrada" ? "📥" : "📤";
+  const color = modo === "entrada" ? "bg-green-800" : "bg-red-800";
+  actualizarBotonModo(modo.charAt(0).toUpperCase() + modo.slice(1), color, icono);
+
+  document.getElementById("usuarioActivo").textContent = usuario;
+  const modoLabel = document.getElementById("modoLabel");
+  modoLabel.textContent = modo.toUpperCase();
+  modoLabel.className = "font-bold px-2 py-1 rounded-lg text-white " + color;
+
+  notificar(`Modo ${modo.toUpperCase()} activado`, '#003f40');
+  document.getElementById("inputQR").focus();
+
+}
+
+function actualizarBotonModo(texto, claseColor, icono) {
     const btn = document.getElementById("btnModo");
     btn.className = `px-3 py-1 rounded-xl text-white ${claseColor}`;
     btn.innerHTML = `${icono} Modo ${texto}`;
   }
+  document.addEventListener("keydown", function (e) {
+    const modal = document.getElementById("modalPinUnidad");
+    const activo = modal && !modal.classList.contains("hidden");
 
-
+    if (activo && e.key === "Enter") {
+      e.preventDefault();
+      validarPinYUnidad();
+    }
+  });
 </script>
 
-<script>
-  async function enviarSupabase() {
-    if (!registrosQR.length) {
-      notificar("No hay datos para enviar", "#f59e0b", "⚠️");
-      return;
-    }
-
-    if (modo !== "entrada" && modo !== "salida") {
-      notificar("Modo inválido. Selecciona entrada o salida.", "#b91c1c", "❌");
-      return;
-    }
-
-    try {
-      const response = await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ registros: registrosQR })
-      });
-
-      const res = await response.json();
-      const resultados = res.resultados || [];
-
-      resultados.forEach(r => {
-        let color = "#3b82f6";
-        let icono = "ℹ️";
-        let mensaje = "";
-
-        if (r.status === "ok") {
-          if (r.color === "verde") {
-            color = "#047857";
-            icono = "✅";
-            mensaje = `Producto agregado: ${r.referencia}`;
-          } else if (r.color === "rojo") {
-            color = "#b91c1c";
-            icono = "🛑";
-            mensaje = `Producto se va a retirar: ${r.referencia}`;
-          }
-        } else if (r.status === "repetido" && r.color === "azul") {
-          color = "#0284c7";
-          icono = "📦";
-          mensaje = `Ya escaneado anteriormente: ${r.referencia}`;
-        } else if (r.status === "extraido_previo") {
-          color = "#facc15";
-          icono = "⚠️";
-          mensaje = `Producto ya extraído por ${r.usuario} el ${r.fecha}`;
-        } else if (r.status === "nuevo_producto") {
-          mostrarModalCreacion(r.referencia, r.lote);
-          return; // Pausa la notificación hasta que se confirme
-        } else {
-          color = "#6b7280";
-          icono = "❌";
-          mensaje = r.mensaje || "Error al procesar QR";
-        }
-
-        notificar(mensaje, color, icono);
-      });
-
-      registrosQR = [];
-      document.getElementById("tablaQR").innerHTML = "";
-    } catch (err) {
-      console.error("Error al enviar:", err);
-      notificar("Error al enviar", "#b91c1c", "❌");
-    }
-  }
-
-  function mostrarModalCreacion(ref, lote) {
-    const modal = document.createElement("div");
-    modal.className = "fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50";
-    modal.innerHTML = `
-      <div class="bg-white text-gray-800 p-6 rounded-xl w-full max-w-sm text-center shadow-xl">
-        <h2 class="text-lg font-bold mb-4">🆕 Crear nuevo producto</h2>
-        <p class="mb-2">Referencia: <strong>${ref}</strong></p>
-        <p class="mb-4">Lote: <strong>${lote}</strong></p>
-        <input type="text" id="nombreNuevo" class="w-full mb-2 p-2 border rounded" placeholder="Nombre del producto" />
-        <input type="text" id="fabricanteNuevo" class="w-full mb-4 p-2 border rounded" placeholder="Fabricante" />
-        <button onclick="confirmarNuevoProducto('${ref}', '${lote}')" class="bg-green-700 text-white px-4 py-2 rounded-xl hover:bg-green-800">Crear</button>
-        <button onclick="this.closest('.fixed').remove()" class="ml-4 text-sm text-gray-600 hover:text-gray-900">Cancelar</button>
-      </div>`;
-    document.body.appendChild(modal);
-  }
-
-  function confirmarNuevoProducto(ref, lote) {
-    const nombre = document.getElementById("nombreNuevo").value.trim();
-    const fabricante = document.getElementById("fabricanteNuevo").value.trim();
-    if (!nombre || !fabricante) {
-      alert("Debes ingresar nombre y fabricante");
-      return;
-    }
-
-    fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo",
-        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo"
-      },
-      body: JSON.stringify({ referencia: ref, lote: lote, nombre: nombre, fabricante: fabricante, cantidad: 1 })
-    })
-    .then(() => {
-      document.querySelector(".fixed").remove();
-      notificar("Producto creado correctamente", "#22c55e", "🆕");
-      agregarFila(ref, lote, "Nuevo");
-      buscarReferencia(ref);
-    })
-    .catch(() => {
-      alert("Error al crear producto");
-    });
-  }
-
-
-</script>
 
   <div id="versionInfo" style="
     position: fixed;
