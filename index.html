@@ -1091,25 +1091,31 @@ async function exportarRegresionPDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF("p", "mm", "a4");
 
-  // Fondo institucional
-  doc.setFillColor("#003f40");
+  // Fondo blanco (por defecto en jsPDF no necesita pintarse)
+  doc.setFillColor(255, 255, 255);
   doc.rect(0, 0, 210, 297, "F");
 
-  // Logo
+  // Logo proporcional (original 729x529, escala proporcional ajustada a 50mm de ancho)
   const logo = new Image();
   logo.src = "centrum.png";
 
   logo.onload = () => {
-    doc.addImage(logo, "PNG", 10, 10, 30, 30);
+    const logoAncho = 50;
+    const escala = 529 / 729;
+    const logoAlto = logoAncho * escala;
 
-    doc.setFontSize(16);
-    doc.setTextColor(255, 255, 255);
-    doc.text("Pronóstico de Consumo - Regresión y Suavizado", 50, 25);
+    // Centrar horizontalmente
+    const xPos = (210 - logoAncho) / 2;
+    doc.addImage(logo, "PNG", xPos, 10, logoAncho, logoAlto);
+
+    doc.setFontSize(14);
+    doc.setTextColor(0, 0, 0);
+    doc.text("Pronóstico de Consumo - Regresión y Suavizado", 105, 25 + logoAlto, { align: "center" });
 
     // Capturar canvas como imagen
     const canvas = document.getElementById("graficaForecastLinea");
     const imgData = canvas.toDataURL("image/png");
-    doc.addImage(imgData, "PNG", 10, 50, 190, 70);
+    doc.addImage(imgData, "PNG", 10, 40 + logoAlto, 190, 60);
 
     // Extraer datos desde la tabla DOM
     const tabla = document.querySelector("#tablaForecast table");
@@ -1120,15 +1126,15 @@ async function exportarRegresionPDF() {
     const columnas = ["Mes", "Unidades reales", "Regresión", "Suavizado"];
     const cuerpo = rows.slice(1).map(row => row.slice(0, 4));
 
-    // Dibujar tabla
+    // Dibujar tabla más pequeña
     doc.autoTable({
       head: [columnas],
       body: cuerpo,
-      startY: 130,
+      startY: 105 + logoAlto,
       theme: "grid",
       headStyles: {
-        fillColor: [0, 63, 64],
-        textColor: 255,
+        fillColor: [230, 230, 230],
+        textColor: 0,
         fontStyle: "bold"
       },
       bodyStyles: {
@@ -1136,25 +1142,26 @@ async function exportarRegresionPDF() {
         textColor: [0, 0, 0]
       },
       styles: {
-        halign: "center",
-        lineColor: [0, 63, 64],
-        lineWidth: 0.3,
-        cellPadding: 2,
         font: "helvetica",
-        fontSize: 10
+        fontSize: 8,
+        halign: "center",
+        lineColor: [180, 180, 180],
+        lineWidth: 0.2,
+        cellPadding: 1
       },
-      margin: { top: 130 },
+      margin: { top: 105 + logoAlto },
     });
 
-    // Fecha de generación
+    // Pie de página
     const hoy = new Date();
     doc.setFontSize(8);
-    doc.setTextColor(255);
+    doc.setTextColor(100);
     doc.text(`Generado el ${hoy.toLocaleDateString("es-MX")}`, 150, 290);
 
     doc.save("Pronostico_Regresion_Centrum.pdf");
   };
 }
+
 function confiabilidadConvertida(original) {
   const resultado = {};
   for (const unidad in original) {
