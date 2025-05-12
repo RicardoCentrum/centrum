@@ -339,7 +339,41 @@ const API_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar
         timeoutAviso = null;
       }, 2500);
     }
-    async function procesarQR(contenido) {
+async function procesarQR(contenido) {
+  const ref = extraerReferenciaDesdeQR(contenido);  // 🔧 corregido
+
+  if (ref) {
+    fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/buscar_referencia?ref=${encodeURIComponent(ref)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (!data || !data.nombre) {
+          mostrarModal("❌ Referencia no encontrada", "#dc2626");
+          return;
+        }
+
+        const lote = (() => {
+          const partes = contenido.trim().split("|");  // 🔧 corregido
+          for (let parte of partes) {
+            if (parte.startsWith("L:")) return parte.slice(2).trim();
+          }
+          return "";
+        })();
+
+        const producto = {
+          nombre: data.nombre,
+          fabricante: data.fabricante,
+          lote: lote,
+          referencia: ref
+        };
+
+        mostrarVentanaPrevisualizacion(producto);
+      })
+      .catch(err => {
+        console.error("❌ Error al buscar la referencia:", err);
+        mostrarModal("⚠️ Error de conexión con Supabase", "#f59e0b");
+      });
+  }
+
       const datos = extraerDatosQR(contenido);
       if (!datos || !datos.referencia || !datos.lote || !datos.timestamp) {
         mostrarModal("❌ QR incompleto o ilegible", "#6b7280");
@@ -459,14 +493,29 @@ const API_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar
       div.style.display = "block";
       setTimeout(() => div.style.display = "none", 2500);
     }
+
+    function extraerReferenciaDesdeQR(qr) {
+      try {
+        const partes = qr.trim().split("|");
+        for (let parte of partes) {
+          if (parte.startsWith("R:")) {
+            return parte.slice(2).trim();
+          }
+        }
+      } catch {
+        return null;
+      }
+      return null;
+    }
+
 function buscarReferencia(ref) {
   if (!ref || ref.length < 2) {
     document.getElementById("resultadoBusqueda").innerHTML = "";
     return;
   }
 
-  const match = ref.match(/R:(.*?)\|/);
-  if (match) ref = match[1];
+  ref = extraerReferenciaDesdeQR(ref) || ref.trim();
+
 
   fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/buscar_referencia?ref=${encodeURIComponent(ref)}`)
     .then(res => {
@@ -532,48 +581,56 @@ function buscarReferencia(ref) {
     });
 }
 
-    function verMovimientos(referencia, lote) {
-      fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/TimeStamps?referencia=eq.${referencia}&lote=eq.${lote}&select=usuario,movimiento,fecha_str`, {
-        headers: {
-            "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo",
-            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo"
+function verMovimientos(referencia, lote = null) {
+  let url = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/TimeStamps?referencia=eq.${encodeURIComponent(referencia)}&select=usuario,movimiento,fecha_str,lote&order=fecha.desc&limit=50`;
+  
+  // Si se proporciona un lote, también filtramos por él
+  if (lote) {
+    url = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/TimeStamps?referencia=eq.${encodeURIComponent(referencia)}&lote=eq.${encodeURIComponent(lote)}&select=usuario,movimiento,fecha_str,lote&order=fecha.desc&limit=50`;
+  }
+  fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/TimeStamps?referencia=eq.${referencia}&lote=eq.${lote}&select=usuario,movimiento,fecha_str`, {
+    headers: {
+        "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo",
+        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo"
 
-        }
-      })
-        .then(res => {
-          if (!res.ok) throw new Error("No se pudo obtener movimientos");
-          return res.json();
-        })
-        .then(data => {
-          if (!data.length) {
-            document.getElementById("movimientosContenido").innerHTML = "<p class='text-sm text-center text-gray-600'>No hay movimientos registrados.</p>";
-          } else {
-            let html = `<table class="w-full text-sm text-left border mt-2">
-              <thead class="bg-teal-00">
-                <tr><th class="p-2">Fecha</th><th class="p-2">Usuario</th><th class="p-2">Acción</th></tr>
-              </thead><tbody>`;
-
-            data.forEach(mov => {
-              const fecha = mov.fecha_str || "-";
-              html += `<tr>
-                <td class="p-2">${fecha}</td>
-                <td class="p-2">${mov.usuario || '-'}</td>
-                <td class="p-2 capitalize">${mov.movimiento || '-'}</td>
-              </tr>`;
-            });
-
-            html += "</tbody></table>";
-            document.getElementById("movimientosContenido").innerHTML = html;
-          }
-
-          document.getElementById("modalMovimientos").classList.remove("hidden");
-        })
-        .catch(err => {
-          console.error("Error al cargar movimientos:", err);
-          document.getElementById("movimientosContenido").innerHTML = "<p class='text-sm text-center text-red-600'>Error al obtener movimientos.</p>";
-          document.getElementById("modalMovimientos").classList.remove("hidden");
-        });
     }
+  })
+        .then(res => {
+      if (!res.ok) throw new Error("No se pudo obtener movimientos");
+      return res.json();
+    })
+    .then(data => {
+      const contenedor = document.getElementById("movimientosContenido");
+      if (!data.length) {
+        contenedor.innerHTML = "<p class='text-sm text-center text-gray-600'>No hay movimientos registrados.</p>";
+      } else {
+        let html = `<table class="w-full text-sm text-left border mt-2">
+          <thead class="bg-gray-200">
+            <tr><th class="p-2">Fecha</th><th class="p-2">Usuario</th><th class="p-2">Acción</th><th class="p-2">Lote</th></tr>
+          </thead><tbody>`;
+
+        data.forEach(mov => {
+          html += `<tr>
+            <td class="p-2">${mov.fecha_str || "-"}</td>
+            <td class="p-2">${mov.usuario || "-"}</td>
+            <td class="p-2 capitalize">${mov.movimiento || "-"}</td>
+            <td class="p-2">${mov.lote || "-"}</td>
+          </tr>`;
+        });
+
+        html += "</tbody></table>";
+        contenedor.innerHTML = html;
+      }
+
+      document.getElementById("modalMovimientos").classList.remove("hidden");
+    })
+    .catch(err => {
+      console.error("Error al cargar movimientos:", err);
+      document.getElementById("movimientosContenido").innerHTML = "<p class='text-sm text-center text-red-600'>Error al obtener movimientos.</p>";
+      document.getElementById("modalMovimientos").classList.remove("hidden");
+    });
+}
+   
 
 function ajustarMesLogico(timestamp) {
   const fecha = new Date(Number(timestamp));
@@ -771,7 +828,7 @@ function verForecast(referencia, nombre = "", fabricante = "") {
   modal.className = "fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50 overflow-y-auto";
   modal.innerHTML = `
     <div class="bg-white rounded-xl p-4 w-[95%] max-w-5xl text-gray-800 relative">
-      <button onclick="document.getElementById('modalForecast').remove()" class="absolute top-2 right-2 text-gray-500 hover:text-red-600 text-xl font-bold">×</button>
+      <button onclick="document.getElementById('modalForecast').remove()" class="absolute top-2 right-2 text-red-800 hover:text-red-600 text-xl font-bold">×</button>
 
       <h2 class="text-lg font-bold mb-3 text-center">📊 Estadísticas del producto</h2>
 
@@ -783,8 +840,8 @@ function verForecast(referencia, nombre = "", fabricante = "") {
           </select>
         </div>
         <div class="flex gap-2">
-          <button onclick="exportarRegresionExcel()" class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 text-sm">📤 Excel</button>
-          <button onclick="exportarRegresionPDF()" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm">🖨️ PDF</button>
+          <button onclick="exportarRegresionExcel()" class="bg-green-700 text-white px-3 py-1 rounded hover:bg-green-700 text-sm">📤 Excel</button>
+          <button onclick="exportarRegresionPDF()" class="bg-rose-800 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm">🖨️ PDF</button>
         </div>
       </div>
 
@@ -876,8 +933,8 @@ async function cargarDatosForecastEdge(ref) {
             label: "Unidades consumidas",
             data: valores,
             fill: true,
-            borderColor: "#9333ea",
-            backgroundColor: "rgba(147, 51, 234, 0.2)",
+            borderColor: "#016f70",
+            backgroundColor: "rgba(0, 110, 112, 0.2)",
             tension: 0.3
           }]
         },
@@ -904,8 +961,8 @@ async function cargarDatosForecastEdge(ref) {
       });
 
       tabla.innerHTML = `
-        <table class="w-full mt-2 border border-gray-300 text-xs text-center">
-          <thead class="bg-gray-200">
+        <table class="w-full mt-2 border border-gray-300 text-xs  text-center">
+          <thead class="bg-teal-800">
             <tr><th>Mes</th><th>Unidades</th></tr>
           </thead>
           <tbody>
@@ -924,7 +981,7 @@ async function cargarDatosForecastEdge(ref) {
     select.dispatchEvent(new Event("change"));
   } catch (err) {
     console.error("Error al cargar forecast:", err);
-    tabla.innerHTML = `<p class="text-red-600 text-sm">❌ Error al cargar forecast</p>`;
+    tabla.innerHTML = `<p class="text-red-700 text-sm">❌ Error al cargar forecast</p>`;
   }
 }
 
@@ -940,13 +997,6 @@ function graficarRegresionLineal(labelsHist, valoresHist) {
   const valoresRecortados = [...valoresHist];
   const N = 5; // ventana móvil de 5 meses
   const maxPendiente = 2; // límite para evitar saltos excesivos
-  const alpha = 0.4; // suavizado exponencial
-
-  const suavizado = [valoresRecortados[0]];
-  for (let i = 1; i < valoresRecortados.length; i++) {
-    const nuevo = alpha * valoresRecortados[i] + (1 - alpha) * suavizado[i - 1];
-    suavizado.push(Math.round(nuevo * 100) / 100);
-  }
 
   // Regresión móvil limitada
   const prediccion = valoresRecortados.map((_, i) => {
@@ -987,14 +1037,17 @@ function graficarRegresionLineal(labelsHist, valoresHist) {
   const allLabels = [...labelsRecortados, ...labelsForecast];
   const seriePrediccion = [...prediccion, ...predFuturo];
 
- const canvas = document.getElementById("graficaForecastLinea");
-  const ctx = canvas.getContext("2d");
-
-  if (graficaRegresionInstance) {
-    graficaRegresionInstance.destroy();
-    // Limpia el canvas para evitar crecimiento errático
-    canvas.width = canvas.width; // esto lo resetea visualmente
+  // Suavizado exponencial aplicado a la predicción
+  const alpha = 0.6;
+  const suavizado = [seriePrediccion[0] || 0];
+  for (let i = 1; i < seriePrediccion.length; i++) {
+    const actual = seriePrediccion[i] ?? suavizado[i - 1];
+    const nuevo = alpha * actual + (1 - alpha) * suavizado[i - 1];
+    suavizado.push(Math.round(nuevo * 100) / 100);
   }
+
+  const ctx = document.getElementById("graficaForecastLinea").getContext("2d");
+  if (graficaRegresionInstance) graficaRegresionInstance.destroy();
 
   graficaRegresionInstance = new Chart(ctx, {
     type: "line",
@@ -1004,8 +1057,8 @@ function graficarRegresionLineal(labelsHist, valoresHist) {
         {
           label: "Histórico",
           data: [...valoresRecortados, ...Array(3).fill(null)],
-          borderColor: "#4b5563",
-          backgroundColor: "rgba(75, 85, 99, 0.2)",
+          borderColor: "#093E9B",
+          backgroundColor: "rgba(9, 62, 155, 0.2)",
           fill: true,
           tension: 0.3
         },
@@ -1019,9 +1072,9 @@ function graficarRegresionLineal(labelsHist, valoresHist) {
           tension: 0.3
         },
         {
-          label: "Suavizado exponencial",
-          data: [...suavizado, ...Array(3).fill(null)],
-          borderColor: "#0ea5e9",
+          label: "Suavizado sobre regresión",
+          data: suavizado,
+          borderColor: "#02aeb1",
           borderDash: [1, 1],
           backgroundColor: "rgba(14, 165, 233, 0.15)",
           fill: true,
@@ -1031,31 +1084,30 @@ function graficarRegresionLineal(labelsHist, valoresHist) {
     },
     options: {
       responsive: true,
-      maintainAspectRatio: true,
+      maintainAspectRatio: false,
       plugins: {
         legend: { position: "top" },
         title: {
           display: true,
-          text: "Pronóstico con regresión móvil y suavizado"
-       }
+          text: "Pronóstico con regresión móvil suavizada"
+        }
       },
       scales: {
         y: {
           beginAtZero: true,
           afterDataLimits(scale) {
-            scale.max = scale.max * 1.1; // Deja un 10% de margen arriba
+            scale.max = scale.max * 1.1;
           }
         }
       }
     }
-
   });
 
   // Mostrar tabla
   const tabla = document.getElementById("tablaForecast");
   tabla.innerHTML = `
-    <table class="w-full mt-4 border border-gray-300 text-xs text-center">
-      <thead class="bg-gray-200">
+    <table class="w-full mt-4 border border-teal-200 text-xs text-gray-900 text-center">
+      <thead class="bg-teal-200">
         <tr><th>Mes</th><th>Unidades reales</th><th>Regresión</th><th>Suavizado</th></tr>
       </thead>
       <tbody>
@@ -1069,6 +1121,7 @@ function graficarRegresionLineal(labelsHist, valoresHist) {
       </tbody>
     </table>`;
 }
+
 
 
 function exportarRegresionExcel() {
@@ -1197,7 +1250,7 @@ function combinarUnidades(consumo) {
     border-radius: 6px;
     z-index: 9999;
   ">
-    v1.1.6
+    v1.5.13
   </div>
 </body>
 </html>
