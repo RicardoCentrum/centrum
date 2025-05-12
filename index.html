@@ -27,6 +27,10 @@
   
   </style>
 </head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
 <div class="absolute top-4 right-4 flex flex-col items-center text-center">
   <h1 class="text-sm font-bold tracking-widest text-white">Powered by</h1>
   <img src="medinova.png" alt="Logo Medinova" class="h-20 mt-1" />
@@ -376,25 +380,23 @@ const API_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar
           agregarFila(datos.referencia, datos.lote, r.status === "ok" ? "Preparado" : "Producto nuevo");
           mostrarModal(r.status === "ok" ? "✅ Producto agregado" : "✅ Producto nuevo", r.color === "verde" ? "#047857" : "#22c55e");
 
-        } else if (r.status === "repetido") {
-          mostrarModal("📦 Ya escaneado anteriormente", "#0284c7");
-
         } else if (r.status === "extraido_previo") {
-          const unidad = r.unidad_destino ? ` a ${r.unidad_destino}` : "";
-          mostrarModal(`⚠️ Ya extraído por ${r.usuario}${unidad}`, "#facc15");
+          mostrarModal(`⚠️ Ya extraído por ${r.usuario}`, "#facc15");
+
 
         } else if (r.status === "error" && r.mensaje) {
           mostrarModal(`⚠️ ${r.mensaje}`, "#6b7280");
 
         } else {
-          mostrarModal("❌ Error en validación", "#6b7280");
+          mostrarModal("❌ Error en el QR", "#6b7280");
         }
 
-      } catch (err) {
-        console.error("Error de red en validación:", err);
-        mostrarModal("❌ Error de conexión", "#b91c1c");
+
+        } catch (err) {
+          console.error("Error de red en validación:", err);
+          mostrarModal("❌ Error de conexión", "#b91c1c");
+        }
       }
-    }
 
     async function enviarSupabase() {
       if (!qrsPendientes.length) {
@@ -432,9 +434,6 @@ const API_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar
         mostrarModal("❌ Error al enviar a Base de Datos", "#b91c1c");
       }
     }
-
-
-
     function agregarFila(ref, lote, estado) {
       const tabla = document.getElementById("tablaQR");
       const contenedor = document.getElementById("tablaContenedora");
@@ -453,8 +452,6 @@ const API_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar
       `;
       tabla.appendChild(fila);
     }
-
-
     function notificar(mensaje, color, icono = '') {
       const div = document.getElementById("notificacion");
       div.style.backgroundColor = color;
@@ -462,102 +459,127 @@ const API_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar
       div.style.display = "block";
       setTimeout(() => div.style.display = "none", 2500);
     }
+function buscarReferencia(ref) {
+  if (!ref || ref.length < 2) {
+    document.getElementById("resultadoBusqueda").innerHTML = "";
+    return;
+  }
 
-    function buscarReferencia(ref) {
-      if (!ref || ref.length < 2) {
-        document.getElementById("resultadoBusqueda").innerHTML = "";
-        return;
+  const match = ref.match(/R:(.*?)\|/);
+  if (match) ref = match[1];
+
+  fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/buscar_referencia?ref=${encodeURIComponent(ref)}`)
+    .then(res => {
+      if (!res.ok) throw new Error("No encontrado");
+      return res.json();
+    })
+    .then(data => {
+      let html = `
+        <div class="flex items-center justify-between bg-white/80 rounded-xl px-4 py-2 shadow mb-2">
+          <div class="text-left">
+            <div class="font-bold text-base text-gray-800">${data.nombre}</div>
+            <div class="text-sm text-gray-600">Fabricante: ${data.fabricante}</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <!-- 📚 Botón original comentado -->
+            <!-- <button onclick="verMovimientos('${ref}', '${data.lotes[0]?.lote || ""}')" title="Ver movimientos"
+              class="text-2xl text-blue-600 hover:text-blue-800">📚</button> -->
+
+            <!-- ✅ Nuevo botón de movimientos -->
+            <button onclick="verMovimientos('${ref}', '${data.lotes[0]?.lote || ""}')" title="Ver movimientos"
+              class="text-2xl text-blue-600 hover:text-blue-800">📚</button>
+
+            <!-- ✅ Botón de gráfica 📊 -->
+            <button onclick="verForecast('${ref}', '${data.nombre}', '${data.fabricante}')" title="Ver historial de consumo"
+              class="text-2xl text-purple-600 hover:text-purple-800">📊</button>
+          </div>
+        </div>`;
+
+      if (data.lotes && data.lotes.length) {
+        html += `
+          <table class="text-base mt-2 w-full border border-gray-300 text-center">
+            <thead class="bg-teal-800 bg-opacity-40 font-semibold">
+              <tr>
+                <th class="p-2">Lote</th>
+                <th class="p-2">Cantidad</th>
+                <th class="p-2">Caducidad</th>
+                <th class="p-2">⚠️</th>
+              </tr>
+            </thead>
+            <tbody>`;
+        data.lotes.forEach(l => {
+          const dias = calcularDiasRestantes(l.caducidad);
+          let icono = "❗";
+          if (dias <= 30) icono = "❗❗❗";
+          else if (dias <= 60) icono = "❗❗";
+
+          html += `
+            <tr>
+              <td class="p-2">${l.lote}</td>
+              <td class="p-2">${l.cantidad}</td>
+              <td class="p-2">${l.caducidad}</td>
+              <td class="p-2" title="Días restantes">${icono}</td>
+            </tr>`;
+        });
+
+        html += `</tbody></table>`;
       }
 
-      // Si se escanea un código QR/barra con formato completo, extraer referencia
-      const match = ref.match(/R:(.*?)\|/);
-      if (match) {
-        ref = match[1]; // extrae solo la referencia
-      }
+      document.getElementById("resultadoBusqueda").innerHTML = html;
+    })
+    .catch(() => {
+      document.getElementById("resultadoBusqueda").innerHTML = "<p class='text-red-600'>Producto no encontrado</p>";
+    });
+}
 
-      fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/buscar_referencia?ref=${encodeURIComponent(ref)}`)
+    function verMovimientos(referencia, lote) {
+      fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/TimeStamps?referencia=eq.${referencia}&lote=eq.${lote}&select=usuario,movimiento,fecha_str`, {
+        headers: {
+            "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo",
+            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo"
+
+        }
+      })
         .then(res => {
-          if (!res.ok) throw new Error("No encontrado");
+          if (!res.ok) throw new Error("No se pudo obtener movimientos");
           return res.json();
         })
         .then(data => {
-          let html = `
-            <div class="flex items-center justify-between bg-white/80 rounded-xl px-4 py-2 shadow mb-2">
-              <div class="text-left">
-                <div class="font-bold text-base text-gray-800">${data.nombre}</div>
-                <div class="text-sm text-gray-600">Fabricante: ${data.fabricante}</div>
-              </div>
-              <button onclick="verMovimientos('${ref}', '${data.lotes[0]?.lote || ""}')" title="Ver movimientos"
-                class="text-2xl text-blue-600 hover:text-blue-800">📚</button>
-            </div>`;
-          if (data.lotes && data.lotes.length) {
-            html += `
-              <table class="text-base mt-2 w-full border border-gray-300 text-center">
-                <thead class="bg-teal-800 bg-opacity-40 font-semibold">
-                  <tr>
-                    <th class="p-2">Lote</th>
-                    <th class="p-2">Cantidad</th>
-                    <th class="p-2">Caducidad</th>
-                    <th class="p-2">⚠️</th>
-                  </tr>
-                </thead>
-                <tbody>`;
-            data.lotes.forEach(l => {
-              const dias = calcularDiasRestantes(l.caducidad);
-              let icono = "❗";
-              if (dias <= 30) {
-                icono = "❗❗❗";
-              } else if (dias <= 60) {
-                icono = "❗❗";
-              }
+          if (!data.length) {
+            document.getElementById("movimientosContenido").innerHTML = "<p class='text-sm text-center text-gray-600'>No hay movimientos registrados.</p>";
+          } else {
+            let html = `<table class="w-full text-sm text-left border mt-2">
+              <thead class="bg-teal-00">
+                <tr><th class="p-2">Fecha</th><th class="p-2">Usuario</th><th class="p-2">Acción</th></tr>
+              </thead><tbody>`;
 
-              html += `
-                <tr>
-                  <td class="p-2">${l.lote}</td>
-                  <td class="p-2">${l.cantidad}</td>
-                  <td class="p-2">${l.caducidad}</td>
-                  <td class="p-2 <span title="Días restantes">${icono}</span></td>
-                </tr>`;
+            data.forEach(mov => {
+              const fecha = mov.fecha_str || "-";
+              html += `<tr>
+                <td class="p-2">${fecha}</td>
+                <td class="p-2">${mov.usuario || '-'}</td>
+                <td class="p-2 capitalize">${mov.movimiento || '-'}</td>
+              </tr>`;
             });
 
-            html += `</tbody></table>`;
+            html += "</tbody></table>";
+            document.getElementById("movimientosContenido").innerHTML = html;
           }
-          document.getElementById("resultadoBusqueda").innerHTML = html;
+
+          document.getElementById("modalMovimientos").classList.remove("hidden");
         })
-        .catch(() => {
-          document.getElementById("resultadoBusqueda").innerHTML = "<p class='text-red-600'>Producto no encontrado</p>";
+        .catch(err => {
+          console.error("Error al cargar movimientos:", err);
+          document.getElementById("movimientosContenido").innerHTML = "<p class='text-sm text-center text-red-600'>Error al obtener movimientos.</p>";
+          document.getElementById("modalMovimientos").classList.remove("hidden");
         });
     }
-    function verMovimientos(referencia, lote) {
-      fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/movimientos?referencia=eq.${referencia}&lote=eq.${lote}&select=usuario,modo,timestamp`, {
-        headers: {
-          "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo",
-          "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo"
-        }
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (!data.length) {
-          document.getElementById("movimientosContenido").innerHTML = "<p class='text-sm text-center text-gray-600'>No hay movimientos registrados.</p>";
-        } else {
-          let html = `<table class="w-full text-sm text-left border mt-2">
-            <thead class="bg-teal-00">
-              <tr><th class="p-2">Fecha</th><th class="p-2">Usuario</th><th class="p-2">Acción</th></tr>
-            </thead><tbody>`;
-          data.forEach(mov => {
-            const fecha = new Date(Number(mov.timestamp)).toLocaleString();
-            html += `<tr>
-              <td class="p-2">${fecha}</td>
-              <td class="p-2">${mov.usuario || '-'}</td>
-              <td class="p-2 capitalize">${mov.modo || '-'}</td>
-            </tr>`;
-          });
-          html += "</tbody></table>";
-          document.getElementById("movimientosContenido").innerHTML = html;
-        }
-        document.getElementById("modalMovimientos").classList.remove("hidden");
-      });
-    }
+
+function ajustarMesLogico(timestamp) {
+  const fecha = new Date(Number(timestamp));
+  const mes = fecha.getMonth();
+  return fecha.getDate() >= 25 ? mes + 1 : mes;
+}
 
     //window.addEventListener("DOMContentLoaded", mostrarAlertasCaducidad);
   </script>
@@ -722,6 +744,438 @@ function actualizarBotonModo(texto, claseColor, icono) {
       validarPinYUnidad();
     }
   });
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+
+function calcularRegresionLineal(x, y) {
+  const n = x.length;
+  const sumX = x.reduce((a, b) => a + b, 0);
+  const sumY = y.reduce((a, b) => a + b, 0);
+  const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
+  const sumX2 = x.reduce((sum, xi) => sum + xi * xi, 0);
+
+  const pendiente = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+  const intercepto = (sumY - pendiente * sumX) / n;
+
+  return { pendiente, intercepto };
+}
+
+
+function verForecast(referencia, nombre = "", fabricante = "") {
+  const anterior = document.getElementById("modalForecast");
+  if (anterior) anterior.remove();
+
+  const modal = document.createElement("div");
+  modal.id = "modalForecast";
+  modal.className = "fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50 overflow-y-auto";
+  modal.innerHTML = `
+    <div class="bg-white rounded-xl p-4 w-[95%] max-w-5xl text-gray-800 relative">
+      <button onclick="document.getElementById('modalForecast').remove()" class="absolute top-2 right-2 text-gray-500 hover:text-red-600 text-xl font-bold">×</button>
+
+      <h2 class="text-lg font-bold mb-3 text-center">📊 Estadísticas del producto</h2>
+
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+        <div class="flex-1">
+          <label class="block text-sm font-bold mb-1">Selecciona unidad:</label>
+          <select id="unidadForecast" class="px-3 py-2 border rounded-xl w-full max-w-sm">
+            <option value="TOTAL">Total (Almacén CUU)</option>
+          </select>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="exportarRegresionExcel()" class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 text-sm">📤 Excel</button>
+          <button onclick="exportarRegresionPDF()" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm">🖨️ PDF</button>
+        </div>
+      </div>
+
+      <!-- Gráfica superior -->
+      <div class="w-full max-w-full mx-auto mb-4">
+        <canvas id="graficaForecast" class="w-full h-[320px] max-w-full"></canvas>
+      </div>
+
+      <!-- Gráfica de pronóstico + tabla -->
+      <div class="flex flex-col md:flex-row gap-4 w-full">
+        <div class="md:w-2/3">
+          <canvas id="graficaForecastLinea" class="w-full h-[180px] max-w-full"></canvas>
+        </div>
+        <div id="tablaForecast" class="text-sm md:w-1/3 h-[300px] overflow-y-auto"></div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  // Cerrar modal con tecla Esc
+  document.addEventListener("keydown", function handleEsc(e) {
+    if (e.key === "Escape") {
+      modal.remove();
+      document.removeEventListener("keydown", handleEsc);
+    }
+  });
+
+  // Cerrar modal al hacer clic fuera
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) {
+      modal.remove();
+    }
+  });
+
+  cargarDatosForecastEdge(referencia);
+} window.verForecast = verForecast;
+
+
+let graficaForecastInstance = null;
+let graficaRegresionInstance = null;
+
+async function cargarDatosForecastEdge(ref) {
+  const select = document.getElementById("unidadForecast");
+  const ctx = document.getElementById("graficaForecast").getContext("2d");
+  const tabla = document.getElementById("tablaForecast");
+
+  try {
+    const res = await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/forecast_producto?ref=${ref}`);
+    let consumoData = await res.json();
+
+    if (consumoData.error) throw new Error(consumoData.error);
+
+    const todasUnidades = Object.keys(consumoData.consumo).sort();
+    todasUnidades.forEach(u => {
+      const opt = document.createElement("option");
+      opt.value = u;
+      opt.textContent = u;
+      select.appendChild(opt);
+    });
+
+    select.onchange = () => {
+      const unidad = select.value;
+      const datosUnidad = unidad === "TOTAL"
+        ? combinarUnidades(consumoData.consumo)
+        : consumoData.consumo[unidad] || {};
+
+      const confiabilidadUnidad = unidad === "TOTAL"
+        ? combinarUnidades(confiabilidadConvertida(consumoData.confiabilidad))
+        : consumoData.confiabilidad?.[unidad] || {};
+
+      const labels = Object.keys(datosUnidad).sort();
+      const valores = labels.map(k => datosUnidad[k]);
+
+      if (graficaForecastInstance) {
+        graficaForecastInstance.destroy();
+      }
+
+      if (labels.length === 0) {
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        tabla.innerHTML = "";
+        mostrarModal("📂 Sin datos registrados", "#6b7280");
+        return;
+      }
+
+      graficaForecastInstance = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            label: "Unidades consumidas",
+            data: valores,
+            fill: true,
+            borderColor: "#9333ea",
+            backgroundColor: "rgba(147, 51, 234, 0.2)",
+            tension: 0.3
+          }]
+        },
+       options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: "top" },
+          title: {
+            display: true,
+            text: "Consumo mensual"
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            afterDataLimits(scale) {
+              scale.max = scale.max * 1.1; // Deja un 10% de margen arriba
+            }
+          }
+        }
+      }
+
+      });
+
+      tabla.innerHTML = `
+        <table class="w-full mt-2 border border-gray-300 text-xs text-center">
+          <thead class="bg-gray-200">
+            <tr><th>Mes</th><th>Unidades</th></tr>
+          </thead>
+          <tbody>
+            ${labels.map(m => `
+              <tr>
+                <td>${m}</td>
+                <td>${datosUnidad[m]}</td>
+              </tr>`).join("")}
+          </tbody>
+        </table>`;
+
+      // Forecast por regresión lineal
+      graficarRegresionLineal(labels, valores);
+    };
+
+    select.dispatchEvent(new Event("change"));
+  } catch (err) {
+    console.error("Error al cargar forecast:", err);
+    tabla.innerHTML = `<p class="text-red-600 text-sm">❌ Error al cargar forecast</p>`;
+  }
+}
+
+function calcularR2(x, y, pendiente, intercepto) {
+  const yMedia = y.reduce((a, b) => a + b, 0) / y.length;
+  const ssTot = y.reduce((sum, yi) => sum + Math.pow(yi - yMedia, 2), 0);
+  const ssRes = y.reduce((sum, yi, i) => sum + Math.pow(yi - (pendiente * x[i] + intercepto), 2), 0);
+  return 1 - (ssRes / ssTot);
+}
+
+function graficarRegresionLineal(labelsHist, valoresHist) {
+  const labelsRecortados = [...labelsHist];
+  const valoresRecortados = [...valoresHist];
+  const N = 5; // ventana móvil de 5 meses
+  const maxPendiente = 2; // límite para evitar saltos excesivos
+  const alpha = 0.4; // suavizado exponencial
+
+  const suavizado = [valoresRecortados[0]];
+  for (let i = 1; i < valoresRecortados.length; i++) {
+    const nuevo = alpha * valoresRecortados[i] + (1 - alpha) * suavizado[i - 1];
+    suavizado.push(Math.round(nuevo * 100) / 100);
+  }
+
+  // Regresión móvil limitada
+  const prediccion = valoresRecortados.map((_, i) => {
+    if (i < N) return null;
+    const ySegmento = valoresRecortados.slice(i - N, i);
+    const xSegmento = ySegmento.map((_, j) => j);
+    let { pendiente, intercepto } = calcularRegresionLineal(xSegmento, ySegmento);
+
+    if (Math.abs(pendiente) > maxPendiente) {
+      pendiente = Math.sign(pendiente) * maxPendiente;
+    }
+
+    return Math.round((pendiente * N + intercepto) * 100) / 100;
+  });
+
+  // Prolongación futura con los últimos N valores
+  const ultimosY = valoresRecortados.slice(-N);
+  const ultimosX = ultimosY.map((_, j) => j);
+  let { pendiente: finPend, intercepto: finInt } = calcularRegresionLineal(ultimosX, ultimosY);
+  if (Math.abs(finPend) > maxPendiente) {
+    finPend = Math.sign(finPend) * maxPendiente;
+  }
+
+  const predFuturo = [];
+  const labelsForecast = [];
+  const ultimaFecha = new Date(labelsRecortados[labelsRecortados.length - 1] + "-01");
+
+  for (let i = 1; i <= 3; i++) {
+    const index = ultimosX.length + i - 1;
+    const pred = Math.max(0, finPend * index + finInt);
+    predFuturo.push(Math.round(pred * 100) / 100);
+
+    const nueva = new Date(ultimaFecha);
+    nueva.setMonth(nueva.getMonth() + i);
+    labelsForecast.push(`${nueva.getFullYear()}-${String(nueva.getMonth() + 1).padStart(2, "0")}`);
+  }
+
+  const allLabels = [...labelsRecortados, ...labelsForecast];
+  const seriePrediccion = [...prediccion, ...predFuturo];
+
+ const canvas = document.getElementById("graficaForecastLinea");
+  const ctx = canvas.getContext("2d");
+
+  if (graficaRegresionInstance) {
+    graficaRegresionInstance.destroy();
+    // Limpia el canvas para evitar crecimiento errático
+    canvas.width = canvas.width; // esto lo resetea visualmente
+  }
+
+  graficaRegresionInstance = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: allLabels,
+      datasets: [
+        {
+          label: "Histórico",
+          data: [...valoresRecortados, ...Array(3).fill(null)],
+          borderColor: "#4b5563",
+          backgroundColor: "rgba(75, 85, 99, 0.2)",
+          fill: true,
+          tension: 0.3
+        },
+        {
+          label: "Regresión móvil limitada (5 meses)",
+          data: seriePrediccion,
+          borderColor: "#16a34a",
+          borderDash: [4, 4],
+          backgroundColor: "rgba(34,197,94,0.15)",
+          fill: true,
+          tension: 0.3
+        },
+        {
+          label: "Suavizado exponencial",
+          data: [...suavizado, ...Array(3).fill(null)],
+          borderColor: "#0ea5e9",
+          borderDash: [1, 1],
+          backgroundColor: "rgba(14, 165, 233, 0.15)",
+          fill: true,
+          tension: 0.3
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: { position: "top" },
+        title: {
+          display: true,
+          text: "Pronóstico con regresión móvil y suavizado"
+       }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          afterDataLimits(scale) {
+            scale.max = scale.max * 1.1; // Deja un 10% de margen arriba
+          }
+        }
+      }
+    }
+
+  });
+
+  // Mostrar tabla
+  const tabla = document.getElementById("tablaForecast");
+  tabla.innerHTML = `
+    <table class="w-full mt-4 border border-gray-300 text-xs text-center">
+      <thead class="bg-gray-200">
+        <tr><th>Mes</th><th>Unidades reales</th><th>Regresión</th><th>Suavizado</th></tr>
+      </thead>
+      <tbody>
+        ${allLabels.map((mes, i) => `
+          <tr>
+            <td>${mes}</td>
+            <td>${valoresRecortados[i] !== undefined ? valoresRecortados[i] : ""}</td>
+            <td>${seriePrediccion[i] !== undefined ? seriePrediccion[i] : ""}</td>
+            <td>${suavizado[i] !== undefined ? suavizado[i] : ""}</td>
+          </tr>`).join("")}
+      </tbody>
+    </table>`;
+}
+
+
+function exportarRegresionExcel() {
+  const tabla = document.querySelector("#tablaForecast table");
+  if (!tabla) return;
+
+  const rows = Array.from(tabla.querySelectorAll("tr")).map(row =>
+    Array.from(row.querySelectorAll("td, th")).map(cell => cell.textContent)
+  );
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Pronóstico");
+
+  XLSX.writeFile(wb, "Pronostico_Regresion_Centrum.xlsx");
+}
+
+
+async function exportarRegresionPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF("p", "mm", "a4");
+
+  // Fondo institucional
+  doc.setFillColor("#003f40");
+  doc.rect(0, 0, 210, 297, "F");
+
+  // Logo
+  const logo = new Image();
+  logo.src = "centrum.png";
+
+  logo.onload = () => {
+    doc.addImage(logo, "PNG", 10, 10, 30, 30);
+
+    doc.setFontSize(16);
+    doc.setTextColor(255, 255, 255);
+    doc.text("Pronóstico de Consumo - Regresión y Suavizado", 50, 25);
+
+    // Capturar canvas como imagen
+    const canvas = document.getElementById("graficaForecastLinea");
+    const imgData = canvas.toDataURL("image/png");
+    doc.addImage(imgData, "PNG", 10, 50, 190, 70);
+
+    // Extraer datos desde la tabla DOM
+    const tabla = document.querySelector("#tablaForecast table");
+    const rows = Array.from(tabla.querySelectorAll("tr")).map(row =>
+      Array.from(row.querySelectorAll("td, th")).map(cell => cell.textContent)
+    );
+
+    const columnas = ["Mes", "Unidades reales", "Regresión", "Suavizado"];
+    const cuerpo = rows.slice(1).map(row => row.slice(0, 4));
+
+    // Dibujar tabla
+    doc.autoTable({
+      head: [columnas],
+      body: cuerpo,
+      startY: 130,
+      theme: "grid",
+      headStyles: {
+        fillColor: [0, 63, 64],
+        textColor: 255,
+        fontStyle: "bold"
+      },
+      bodyStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0]
+      },
+      styles: {
+        halign: "center",
+        lineColor: [0, 63, 64],
+        lineWidth: 0.3,
+        cellPadding: 2,
+        font: "helvetica",
+        fontSize: 10
+      },
+      margin: { top: 130 },
+    });
+
+    // Fecha de generación
+    const hoy = new Date();
+    doc.setFontSize(8);
+    doc.setTextColor(255);
+    doc.text(`Generado el ${hoy.toLocaleDateString("es-MX")}`, 150, 290);
+
+    doc.save("Pronostico_Regresion_Centrum.pdf");
+  };
+}
+function confiabilidadConvertida(original) {
+  const resultado = {};
+  for (const unidad in original) {
+    for (const mes in original[unidad]) {
+      if (!resultado[mes]) resultado[mes] = original[unidad][mes];
+      else if (original[unidad][mes] === "⚠️") resultado[mes] = "⚠️";
+    }
+  }
+  return { TOTAL: resultado };
+}
+
+function combinarUnidades(consumo) {
+  const total = {};
+  for (const unidad in consumo) {
+    for (const mes in consumo[unidad]) {
+      if (!total[mes]) total[mes] = 0;
+      total[mes] += consumo[unidad][mes];
+    }
+  }
+  return total;
+}
 </script>
 
 
