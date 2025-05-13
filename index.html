@@ -588,7 +588,7 @@ function verMovimientos(referencia, lote = null) {
   if (lote) {
     url = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/TimeStamps?referencia=eq.${encodeURIComponent(referencia)}&lote=eq.${encodeURIComponent(lote)}&select=usuario,movimiento,fecha_str,lote&order=fecha.desc&limit=50`;
   }
-  fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/TimeStamps?referencia=eq.${referencia}&lote=eq.${lote}&select=usuario,movimiento,fecha_str`, {
+  fetch(url, {
     headers: {
         "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo",
         "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo"
@@ -844,6 +844,10 @@ function verForecast(referencia, nombre = "", fabricante = "") {
           <button onclick="exportarRegresionPDF()" class="bg-rose-800 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm">🖨️ PDF</button>
         </div>
       </div>
+      <div id="botonesExportarGlobal" class="hidden flex gap-2 justify-end mt-4">
+        <button onclick="exportarGlobalExcel()" class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 text-sm">📤 Exportar Global Excel</button>
+        <button onclick="exportarGlobalPDF()" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm">🖨️ Exportar Global PDF</button>
+      </div>
 
       <!-- Gráfica superior -->
       <div class="w-full max-w-full mx-auto mb-4">
@@ -906,6 +910,7 @@ async function cargarDatosForecastEdge(ref) {
       const datosUnidad = unidad === "TOTAL"
         ? combinarUnidades(consumoData.consumo)
         : consumoData.consumo[unidad] || {};
+      document.getElementById("botonesExportarGlobal").classList.toggle("hidden", unidad !== "TOTAL");
 
       const confiabilidadUnidad = unidad === "TOTAL"
         ? combinarUnidades(confiabilidadConvertida(consumoData.confiabilidad))
@@ -1122,7 +1127,19 @@ function graficarRegresionLineal(labelsHist, valoresHist) {
     </table>`;
 }
 
+function exportarGlobalExcel() {
+  const tabla = document.querySelector("#tablaForecast table");
+  if (!tabla) return;
 
+  const rows = Array.from(tabla.querySelectorAll("tr")).map(row =>
+    Array.from(row.querySelectorAll("td, th")).map(cell => cell.textContent)
+  );
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Pronóstico Global");
+  XLSX.writeFile(wb, "Pronostico_Global_Centrum.xlsx");
+}
 
 function exportarRegresionExcel() {
   const tabla = document.querySelector("#tablaForecast table");
@@ -1139,81 +1156,131 @@ function exportarRegresionExcel() {
   XLSX.writeFile(wb, "Pronostico_Regresion_Centrum.xlsx");
 }
 
+async function exportarGlobalPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF("p", "mm", "a4");
+
+  // Fondo membretado
+  const fondo = new Image();
+  fondo.src = "membretada_medinova.png";
+
+  fondo.onload = () => {
+    doc.addImage(fondo, "PNG", 0, 0, 210, 297); // fondo completo
+
+    // Logo Centrum en la esquina superior derecha
+    const logo = new Image();
+    logo.src = "centrum.png";
+
+    logo.onload = () => {
+      const anchoLogo = 40;
+      const altoLogo = 40 * (529 / 729); // respeta proporción
+      doc.addImage(logo, "PNG", 160, 10, anchoLogo, altoLogo);
+
+      // Título
+      doc.setFontSize(14);
+      doc.setTextColor(0);
+      doc.text("Resumen Global - Pronóstico y Pedido Sugerido", 105, 30, { align: "center" });
+
+      // Extraer tabla
+      const tabla = document.querySelector("#tablaForecast table");
+      const rows = Array.from(tabla.querySelectorAll("tr")).map(row =>
+        Array.from(row.querySelectorAll("td, th")).map(cell => cell.textContent)
+      );
+
+      doc.autoTable({
+        head: [rows[0]],
+        body: rows.slice(1),
+        startY: 45 + altoLogo,
+        theme: "grid",
+        headStyles: {
+          fillColor: [13, 148, 136], // teal-800
+          textColor: 255,
+          fontStyle: "bold"
+        },
+        bodyStyles: {
+          textColor: [0, 0, 0]
+        },
+        styles: {
+          fontSize: 9,
+          halign: "center",
+          cellPadding: 2
+        }
+      });
+
+      doc.save("Pronostico_Global_Centrum.pdf");
+    };
+  };
+}
 
 async function exportarRegresionPDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF("p", "mm", "a4");
 
-  // Fondo blanco (por defecto en jsPDF no necesita pintarse)
-  doc.setFillColor(255, 255, 255);
-  doc.rect(0, 0, 210, 297, "F");
+  const fondo = new Image();
+  fondo.src = "membretada_medinova.png"; // asegúrate de tenerla accesible
 
-  // Logo proporcional (original 729x529, escala proporcional ajustada a 50mm de ancho)
-  const logo = new Image();
-  logo.src = "centrum.png";
+  fondo.onload = () => {
+    doc.addImage(fondo, "PNG", 0, 0, 210, 297);
 
-  logo.onload = () => {
-    const logoAncho = 50;
-    const escala = 529 / 729;
-    const logoAlto = logoAncho * escala;
+    const logo = new Image();
+    logo.src = "centrum.png";
 
-    // Centrar horizontalmente
-    const xPos = (210 - logoAncho) / 2;
-    doc.addImage(logo, "PNG", xPos, 10, logoAncho, logoAlto);
+    logo.onload = () => {
+      const anchoLogo = 40;
+      const altoLogo = 40 * (529 / 729);
+      doc.addImage(logo, "PNG", 160, 10, anchoLogo, altoLogo);
 
-    doc.setFontSize(14);
-    doc.setTextColor(0, 0, 0);
-    doc.text("Pronóstico de Consumo - Regresión y Suavizado", 105, 25 + logoAlto, { align: "center" });
+      doc.setFontSize(14);
+      doc.setTextColor(0, 0, 0);
+      doc.text("Pronóstico de Consumo - Regresión y Suavizado", 105, 25 + altoLogo, { align: "center" });
 
-    // Capturar canvas como imagen
-    const canvas = document.getElementById("graficaForecastLinea");
-    const imgData = canvas.toDataURL("image/png");
-    doc.addImage(imgData, "PNG", 10, 40 + logoAlto, 190, 60);
+      const canvas = document.getElementById("graficaForecastLinea");
+      const imgData = canvas.toDataURL("image/png");
+      doc.addImage(imgData, "PNG", 10, 40 + altoLogo, 190, 60);
 
-    // Extraer datos desde la tabla DOM
-    const tabla = document.querySelector("#tablaForecast table");
-    const rows = Array.from(tabla.querySelectorAll("tr")).map(row =>
-      Array.from(row.querySelectorAll("td, th")).map(cell => cell.textContent)
-    );
+      const tabla = document.querySelector("#tablaForecast table");
+      const rows = Array.from(tabla.querySelectorAll("tr")).map(row =>
+        Array.from(row.querySelectorAll("td, th")).map(cell => cell.textContent)
+      );
 
-    const columnas = ["Mes", "Unidades reales", "Regresión", "Suavizado"];
-    const cuerpo = rows.slice(1).map(row => row.slice(0, 4));
+      const columnas = ["Mes", "Unidades reales", "Regresión", "Suavizado"];
+      const cuerpo = rows.slice(1).map(row => row.slice(0, 4));
 
-    // Dibujar tabla más pequeña
-    doc.autoTable({
-      head: [columnas],
-      body: cuerpo,
-      startY: 105 + logoAlto,
-      theme: "grid",
-      headStyles: {
-        fillColor: [230, 230, 230],
-        textColor: 0,
-        fontStyle: "bold"
-      },
-      bodyStyles: {
-        fillColor: [255, 255, 255],
-        textColor: [0, 0, 0]
-      },
-      styles: {
-        font: "helvetica",
-        fontSize: 8,
-        halign: "center",
-        lineColor: [180, 180, 180],
-        lineWidth: 0.2,
-        cellPadding: 1
-      },
-      margin: { top: 105 + logoAlto },
-    });
+      doc.autoTable({
+        head: [columnas],
+        body: cuerpo,
+        startY: 105 + altoLogo,
+        theme: "grid",
+        headStyles: {
+          fillColor: [13, 148, 136], // teal-800
+          textColor: 255,
+          fontStyle: "bold"
+        },
+        bodyStyles: {
+          textColor: [0, 0, 0]
+        },
+        styles: {
+          font: "helvetica",
+          fontSize: 8,
+          halign: "center",
+          cellPadding: 1,
+          lineColor: [180, 180, 180],
+          lineWidth: 0.2
+        },
+        margin: { top: 105 + altoLogo }
+      });
 
-    // Pie de página
-    const hoy = new Date();
-    doc.setFontSize(8);
-    doc.setTextColor(100);
-    doc.text(`Generado el ${hoy.toLocaleDateString("es-MX")}`, 150, 290);
+      // Pie de página
+      const hoy = new Date();
+      doc.setFontSize(8);
+      doc.setTextColor(100);
+      doc.text(`Generado el ${hoy.toLocaleDateString("es-MX")}`, 150, 290);
 
-    doc.save("Pronostico_Regresion_Centrum.pdf");
+      doc.save("Pronostico_Regresion_Centrum.pdf");
+    };
   };
 }
+
 
 function confiabilidadConvertida(original) {
   const resultado = {};
