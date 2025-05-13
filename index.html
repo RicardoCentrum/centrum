@@ -2,10 +2,11 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Inventario QR - Centrum</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="icon" href="favicon.ico" type="image/x-icon" />
+  
   <style>
     body {
       background: url('bcg_centrum.png') no-repeat center center fixed;
@@ -24,16 +25,29 @@
       display: none;
       z-index: 10000;
     }
-  
+    .version-info {
+      position: fixed;
+      bottom: 10px;
+      right: 15px;
+      background: rgba(0, 0, 0, 0.5);
+      color: rgb(161, 200, 255);
+      font-size: 0.75rem;
+      padding: 4px 8px;
+      border-radius: 6px;
+      z-index: 9999;
+    }
   </style>
 </head>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
 <div class="absolute top-4 right-4 flex flex-col items-center text-center">
   <h1 class="text-sm font-bold tracking-widest text-white">Powered by</h1>
-  <img src="medinova.png" alt="Logo Medinova" class="h-20 mt-1" />
+  <a href="https://instagram.com/medinova.cuu" target="_blank" rel="noopener noreferrer">
+    <img src="medinova.png" alt="Logo Medinova" class="h-20 mt-1 md:h-16" />
+  </a>
 </div>
 
 <div class="text-center mb-10">
@@ -113,6 +127,7 @@
     
 
     <input type="text" id="inputQR" placeholder="Escanea el código QR" class="w-full p-3 mb-4 rounded-xl border text-center" autofocus />
+    
     <div class="text-center mt-2 mb-4">
       <button onclick="mostrarAlertasCaducidad()" class="bg-yellow-500 bg-opacity-20 px-4 py-1 rounded-xl hover:bg-yellow-600 font-semibold shadow">
         ⚠️ Ver productos proximos a caducar
@@ -508,78 +523,111 @@ async function procesarQR(contenido) {
       return null;
     }
 
-function buscarReferencia(ref) {
+let referenciasCache = [];
+
+async function buscarReferencia(ref) {
+  const cont = document.getElementById("resultadoBusqueda");
   if (!ref || ref.length < 2) {
-    document.getElementById("resultadoBusqueda").innerHTML = "";
+    cont.innerHTML = "";
     return;
   }
 
-  ref = extraerReferenciaDesdeQR(ref) || ref.trim();
+  ref = extraerReferenciaDesdeQR(ref) || ref.trim().toLowerCase();
 
-
-  fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/buscar_referencia?ref=${encodeURIComponent(ref)}`)
-    .then(res => {
-      if (!res.ok) throw new Error("No encontrado");
-      return res.json();
-    })
-    .then(data => {
-      let html = `
-        <div class="flex items-center justify-between bg-white/80 rounded-xl px-4 py-2 shadow mb-2">
-          <div class="text-left">
-            <div class="font-bold text-base text-gray-800">${data.nombre}</div>
-            <div class="text-sm text-gray-600">Fabricante: ${data.fabricante}</div>
-          </div>
-          <div class="flex items-center gap-2">
-            <!-- 📚 Botón original comentado -->
-            <!-- <button onclick="verMovimientos('${ref}', '${data.lotes[0]?.lote || ""}')" title="Ver movimientos"
-              class="text-2xl text-blue-600 hover:text-blue-800">📚</button> -->
-
-            <!-- ✅ Nuevo botón de movimientos -->
-            <button onclick="verMovimientos('${ref}', '${data.lotes[0]?.lote || ""}')" title="Ver movimientos"
-              class="text-2xl text-blue-600 hover:text-blue-800">📚</button>
-
-            <!-- ✅ Botón de gráfica 📊 -->
-            <button onclick="verForecast('${ref}', '${data.nombre}', '${data.fabricante}')" title="Ver historial de consumo"
-              class="text-2xl text-purple-600 hover:text-purple-800">📊</button>
-          </div>
-        </div>`;
-
-      if (data.lotes && data.lotes.length) {
-        html += `
-          <table class="text-base mt-2 w-full border border-gray-300 text-center">
-            <thead class="bg-teal-800 bg-opacity-40 font-semibold">
-              <tr>
-                <th class="p-2">Lote</th>
-                <th class="p-2">Cantidad</th>
-                <th class="p-2">Caducidad</th>
-                <th class="p-2">⚠️</th>
-              </tr>
-            </thead>
-            <tbody>`;
-        data.lotes.forEach(l => {
-          const dias = calcularDiasRestantes(l.caducidad);
-          let icono = "❗";
-          if (dias <= 30) icono = "❗❗❗";
-          else if (dias <= 60) icono = "❗❗";
-
-          html += `
-            <tr>
-              <td class="p-2">${l.lote}</td>
-              <td class="p-2">${l.cantidad}</td>
-              <td class="p-2">${l.caducidad}</td>
-              <td class="p-2" title="Días restantes">${icono}</td>
-            </tr>`;
-        });
-
-        html += `</tbody></table>`;
+  // Si aún no se ha hecho cache, cargar todas las referencias
+if (!referenciasCache.length) {
+  try {
+    const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos?select=referencia,nombre,fabricante,lote,caducidad,cantidad", {
+      headers: {
+        "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo",
+        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo"
       }
-
-      document.getElementById("resultadoBusqueda").innerHTML = html;
-    })
-    .catch(() => {
-      document.getElementById("resultadoBusqueda").innerHTML = "<p class='text-red-600'>Producto no encontrado</p>";
     });
+
+    referenciasCache = await res.json();
+
+    if (!Array.isArray(referenciasCache)) {
+      throw new Error("Formato inválido en respuesta de Supabase");
+    }
+
+  } catch (err) {
+    const cont = document.getElementById("resultadoBusqueda"); // Asegúrate de que exista
+    cont.innerHTML = "<p class='text-red-600'>Error al obtener datos</p>";
+    return;
+  }
 }
+
+
+  // Filtrar referencias que contengan el texto (sin distinguir mayúsculas/minúsculas)
+  const coincidencias = referenciasCache.filter(p =>
+    p.referencia?.toLowerCase().includes(ref)
+  );
+
+  if (!coincidencias.length) {
+    cont.innerHTML = "<p class='text-red-600'>Producto no encontrado</p>";
+    return;
+  }
+
+  // Mostrar primer resultado con tabla completa
+  const data = coincidencias[0];
+  let html = `
+    <div class="flex items-center justify-between bg-white/80 rounded-xl px-4 py-2 shadow mb-2">
+      <div class="text-left">
+        <div class="font-bold text-base text-gray-800">${data.nombre}</div>
+        <div class="text-sm text-gray-600">Fabricante: ${data.fabricante}</div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="verMovimientos('${data.referencia}', '${data.lote}')" title="Ver movimientos"
+          class="text-2xl text-blue-600 hover:text-blue-800">📚</button>
+        <button onclick="verForecast('${data.referencia}', '${data.nombre}', '${data.fabricante}')" title="Ver historial de consumo"
+          class="text-2xl text-purple-600 hover:text-purple-800">📊</button>
+      </div>
+    </div>`;
+
+  if (data.lotes && data.lotes.length) {
+    html += `
+      <table class="text-base mt-2 w-full border border-gray-300 text-center">
+        <thead class="bg-teal-800 bg-opacity-40 font-semibold">
+          <tr>
+            <th class="p-2">Lote</th>
+            <th class="p-2">Cantidad</th>
+            <th class="p-2">Caducidad</th>
+            <th class="p-2">⚠️</th>
+          </tr>
+        </thead>
+        <tbody>`;
+    data.lotes.forEach(l => {
+      const dias = calcularDiasRestantes(l.caducidad);
+      let icono = "❗";
+      if (dias <= 30) icono = "❗❗❗";
+      else if (dias <= 60) icono = "❗❗";
+
+      html += `
+        <tr>
+          <td class="p-2">${l.lote}</td>
+          <td class="p-2">${l.cantidad}</td>
+          <td class="p-2">${l.caducidad}</td>
+          <td class="p-2" title="Días restantes">${icono}</td>
+        </tr>`;
+    });
+
+    html += `</tbody></table>`;
+  }
+
+  // Autocompletado (máx 5 sugerencias adicionales)
+  if (coincidencias.length > 1) {
+    html += `<div class="mt-4 text-xs text-gray-600 font-semibold">Coincidencias:</div>`;
+    coincidencias.slice(1, 6).forEach(p => {
+      html += `
+        <div class="cursor-pointer text-sm text-blue-800 underline hover:text-blue-600 ml-2" onclick="buscarReferencia('${p.referencia}')">
+          ${p.referencia} - ${p.nombre}
+        </div>`;
+    });
+  }
+
+  cont.innerHTML = html;
+}
+
 
 function verMovimientos(referencia, lote = null) {
   let url = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/TimeStamps?referencia=eq.${encodeURIComponent(referencia)}&select=usuario,movimiento,fecha_str,lote&order=fecha.desc&limit=50`;
@@ -655,14 +703,13 @@ function ajustarMesLogico(timestamp) {
   
 <!-- Ventana de alerta -->
 <div id="alertaCaducidad" class="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-60 hidden">
-  <div class="bg-white bg-opacity-80 rounded-2xl shadow-xl p-6 w-[95%] max-w-5xl text-gray-800">
+  <div class="bg-white bg-opacity-90 rounded-2xl shadow-xl w-[95%] max-w-5xl text-gray-800 relative max-h-[80vh] overflow-y-auto p-6">
+    <button onclick="cerrarAlertaCaducidad()" class="absolute top-3 right-4 text-red-700 text-xl font-bold hover:text-red-500">×</button>
     <h2 class="text-xl font-bold mb-4">⚠️ Productos por caducar</h2>
     <div id="contenidoCaducidad" class="text-sm mb-4"></div>
-    <button onclick="document.getElementById('alertaCaducidad').classList.add('hidden')" class="mt-2 bg-red-600 text-white px-4 py-2 rounded-xl hover:bg-red-700">
-      Cerrar
-    </button>
   </div>
 </div>
+
 <script>
   document.addEventListener("keydown", function (e) {
     const alerta = document.getElementById("alertaCaducidad");
@@ -698,6 +745,16 @@ function ajustarMesLogico(timestamp) {
     </div>`;
   document.body.appendChild(contenedor);
 }
+function cerrarAlertaCaducidad() {
+  document.getElementById("alertaCaducidad").classList.add("hidden");
+}
+
+document.addEventListener("keydown", function (e) {
+  const alerta = document.getElementById("alertaCaducidad");
+  if (!alerta.classList.contains("hidden") && e.key === "Escape") {
+    cerrarAlertaCaducidad();
+  }
+});
 
 let modoSeleccionado = null;
 let unidadSeleccionada = null;
@@ -823,7 +880,7 @@ function verForecast(referencia, nombre = "", fabricante = "") {
   const anterior = document.getElementById("modalForecast");
   if (anterior) anterior.remove();
 
-  const modal = document.createElement("div");
+ const modal = document.createElement("div");
   modal.id = "modalForecast";
   modal.className = "fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50 overflow-y-auto";
   modal.innerHTML = `
@@ -843,10 +900,6 @@ function verForecast(referencia, nombre = "", fabricante = "") {
           <button onclick="exportarRegresionExcel()" class="bg-green-700 text-white px-3 py-1 rounded hover:bg-green-700 text-sm">📤 Excel</button>
           <button onclick="exportarRegresionPDF()" class="bg-rose-800 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm">🖨️ PDF</button>
         </div>
-      </div>
-      <div id="botonesExportarGlobal" class="hidden flex gap-2 justify-end mt-4">
-        <button onclick="exportarGlobalExcel()" class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 text-sm">📤 Exportar Global Excel</button>
-        <button onclick="exportarGlobalPDF()" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm">🖨️ Exportar Global PDF</button>
       </div>
 
       <!-- Gráfica superior -->
@@ -910,7 +963,6 @@ async function cargarDatosForecastEdge(ref) {
       const datosUnidad = unidad === "TOTAL"
         ? combinarUnidades(consumoData.consumo)
         : consumoData.consumo[unidad] || {};
-      document.getElementById("botonesExportarGlobal").classList.toggle("hidden", unidad !== "TOTAL");
 
       const confiabilidadUnidad = unidad === "TOTAL"
         ? combinarUnidades(confiabilidadConvertida(consumoData.confiabilidad))
@@ -1127,20 +1179,6 @@ function graficarRegresionLineal(labelsHist, valoresHist) {
     </table>`;
 }
 
-function exportarGlobalExcel() {
-  const tabla = document.querySelector("#tablaForecast table");
-  if (!tabla) return;
-
-  const rows = Array.from(tabla.querySelectorAll("tr")).map(row =>
-    Array.from(row.querySelectorAll("td, th")).map(cell => cell.textContent)
-  );
-
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Pronóstico Global");
-  XLSX.writeFile(wb, "Pronostico_Global_Centrum.xlsx");
-}
-
 function exportarRegresionExcel() {
   const tabla = document.querySelector("#tablaForecast table");
   if (!tabla) return;
@@ -1154,62 +1192,6 @@ function exportarRegresionExcel() {
   XLSX.utils.book_append_sheet(wb, ws, "Pronóstico");
 
   XLSX.writeFile(wb, "Pronostico_Regresion_Centrum.xlsx");
-}
-
-async function exportarGlobalPDF() {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF("p", "mm", "a4");
-
-  // Fondo membretado
-  const fondo = new Image();
-  fondo.src = "membretada_medinova.png";
-
-  fondo.onload = () => {
-    doc.addImage(fondo, "PNG", 0, 0, 210, 297); // fondo completo
-
-    // Logo Centrum en la esquina superior derecha
-    const logo = new Image();
-    logo.src = "centrum.png";
-
-    logo.onload = () => {
-      const anchoLogo = 40;
-      const altoLogo = 40 * (529 / 729); // respeta proporción
-      doc.addImage(logo, "PNG", 160, 10, anchoLogo, altoLogo);
-
-      // Título
-      doc.setFontSize(14);
-      doc.setTextColor(0);
-      doc.text("Resumen Global - Pronóstico y Pedido Sugerido", 105, 230, { align: "center" });
-
-      // Extraer tabla
-      const tabla = document.querySelector("#tablaForecast table");
-      const rows = Array.from(tabla.querySelectorAll("tr")).map(row =>
-        Array.from(row.querySelectorAll("td, th")).map(cell => cell.textContent)
-      );
-
-      doc.autoTable({
-        head: [rows[0]],
-        body: rows.slice(1),
-        startY: 45 + altoLogo,
-        theme: "grid",
-        headStyles: {
-          fillColor: [13, 148, 136], // teal-800
-          textColor: 255,
-          fontStyle: "bold"
-        },
-        bodyStyles: {
-          textColor: [0, 0, 0]
-        },
-        styles: {
-          fontSize: 9,
-          halign: "center",
-          cellPadding: 2
-        }
-      });
-
-      doc.save("Pronostico_Global_Centrum.pdf");
-    };
-  };
 }
 
 async function exportarRegresionPDF() {
@@ -1305,19 +1287,7 @@ function combinarUnidades(consumo) {
 }
 </script>
 
+<div id="versionInfo" class="version-info">v1.5.13</div>
 
-  <div id="versionInfo" style="
-    position: fixed;
-    bottom: 10px;
-    right: 15px;
-    background: rgba(0,0,0,0.5);
-    color: rgb(161, 200, 255);
-    font-size: 0.75rem;
-    padding: 4px 8px;
-    border-radius: 6px;
-    z-index: 9999;
-  ">
-    v1.5.13
-  </div>
 </body>
 </html>
