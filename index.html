@@ -170,12 +170,10 @@
 <button onclick="cerrarModalOpcionesAdmin(); mostrarCambioNIP()" class="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
   🔑 Cambiar NIP
 </button>
-
 <!-- Modificar unidades -->
-<button id="btnModificarUnidades" onclick="cerrarModalOpcionesAdmin(); mostrarEditorUnidades()" class="w-full bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800 hidden">
+<button id="btnModificarUnidades" onclick="cerrarModalOpcionesAdmin(); mostrarModalAsignarUnidades()" class="w-full bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800 hidden">
   🏥 Modificar unidades
 </button>
-
     </div>
     <div class="text-center mt-4">
       <button onclick="cerrarModalOpcionesAdmin()" class="bg-gray-300 px-4 py-2 rounded-xl hover:bg-gray-400">Cerrar</button>
@@ -206,24 +204,6 @@
     <button onclick="enviarSupabase()" class="mt-4 w-full bg-teal-800 text-white py-2 rounded-2xl">Enviar a Base de Datos</button>
   </div>
   <div id="notificacion" class="modal text-center font-bold"></div>
-<div id="modalUnidades" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
-  <div class="bg-white text-gray-800 p-6 rounded-xl w-full max-w-md shadow-xl">
-    <h2 class="text-lg font-bold text-center mb-4">Asignar unidades a usuario</h2>
-
-    <label for="nombreUsuarioUnidad" class="block text-sm font-semibold mb-1">Nombre del usuario:</label>
-    <input id="nombreUsuarioUnidad" type="text" class="w-full mb-3 px-4 py-2 border rounded-xl" placeholder="Ej: Santos" />
-
-    <label for="nuevasUnidades" class="block text-sm font-semibold mb-1">Unidades (separadas por coma):</label>
-    <input id="nuevasUnidades" type="text" class="w-full mb-3 px-4 py-2 border rounded-xl" placeholder="Ej: C03128,C03422" />
-
-    <div id="unidadError" class="text-sm text-red-600 hidden mb-2">❌ Error en el envío.</div>
-
-    <div class="flex justify-end gap-2 mt-2">
-      <button onclick="cerrarModalUnidades()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400">Cancelar</button>
-      <button onclick="guardarUnidadesUsuario()" class="px-4 py-2 bg-teal-600 text-white rounded-xl hover:bg-teal-700">Guardar</button>
-    </div>
-  </div>
-</div>
 <div id="modalAsignarUnidades" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
   <div class="bg-white text-gray-800 p-6 rounded-xl w-full max-w-xl shadow-xl">
     <h2 class="text-lg font-bold text-center mb-4">🏥 Asignar unidades a usuario</h2>
@@ -1370,7 +1350,10 @@ async function mostrarModalAsignarUnidades() {
   const modal = document.getElementById("modalAsignarUnidades");
   const select = document.getElementById("selectUsuario");
   const lista = document.getElementById("listaUnidades");
-
+  if (!window.usuarioEsAdmin) {
+    notificar("❌ Solo administradores pueden modificar unidades", "#b91c1c");
+    return;
+  }
   // Limpiar
   select.innerHTML = "";
   lista.innerHTML = "";
@@ -1498,6 +1481,6 @@ function combinarUnidades(consumo) {
   return total;
 }
 </script>
-<div id="versionInfo" class="version-info">v2.0.0</div>
+<div id="versionInfo" class="version-info">v2.0.1</div>
 </body>
 </html>
