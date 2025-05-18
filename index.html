@@ -893,12 +893,6 @@ async function guardarNuevoNIP() {
   const confirmar = document.getElementById("nipConfirmar").value.trim();
   const error = document.getElementById("cambioNipError");
 
-  if (!esAdmin) {
-    error.textContent = "❌ Solo administradores pueden cambiar NIPs.";
-    error.classList.remove("hidden");
-    return;
-  }
-
   if (!nipAntiguo || !nipNuevo || nipNuevo !== confirmar) {
     error.textContent = "❌ Los NIPs no coinciden o están vacíos.";
     error.classList.remove("hidden");
@@ -1481,6 +1475,6 @@ function combinarUnidades(consumo) {
   return total;
 }
 </script>
-<div id="versionInfo" class="version-info">v2.0.1</div>
+<div id="versionInfo" class="version-info">v2.0.2</div>
 </body>
 </html>
