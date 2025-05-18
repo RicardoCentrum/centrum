@@ -49,7 +49,6 @@
     <img src="medinova.png" alt="Logo Medinova" class="h-20 mt-1 md:h-16" />
   </a>
 </div>
-
 <div class="text-center mb-10">
   <img src="centrum.png" alt="Logo Centrum" class="mx-auto h-28 mb-2" />
   <h1 class="text-5xl font-bold tracking-widest text-white-100">R.I.C.A.R.D.O.</h1>
@@ -69,7 +68,7 @@
   bg-gray-800 text-white text-center px-8 py-5 text-xl rounded-2xl shadow-lg z-50 hidden max-w-lg">
 </div>
 <div id="overlayColor" class="fixed inset-0 z-40 hidden transition-opacity"></div>
-<!-- Modal NIP y unidad -->
+<!-- Modal principal para ingresar NIP y unidad -->
 <div id="modalPinUnidad" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
   <div class="bg-white text-gray-800 p-6 rounded-2xl shadow-xl w-full max-w-md space-y-4">
     <h2 class="text-lg font-bold text-center">Acceso requerido</h2>
@@ -88,17 +87,49 @@
 
     <div id="pinError" class="text-sm text-red-600 hidden">❌ NIP o unidad no válidos.</div>
 
-    <div class="flex justify-end gap-2 mt-4">
-      <button onclick="cerrarModalPin()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400">
-        Cancelar
-      </button>
-      <button onclick="validarPinYUnidad()" class="px-4 py-2 bg-teal-600 text-white rounded-xl hover:bg-teal-700">
-        Confirmar
+    <div class="flex flex-col gap-2 mt-4">
+      <div class="flex justify-end gap-2">
+        <button onclick="cerrarModalPin()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400">
+          Cancelar
+        </button>
+        <button onclick="validarPinYUnidad()" class="px-4 py-2 bg-teal-600 text-white rounded-xl hover:bg-teal-700">
+          Confirmar
+        </button>
+      </div>
+      <button onclick="mostrarCambioNIP()" class="text-sm text-blue-700 underline hover:text-blue-900 text-center mt-2">
+        🔑 Cambiar NIP
       </button>
     </div>
   </div>
 </div>
+<!-- Modal para cambiar NIP -->
+<div id="modalCambioNIP" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+  <div class="bg-white text-gray-800 p-6 rounded-2xl shadow-xl w-full max-w-md space-y-4">
+    <h2 class="text-lg font-bold text-center">Cambiar NIP</h2>
 
+    <div>
+      <label for="nipAntiguo" class="block text-sm font-semibold mb-1">NIP actual:</label>
+      <input id="nipAntiguo" type="password" maxlength="4" class="w-full px-4 py-2 border rounded-xl" />
+    </div>
+
+    <div>
+      <label for="nipNuevo" class="block text-sm font-semibold mb-1">NIP nuevo:</label>
+      <input id="nipNuevo" type="password" maxlength="4" class="w-full px-4 py-2 border rounded-xl" />
+    </div>
+
+    <div>
+      <label for="nipConfirmar" class="block text-sm font-semibold mb-1">Confirmar nuevo NIP:</label>
+      <input id="nipConfirmar" type="password" maxlength="4" class="w-full px-4 py-2 border rounded-xl" />
+    </div>
+
+    <div id="cambioNipError" class="text-sm text-red-600 hidden">❌ Error en los datos ingresados.</div>
+
+    <div class="flex justify-end gap-2 mt-2">
+      <button onclick="cerrarCambioNIP()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400">Cancelar</button>
+      <button onclick="guardarNuevoNIP()" class="px-4 py-2 bg-teal-600 text-white rounded-xl hover:bg-teal-700">Guardar</button>
+    </div>
+  </div>
+</div>
 <body class="min-h-screen flex flex-col items-center justify-center text-white">
   <div class="bg-white bg-opacity-80 rounded-2xl shadow-xl p-6 w-full max-w-xl text-gray-800">
     <div class="flex items-center justify-between mb-4">
@@ -112,19 +143,45 @@
       <input type="text" id="refBusqueda" placeholder="Buscar por referencia..." class="w-full p-3 mb-4 rounded-xl border text-center" oninput="buscarReferencia(this.value)" />
       <div id="resultadoBusqueda" class="text-sm text-gray-800"></div>
     </div>
+<div class="mb-4 px-4 py-3 rounded-xl bg-white/70 text-black font-semibold text-center shadow">
+  <div class="text-base flex items-center justify-center gap-2">
+    Usuario actual:
+    <span id="usuarioActivo" class="text-lg font-extrabold ml-2">-</span>
+    <button id="btnCambiarUnidades" onclick="mostrarModalAsignarUnidades()"
+      class="text-xs px-2 py-1 bg-blue-800 text-white rounded-xl hover:bg-blue-700 hidden">
+      ⚙️ Cambiar unidades
+    </button>
+  </div>
+  <div class="mt-2">
+    <span id="modoLabel" class="inline-block font-bold px-3 py-1 rounded-xl text-white bg-gray-400 text-sm">
+      INACTIVO
+    </span>
+  </div>
+</div>
 
-    <div class="mb-4 px-4 py-3  rounded-xl bg-white/70 text-black font-semibold text-center shadow">
-      <div class="text-base">
-        Usuario actual:
-        <span id="usuarioActivo" class="text-lg font-extrabold ml-2">-</span>
-      </div>
-      <div class="mt-2">
-        <span id="modoLabel" class="inline-block font-bold px-3 py-1 rounded-xl text-white bg-gray-400 text-sm">
-          INACTIVO
-        </span>
-      </div>
+<button onclick="mostrarOpcionesAdmin()" class="fixed bottom-4 right-4 z-50 bg-teal-700 text-white px-4 py-2 rounded-full shadow-lg hover:bg-teal-800 text-sm">
+  ⚙️ Opciones de usuario
+</button>
+<div id="modalOpcionesAdmin" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+  <div class="bg-white text-gray-800 p-6 rounded-xl shadow-xl w-full max-w-md space-y-4">
+    <h2 class="text-lg font-bold text-center">⚙️ Opciones de Usuario</h2>
+    <div class="space-y-2">
+   <!-- Cambiar NIP -->
+<button onclick="cerrarModalOpcionesAdmin(); mostrarCambioNIP()" class="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+  🔑 Cambiar NIP
+</button>
+
+<!-- Modificar unidades -->
+<button id="btnModificarUnidades" onclick="cerrarModalOpcionesAdmin(); mostrarEditorUnidades()" class="w-full bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800 hidden">
+  🏥 Modificar unidades
+</button>
+
     </div>
-    
+    <div class="text-center mt-4">
+      <button onclick="cerrarModalOpcionesAdmin()" class="bg-gray-300 px-4 py-2 rounded-xl hover:bg-gray-400">Cerrar</button>
+    </div>
+  </div>
+</div>
 
     <input type="text" id="inputQR" placeholder="Escanea el código QR" class="w-full p-3 mb-4 rounded-xl border text-center" autofocus />
     
@@ -148,42 +205,75 @@
 
     <button onclick="enviarSupabase()" class="mt-4 w-full bg-teal-800 text-white py-2 rounded-2xl">Enviar a Base de Datos</button>
   </div>
-
   <div id="notificacion" class="modal text-center font-bold"></div>
+<div id="modalUnidades" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+  <div class="bg-white text-gray-800 p-6 rounded-xl w-full max-w-md shadow-xl">
+    <h2 class="text-lg font-bold text-center mb-4">Asignar unidades a usuario</h2>
 
+    <label for="nombreUsuarioUnidad" class="block text-sm font-semibold mb-1">Nombre del usuario:</label>
+    <input id="nombreUsuarioUnidad" type="text" class="w-full mb-3 px-4 py-2 border rounded-xl" placeholder="Ej: Santos" />
+
+    <label for="nuevasUnidades" class="block text-sm font-semibold mb-1">Unidades (separadas por coma):</label>
+    <input id="nuevasUnidades" type="text" class="w-full mb-3 px-4 py-2 border rounded-xl" placeholder="Ej: C03128,C03422" />
+
+    <div id="unidadError" class="text-sm text-red-600 hidden mb-2">❌ Error en el envío.</div>
+
+    <div class="flex justify-end gap-2 mt-2">
+      <button onclick="cerrarModalUnidades()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400">Cancelar</button>
+      <button onclick="guardarUnidadesUsuario()" class="px-4 py-2 bg-teal-600 text-white rounded-xl hover:bg-teal-700">Guardar</button>
+    </div>
+  </div>
+</div>
+<div id="modalAsignarUnidades" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+  <div class="bg-white text-gray-800 p-6 rounded-xl w-full max-w-xl shadow-xl">
+    <h2 class="text-lg font-bold text-center mb-4">🏥 Asignar unidades a usuario</h2>
+
+    <label for="selectUsuario" class="block font-semibold mb-2">Selecciona un usuario:</label>
+    <select id="selectUsuario" class="w-full mb-4 px-4 py-2 border rounded-xl"></select>
+
+    <div class="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto mb-4" id="listaUnidades">
+      <!-- Aquí se generarán dinámicamente los checkboxes -->
+    </div>
+
+    <div id="unidadAsignarError" class="text-sm text-red-600 hidden mb-2">❌ Error al guardar unidades.</div>
+
+    <div class="flex justify-end gap-2">
+      <button onclick="cerrarModalAsignarUnidades()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400">Cancelar</button>
+      <button onclick="guardarUnidadesAsignadas()" class="px-4 py-2 bg-teal-600 text-white rounded-xl hover:bg-teal-700">Guardar</button>
+    </div>
+  </div>
+</div>
   <script>
 const VALIDAR_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/validar_qr";
 const API_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr";
     let modo = "entrada";
-    let usuario = null;
-    let registrosQR = [];
     let qrsPendientes = [];  // lo que se ha validado pero aún no enviado
     const unidadesDestino = {
-  "C03442": "C.S. GALEANA",
-  "C03441": "C.S. HIDALGO",
-  "C03438": "C.S. NUEVO CASAS GRANDES",
-  "C03443": "CAAPS ANAPRA",
-  "C03439": "CESSA COLINAS",
-  "C03440": "CESSA ZARAGOZA",
-  "C03435": "H.C. NUEVO CASAS GRANDES",
-  "C03436": "HIE JUAREZ",
-  "C03420": "HOSPITAL DE LA MUJER CD JUAREZ",
-  "C03419": "HOSPITAL GENERAL CD JUAREZ",
-  "C03127": "HGZ 6",
-  "C03131": "HGS 22",
-  "C03135": "HGR 02",
-  "C03133": "HGZ UMAA 35",
-  "C03134": "HGR 66",
-  "C03448": "C.S. GUACHOCHI",
-  "C03447": "C.S. JIMENEZ",
-  "C03446": "H. GPE Y CALVO",
-  "C03132": "H.G.Z.M.F. 23",
-  "C03122": "H.R.O. No. 26",
-  "C03124": "H.R.O. No. 36",
-  "C03445": "HOSPITAL CAMARGO",
-  "C03421": "HOSPITAL DE JIMENEZ",
-  "C03422": "HOSPITAL GINECOLOGIA PARRAL",
-  "C03444": "HOSPITAL PARRAL",
+  //"C03442": "C.S. GALEANA",
+  //"C03441": "C.S. HIDALGO",
+  //"C03438": "C.S. NUEVO CASAS GRANDES",
+  //"C03443": "CAAPS ANAPRA",
+  //"C03439": "CESSA COLINAS",
+  //"C03440": "CESSA ZARAGOZA",
+  //"C03435": "H.C. NUEVO CASAS GRANDES",
+  //"C03436": "HIE JUAREZ",
+  //"C03420": "HOSPITAL DE LA MUJER CD JUAREZ",
+  //"C03419": "HOSPITAL GENERAL CD JUAREZ",
+  //"C03127": "HGZ 6",
+  //"C03131": "HGS 22",
+  //"C03135": "HGR 02",
+  //"C03133": "HGZ UMAA 35",
+  //"C03134": "HGR 66",
+  //"C03448": "C.S. GUACHOCHI",
+  //"C03447": "C.S. JIMENEZ",
+  //"C03446": "H. GPE Y CALVO",
+  //"C03132": "H.G.Z.M.F. 23",
+  //"C03122": "H.R.O. No. 26",
+  //"C03124": "H.R.O. No. 36",
+  //"C03445": "HOSPITAL CAMARGO",
+  //"C03421": "HOSPITAL DE JIMENEZ",
+  //"C03422": "HOSPITAL GINECOLOGIA PARRAL",
+  //"C03444": "HOSPITAL PARRAL",
   "C03451": "CESSA ALDAMA",
   "C03433": "CESSA MADERA",
   "C03415": "HOSPITAL CENTRAL",
@@ -205,10 +295,11 @@ const API_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar
   "C03128": "H.G.Z.M.F. 11",
   "C03130": "H.G.Z.M.F. 16",
   "C03129": "HGO No. 15",
-  "C03126": "HGR No. 1"
+  "C03126": "HGR No. 1",
+  "66": "ALMACEN PARRAL",
+  "65": "ALMACEN JUAREZ",
+  "CUU": "ALMACEN CHIHUAHUA"
 };
-
-
     function calcularDiasRestantes(fecha) {
       if (!fecha) return Infinity;
       const partes = fecha.split("/");
@@ -225,8 +316,6 @@ const API_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar
       const diff = fechaCad - hoy;
       return Math.floor(diff / (1000 * 60 * 60 * 24));
     }
-
-
     document.getElementById("inputQR").addEventListener("keydown", function(e) {
       if (e.key === "Enter") {
         const contenido = e.target.value.trim();
@@ -236,8 +325,14 @@ const API_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar
         }
       }
     });
-
-
+function mostrarOpcionesAdmin() {
+  const esAdmin = Boolean(window.usuarioEsAdmin); // debe haberse asignado después de validar NIP
+  document.getElementById("modalOpcionesAdmin").classList.remove("hidden");
+  document.getElementById("btnModificarUnidades").classList.toggle("hidden", !esAdmin);
+}
+function cerrarModalOpcionesAdmin() {
+  document.getElementById("modalOpcionesAdmin").classList.add("hidden");
+}
     async function mostrarAlertasCaducidad() {
       try {
         const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos?select=referencia,nombre,fabricante,lote,caducidad,cantidad", {
@@ -267,7 +362,6 @@ const API_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar
         console.error("Error cargando productos urgentes:", err);
       }
     }
-
     function agregarFila(ref, lote, estado) {
       const tabla = document.getElementById("tablaQR");
       const contenedor = document.getElementById("tablaContenedora");
@@ -298,7 +392,6 @@ const API_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar
         setTimeout(() => contenedor.classList.add("hidden"), 500);
       }
     }
-
     function extraerDatosQR(qr) {
       const limpio = qr.replace(/\s+/g, ''); // elimina TODOS los espacios
       const match = limpio.match(/R:(.*?)\|L:(.*?)\|T:(.*)/);
@@ -310,143 +403,123 @@ const API_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar
         timestamp: match[3]
       };
     }
-
-    function solicitarPin() {
-      const pin = prompt("NIP (ddmm):");
-      const pines = { "0512": "Santos", "2704": "Fabiola", "1704": "Aida", "1103": "Johnatan", "3101": "Albino", "2009": "Sofi", "2811": "Danna", "0311": "Silvia", "1005": "Luis", "0303": "Alex" };
-      if (pines[pin]) {
-        usuario = pines[pin];
-        modo = (modo === "entrada") ? "salida" : "entrada";
-        document.getElementById("modoLabel").textContent = modo.toUpperCase();
-        document.getElementById("usuarioActivo").textContent = `${usuario}`;
-        notificar(`Modo ${modo.toUpperCase()} activado`, '#1e3a8a');
-      } else {
-        notificar("NIP incorrecto", '#b91c1c');
-      }
-    }
     let timeoutAviso = null;
-
     function mostrarModal(mensaje, color) {
       const modal = document.getElementById("modalAviso");
       const overlay = document.getElementById("overlayColor");
 
-      // Limpia timeout anterior
-      if (timeoutAviso) {
-        clearTimeout(timeoutAviso);
-      }
+      if (timeoutAviso) clearTimeout(timeoutAviso);
 
-      // Muestra modal
+      // Asegura que el modal esté al frente
       modal.textContent = mensaje;
       modal.style.backgroundColor = color;
+      modal.style.zIndex = "99999";  // 👈 Asegura que esté por encima
       modal.style.display = "block";
 
-      // Muestra overlay de fondo
       if (overlay) {
         overlay.style.backgroundColor = color;
         overlay.style.display = "block";
         overlay.style.opacity = "0.6";
+        overlay.style.zIndex = "99998"; // justo detrás del modal
       }
 
-      // Oculta todo después de 2.5s
       timeoutAviso = setTimeout(() => {
         modal.style.display = "none";
         if (overlay) overlay.style.display = "none";
         timeoutAviso = null;
       }, 2500);
     }
+async function mostrarPrevisualizacionDesdeQR(contenido) {
+  const ref = extraerReferenciaDesdeQR(contenido);
+  if (!ref) return;
+
+  try {
+    const res = await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/buscar_referencia?ref=${encodeURIComponent(ref)}`);
+    const data = await res.json();
+
+    if (!data || !data.nombre) {
+      return;
+    }
+
+    const lote = (() => {
+      const partes = contenido.trim().split("|");
+      for (let parte of partes) {
+        if (parte.startsWith("L:")) return parte.slice(2).trim();
+      }
+      return "";
+    })();
+
+    const producto = {
+      nombre: data.nombre,
+      fabricante: data.fabricante,
+      lote: lote,
+      referencia: ref
+    };
+
+    mostrarVentanaPrevisualizacion(producto);
+  } catch (err) {
+    console.warn("No se pudo mostrar previsualización:", err);
+  }
+}
 async function procesarQR(contenido) {
-  const ref = extraerReferenciaDesdeQR(contenido);  // 🔧 corregido
+  // Mostrar ventana de previsualización en segundo plano
+  mostrarPrevisualizacionDesdeQR(contenido);
 
-  if (ref) {
-    fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/buscar_referencia?ref=${encodeURIComponent(ref)}`)
-      .then(res => res.json())
-      .then(data => {
-        if (!data || !data.nombre) {
-          mostrarModal("❌ Referencia no encontrada", "#dc2626");
-          return;
-        }
-
-        const lote = (() => {
-          const partes = contenido.trim().split("|");  // 🔧 corregido
-          for (let parte of partes) {
-            if (parte.startsWith("L:")) return parte.slice(2).trim();
-          }
-          return "";
-        })();
-
-        const producto = {
-          nombre: data.nombre,
-          fabricante: data.fabricante,
-          lote: lote,
-          referencia: ref
-        };
-
-        mostrarVentanaPrevisualizacion(producto);
-      })
-      .catch(err => {
-        console.error("❌ Error al buscar la referencia:", err);
-        mostrarModal("⚠️ Error de conexión con Supabase", "#f59e0b");
-      });
+  const datos = extraerDatosQR(contenido);
+  if (!datos || !datos.referencia || !datos.lote || !datos.timestamp) {
+    mostrarModal("❌ QR incompleto o ilegible", "#6b7280");
+    return;
   }
 
-      const datos = extraerDatosQR(contenido);
-      if (!datos || !datos.referencia || !datos.lote || !datos.timestamp) {
-        mostrarModal("❌ QR incompleto o ilegible", "#6b7280");
-        return;
-      }
+  if (!usuario || !modo || modo === "inactivo") {
+    mostrarModal("⚠️ Selecciona un modo y un usuario", "#f59e0b");
+    return;
+  }
 
-      if (!usuario || !modo || modo === "inactivo") {
-        mostrarModal("⚠️ Selecciona un modo y un usuario", "#f59e0b");
-        return;
-      }
+  if (qrsPendientes.some(q => q.timestamp === datos.timestamp)) {
+    mostrarModal("📦 Ya escaneado localmente", "#0284c7");
+    return;
+  }
 
-      if (qrsPendientes.some(q => q.timestamp === datos.timestamp)) {
-        mostrarModal("📦 Ya escaneado localmente", "#0284c7");
-        return;
-      }
+  const validarPayload = {
+    registros: [{ ...datos, modo }]
+  };
 
-      const validarPayload = {
-        registros: [{ ...datos, modo }]
-      };
+  try {
+    const res = await fetch(VALIDAR_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(validarPayload)
+    });
 
-      try {
-        const res = await fetch(VALIDAR_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(validarPayload)
-        });
+    const json = await res.json();
+    const r = json.resultados?.[0];
 
-        const json = await res.json();
-        const r = json.resultados?.[0];
+    if (!r) {
+      mostrarModal("❌ Validación fallida", "#6b7280");
+      return;
+    }
 
-        if (!r) {
-          mostrarModal("❌ Validación fallida", "#6b7280");
-          return;
-        }
+    if (r.status === "ok" || r.status === "nuevo_producto") {
+      qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
+      agregarFila(datos.referencia, datos.lote, r.status === "ok" ? "Preparado" : "Producto nuevo");
+      mostrarModal(r.status === "ok" ? "✅ Producto agregado" : "✅ Producto nuevo", r.color === "verde" ? "#047857" : "#22c55e");
 
-        if (r.status === "ok" || r.status === "nuevo_producto") {
-          qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
-          agregarFila(datos.referencia, datos.lote, r.status === "ok" ? "Preparado" : "Producto nuevo");
-          mostrarModal(r.status === "ok" ? "✅ Producto agregado" : "✅ Producto nuevo", r.color === "verde" ? "#047857" : "#22c55e");
+    } else if (r.status === "extraido_previo") {
+      mostrarModal(`⚠️ Ya extraído por ${r.usuario}`, "#facc15");
 
-        } else if (r.status === "extraido_previo") {
-          mostrarModal(`⚠️ Ya extraído por ${r.usuario}`, "#facc15");
+    } else if (r.status === "error" && r.mensaje) {
+      mostrarModal(`⚠️ ${r.mensaje}`, "#6b7280");
 
+    } else {
+      mostrarModal("❌ Error en el QR", "#6b7280");
+    }
 
-        } else if (r.status === "error" && r.mensaje) {
-          mostrarModal(`⚠️ ${r.mensaje}`, "#6b7280");
-
-        } else {
-          mostrarModal("❌ Error en el QR", "#6b7280");
-        }
-
-
-        } catch (err) {
-          console.error("Error de red en validación:", err);
-          mostrarModal("❌ Error de conexión", "#b91c1c");
-        }
-      }
-
+  } catch (err) {
+    console.error("Error de red en validación:", err);
+    mostrarModal("❌ Error de conexión", "#b91c1c");
+  }
+}
     async function enviarSupabase() {
       if (!qrsPendientes.length) {
         mostrarModal("⚠️ No hay registros para enviar", "#f59e0b");
@@ -508,7 +581,6 @@ async function procesarQR(contenido) {
       div.style.display = "block";
       setTimeout(() => div.style.display = "none", 2500);
     }
-
     function extraerReferenciaDesdeQR(qr) {
       try {
         const partes = qr.trim().split("|");
@@ -522,45 +594,46 @@ async function procesarQR(contenido) {
       }
       return null;
     }
-
 let referenciasCache = [];
-
+function mostrarTodosLosGrupos() {
+  document.querySelectorAll(".grupo-referencia").forEach(div => {
+    div.style.display = "block";
+  });
+}
 async function buscarReferencia(ref) {
   const cont = document.getElementById("resultadoBusqueda");
+
   if (!ref || ref.length < 2) {
     cont.innerHTML = "";
     return;
   }
 
+  mostrarTodosLosGrupos(); // restablece visibilidad si hubo un aislado
+
   ref = extraerReferenciaDesdeQR(ref) || ref.trim().toLowerCase();
 
-  // Si aún no se ha hecho cache, cargar todas las referencias
-if (!referenciasCache.length) {
-  try {
-    const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos?select=referencia,nombre,fabricante,lote,caducidad,cantidad", {
-      headers: {
+  if (!Array.isArray(referenciasCache) || !referenciasCache.length) {
+    try {
+      const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos?select=referencia,nombre,fabricante,lote,caducidad,cantidad", {
+        headers: {
         "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo",
         "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo"
-      }
-    });
 
-    referenciasCache = await res.json();
+        }
+      });
 
-    if (!Array.isArray(referenciasCache)) {
-      throw new Error("Formato inválido en respuesta de Supabase");
+      referenciasCache = await res.json();
+      if (!Array.isArray(referenciasCache)) throw new Error("Formato inválido");
+    } catch (err) {
+      cont.innerHTML = "<p class='text-red-600'>Error al obtener datos</p>";
+      return;
     }
-
-  } catch (err) {
-    const cont = document.getElementById("resultadoBusqueda"); // Asegúrate de que exista
-    cont.innerHTML = "<p class='text-red-600'>Error al obtener datos</p>";
-    return;
   }
-}
 
-
-  // Filtrar referencias que contengan el texto (sin distinguir mayúsculas/minúsculas)
+  // Filtrar coincidencias por referencia o nombre
   const coincidencias = referenciasCache.filter(p =>
-    p.referencia?.toLowerCase().includes(ref)
+    p.referencia?.toLowerCase().includes(ref) ||
+    p.nombre?.toLowerCase().includes(ref)
   );
 
   if (!coincidencias.length) {
@@ -568,67 +641,62 @@ if (!referenciasCache.length) {
     return;
   }
 
-  // Mostrar primer resultado con tabla completa
-  const data = coincidencias[0];
-  let html = `
-    <div class="flex items-center justify-between bg-white/80 rounded-xl px-4 py-2 shadow mb-2">
-      <div class="text-left">
-        <div class="font-bold text-base text-gray-800">${data.nombre}</div>
-        <div class="text-sm text-gray-600">Fabricante: ${data.fabricante}</div>
-      </div>
-      <div class="flex items-center gap-2">
-        <button onclick="verMovimientos('${data.referencia}', '${data.lote}')" title="Ver movimientos"
-          class="text-2xl text-blue-600 hover:text-blue-800">📚</button>
-        <button onclick="verForecast('${data.referencia}', '${data.nombre}', '${data.fabricante}')" title="Ver historial de consumo"
-          class="text-2xl text-purple-600 hover:text-purple-800">📊</button>
-      </div>
-    </div>`;
+  // Agrupar por referencia
+  const agrupadas = {};
+  coincidencias.forEach(p => {
+    if (!agrupadas[p.referencia]) agrupadas[p.referencia] = [];
+    agrupadas[p.referencia].push(p);
+  });
 
-  if (data.lotes && data.lotes.length) {
+  let html = "";
+  Object.entries(agrupadas).forEach(([refReal, lotes]) => {
+    const data = lotes[0];
     html += `
-      <table class="text-base mt-2 w-full border border-gray-300 text-center">
-        <thead class="bg-teal-800 bg-opacity-40 font-semibold">
-          <tr>
-            <th class="p-2">Lote</th>
-            <th class="p-2">Cantidad</th>
-            <th class="p-2">Caducidad</th>
-            <th class="p-2">⚠️</th>
-          </tr>
-        </thead>
-        <tbody>`;
-    data.lotes.forEach(l => {
+      <div id="grupo-${refReal}" class="grupo-referencia bg-white/80 rounded-xl px-4 py-2 shadow mb-4">
+        <div class="flex items-center justify-between cursor-pointer hover:bg-gray-100 rounded-xl px-3 py-2"
+            onclick="aislarGrupo('${refReal}')">
+          <div class="text-left">
+            <div class="font-bold text-base text-red-900">${refReal} <span class="font-bold text-base text-teal-800">(${data.nombre})</span></div>
+            <div class="text-sm text-gray-600">Fabricante: ${data.fabricante}</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="verMovimientos('${refReal}', '${data.lote}')" title="Ver movimientos"
+              class="text-2xl text-blue-600 hover:text-blue-800">📚</button>
+            <button onclick="verForecast('${refReal}', '${data.nombre}', '${data.fabricante}')" title="Ver historial de consumo"
+              class="text-2xl text-purple-600 hover:text-purple-800">📊</button>
+          </div>
+        </div>
+        <table class="text-base mt-2 w-full border border-gray-300 text-center">
+          <thead class="bg-teal-800 bg-opacity-40 font-semibold">
+            <tr>
+              <th class="p-2">Lote</th>
+              <th class="p-2">Cantidad</th>
+              <th class="p-2">Caducidad</th>
+              <th class="p-2">⚠️</th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+    lotes.forEach(l => {
       const dias = calcularDiasRestantes(l.caducidad);
       let icono = "❗";
       if (dias <= 30) icono = "❗❗❗";
       else if (dias <= 60) icono = "❗❗";
 
       html += `
-        <tr>
-          <td class="p-2">${l.lote}</td>
-          <td class="p-2">${l.cantidad}</td>
-          <td class="p-2">${l.caducidad}</td>
-          <td class="p-2" title="Días restantes">${icono}</td>
-        </tr>`;
+            <tr>
+              <td class="p-2">${l.lote}</td>
+              <td class="p-2">${l.cantidad}</td>
+              <td class="p-2">${l.caducidad}</td>
+              <td class="p-2" title="Días restantes">${icono}</td>
+            </tr>`;
     });
 
-    html += `</tbody></table>`;
-  }
-
-  // Autocompletado (máx 5 sugerencias adicionales)
-  if (coincidencias.length > 1) {
-    html += `<div class="mt-4 text-xs text-gray-600 font-semibold">Coincidencias:</div>`;
-    coincidencias.slice(1, 6).forEach(p => {
-      html += `
-        <div class="cursor-pointer text-sm text-blue-800 underline hover:text-blue-600 ml-2" onclick="buscarReferencia('${p.referencia}')">
-          ${p.referencia} - ${p.nombre}
-        </div>`;
-    });
-  }
+    html += `</tbody></table></div>`;
+  });
 
   cont.innerHTML = html;
 }
-
-
 function verMovimientos(referencia, lote = null) {
   let url = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/TimeStamps?referencia=eq.${encodeURIComponent(referencia)}&select=usuario,movimiento,fecha_str,lote&order=fecha.desc&limit=50`;
   
@@ -678,8 +746,6 @@ function verMovimientos(referencia, lote = null) {
       document.getElementById("modalMovimientos").classList.remove("hidden");
     });
 }
-   
-
 function ajustarMesLogico(timestamp) {
   const fecha = new Date(Number(timestamp));
   const mes = fecha.getMonth();
@@ -700,7 +766,6 @@ function ajustarMesLogico(timestamp) {
       </div>
     </div>
   </div>
-  
 <!-- Ventana de alerta -->
 <div id="alertaCaducidad" class="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-60 hidden">
   <div class="bg-white bg-opacity-90 rounded-2xl shadow-xl w-[95%] max-w-5xl text-gray-800 relative max-h-[80vh] overflow-y-auto p-6">
@@ -709,28 +774,13 @@ function ajustarMesLogico(timestamp) {
     <div id="contenidoCaducidad" class="text-sm mb-4"></div>
   </div>
 </div>
-
 <script>
   document.addEventListener("keydown", function (e) {
     const alerta = document.getElementById("alertaCaducidad");
     if (!alerta.classList.contains("hidden") && e.key === "Enter") {
       alerta.classList.add("hidden");
     }
-  });
-  
-  const pines = {
-    "0512": "Santos",
-    "2704": "Fabiola",
-    "1704": "Aida",
-    "1103": "Johnatan",
-    "3101": "Albino",
-    "2009": "Sofi",
-    "2811": "Danna",
-    "0311": "Silvia",
-    "1005": "Luis",
-    "0303": "Alex"
-  };
-
+  });  
   function mostrarMenuModo() {
   const contenedor = document.createElement("div");
   contenedor.classList.add("modal-modo");  // ← te ayudará a cerrarlo luego si hace falta
@@ -748,17 +798,12 @@ function ajustarMesLogico(timestamp) {
 function cerrarAlertaCaducidad() {
   document.getElementById("alertaCaducidad").classList.add("hidden");
 }
-
 document.addEventListener("keydown", function (e) {
   const alerta = document.getElementById("alertaCaducidad");
   if (!alerta.classList.contains("hidden") && e.key === "Escape") {
     cerrarAlertaCaducidad();
   }
 });
-
-let modoSeleccionado = null;
-let unidadSeleccionada = null;
-
 function solicitarPinModo(tipo, boton) {
   // 🔴 Cierra el modal anterior si existe
   const modalAnterior = boton.closest('.modal-modo');
@@ -780,7 +825,6 @@ function solicitarPinModo(tipo, boton) {
   document.getElementById("inputNIP").focus();
 
 }
-
   document.getElementById("inputNIP").addEventListener("keydown", function (e) {
     if (e.key === "Enter") {
       const unidadGroup = document.getElementById("unidadDestinoGroup");
@@ -791,59 +835,122 @@ function solicitarPinModo(tipo, boton) {
       }
     }
   });
-
   document.getElementById("inputUnidad").addEventListener("keydown", function (e) {
     if (e.key === "Enter") {
       validarPinYUnidad(); // Ya estamos en campo unidad → confirmar
     }
   });
-
-
-
 function cerrarModalPin() {
   document.getElementById("modalPinUnidad").classList.add("hidden");
 }
-function validarPinYUnidad() {
-  const pin = document.getElementById("inputNIP").value.trim();
+let usuario = null;
+let unidadSeleccionada = null;
+let modoSeleccionado = null;
+let esAdmin = false;
+async function validarPinYUnidad() {
+  const nip = document.getElementById("inputNIP").value.trim();
   const unidad = document.getElementById("inputUnidad").value.trim().toUpperCase();
   const esSalida = modoSeleccionado === "salida";
 
-  if (!pines[pin]) {
+  try {
+    const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/validar_nip", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nip })
+    });
+
+    const data = await res.json();
+
+    const unidadesLista = typeof data.unidades === "string" 
+      ? data.unidades.split(",").map(u => u.trim().toUpperCase())
+      : Array.isArray(data.unidades) 
+        ? data.unidades 
+        : [];
+
+    if (!data || (esSalida && !unidadesLista.includes(unidad))) {
+      document.getElementById("pinError").classList.remove("hidden");
+      return;
+    }
+
+    console.log("[VALIDAR NIP] Respuesta Supabase:", data);
+
+    usuario = data.nombre;
+    esAdmin = data.es_admin;
+    window.usuarioEsAdmin = esAdmin;
+    unidadSeleccionada = esSalida ? unidad : null;
+
+    document.getElementById("modalPinUnidad").classList.add("hidden");
+    const nombreUnidad = unidadesDestino[unidad] || "Unidad desconocida";
+    document.getElementById("usuarioActivo").textContent = esSalida
+      ? `${usuario} → ${unidad} ${nombreUnidad}`
+      : usuario;
+
+    modo = modoSeleccionado;
+    const color = modo === "entrada" ? "bg-green-800" : "bg-red-800";
+    const icono = modo === "entrada" ? "📥" : "📤";
+
+    actualizarBotonModo(modo.charAt(0).toUpperCase() + modo.slice(1), color, icono);
+    document.getElementById("modoLabel").textContent = modo.toUpperCase();
+    document.getElementById("modoLabel").className = "font-bold px-2 py-1 rounded-lg text-white " + color;
+
+    notificar(`Modo ${modo.toUpperCase()} activado`, "#003f40");
+    document.getElementById("inputQR").focus();
+
+  } catch (e) {
     document.getElementById("pinError").classList.remove("hidden");
-    return;
   }
-
-  if (esSalida && !unidadesDestino[unidad]) {
-    document.getElementById("pinError").classList.remove("hidden");
-    return;
-  }
-
-  // ✅ Datos válidos
-  document.getElementById("pinError").classList.add("hidden");
-  document.getElementById("modalPinUnidad").classList.add("hidden");
-
-  usuario = pines[pin];
-  if (esSalida) {
-    usuario += ` → ${unidadesDestino[unidad]}`;
-    unidadSeleccionada = unidad;
-  }
-
-  modo = modoSeleccionado;
-
-  const icono = modo === "entrada" ? "📥" : "📤";
-  const color = modo === "entrada" ? "bg-green-800" : "bg-red-800";
-  actualizarBotonModo(modo.charAt(0).toUpperCase() + modo.slice(1), color, icono);
-
-  document.getElementById("usuarioActivo").textContent = usuario;
-  const modoLabel = document.getElementById("modoLabel");
-  modoLabel.textContent = modo.toUpperCase();
-  modoLabel.className = "font-bold px-2 py-1 rounded-lg text-white " + color;
-
-  notificar(`Modo ${modo.toUpperCase()} activado`, '#003f40');
-  document.getElementById("inputQR").focus();
-
 }
+function mostrarCambioNIP() {
+  cerrarModalOpcionesAdmin(); // Asegura que el anterior se cierre
+  document.getElementById("modalCambioNIP").classList.remove("hidden");
+}
+function cerrarCambioNIP() {
+  document.getElementById("modalCambioNIP").classList.add("hidden");
+}
+async function guardarNuevoNIP() {
+  const nipAntiguo = document.getElementById("nipAntiguo").value.trim();
+  const nipNuevo = document.getElementById("nipNuevo").value.trim();
+  const confirmar = document.getElementById("nipConfirmar").value.trim();
+  const error = document.getElementById("cambioNipError");
 
+  if (!esAdmin) {
+    error.textContent = "❌ Solo administradores pueden cambiar NIPs.";
+    error.classList.remove("hidden");
+    return;
+  }
+
+  if (!nipAntiguo || !nipNuevo || nipNuevo !== confirmar) {
+    error.textContent = "❌ Los NIPs no coinciden o están vacíos.";
+    error.classList.remove("hidden");
+    return;
+  }
+
+  try {
+    const payload = {
+      nip_admin: nipAntiguo,
+      nombre: usuario,
+      nuevo_nip: nipNuevo,
+      nuevas_unidades: [] // opcional si deseas modificar también unidades
+    };
+
+    const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/actualizar_nip", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      notificar("✅ NIP actualizado correctamente", "#047857");
+      cerrarCambioNIP();
+    } else {
+      error.textContent = "❌ Error al actualizar NIP.";
+      error.classList.remove("hidden");
+    }
+  } catch (e) {
+    error.textContent = "❌ Error de red al guardar NIP.";
+    error.classList.remove("hidden");
+  }
+}
 function actualizarBotonModo(texto, claseColor, icono) {
     const btn = document.getElementById("btnModo");
     btn.className = `px-3 py-1 rounded-xl text-white ${claseColor}`;
@@ -861,7 +968,6 @@ function actualizarBotonModo(texto, claseColor, icono) {
 </script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-
 function calcularRegresionLineal(x, y) {
   const n = x.length;
   const sumX = x.reduce((a, b) => a + b, 0);
@@ -874,8 +980,6 @@ function calcularRegresionLineal(x, y) {
 
   return { pendiente, intercepto };
 }
-
-
 function verForecast(referencia, nombre = "", fabricante = "") {
   const anterior = document.getElementById("modalForecast");
   if (anterior) anterior.remove();
@@ -934,11 +1038,8 @@ function verForecast(referencia, nombre = "", fabricante = "") {
 
   cargarDatosForecastEdge(referencia);
 } window.verForecast = verForecast;
-
-
 let graficaForecastInstance = null;
 let graficaRegresionInstance = null;
-
 async function cargarDatosForecastEdge(ref) {
   const select = document.getElementById("unidadForecast");
   const ctx = document.getElementById("graficaForecast").getContext("2d");
@@ -978,7 +1079,7 @@ async function cargarDatosForecastEdge(ref) {
       if (labels.length === 0) {
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
         tabla.innerHTML = "";
-        mostrarModal("📂 Sin datos registrados", "#6b7280");
+        mostrarModal("📂 Sin datos registrados", "#6b7280", "tablaForecast");
         return;
       }
 
@@ -1041,14 +1142,12 @@ async function cargarDatosForecastEdge(ref) {
     tabla.innerHTML = `<p class="text-red-700 text-sm">❌ Error al cargar forecast</p>`;
   }
 }
-
 function calcularR2(x, y, pendiente, intercepto) {
   const yMedia = y.reduce((a, b) => a + b, 0) / y.length;
   const ssTot = y.reduce((sum, yi) => sum + Math.pow(yi - yMedia, 2), 0);
   const ssRes = y.reduce((sum, yi, i) => sum + Math.pow(yi - (pendiente * x[i] + intercepto), 2), 0);
   return 1 - (ssRes / ssTot);
 }
-
 function graficarRegresionLineal(labelsHist, valoresHist) {
   const labelsRecortados = [...labelsHist];
   const valoresRecortados = [...valoresHist];
@@ -1178,7 +1277,13 @@ function graficarRegresionLineal(labelsHist, valoresHist) {
       </tbody>
     </table>`;
 }
+function aislarGrupo(ref) {
+  const todos = document.querySelectorAll(".grupo-referencia");
+  todos.forEach(g => g.style.display = "none");
 
+  const seleccionado = document.getElementById(`grupo-${ref}`);
+  if (seleccionado) seleccionado.style.display = "block";
+}
 function exportarRegresionExcel() {
   const tabla = document.querySelector("#tablaForecast table");
   if (!tabla) return;
@@ -1193,7 +1298,6 @@ function exportarRegresionExcel() {
 
   XLSX.writeFile(wb, "Pronostico_Regresion_Centrum.xlsx");
 }
-
 async function exportarRegresionPDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF("p", "mm", "a4");
@@ -1262,8 +1366,117 @@ async function exportarRegresionPDF() {
     };
   };
 }
+async function mostrarModalAsignarUnidades() {
+  const modal = document.getElementById("modalAsignarUnidades");
+  const select = document.getElementById("selectUsuario");
+  const lista = document.getElementById("listaUnidades");
 
+  // Limpiar
+  select.innerHTML = "";
+  lista.innerHTML = "";
 
+  // 1. Obtener usuarios desde Supabase
+  try {
+    const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/usuarios?select=nombre,unidades", {
+      headers: {
+        apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo",
+        Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo"
+      }
+    });
+
+    const usuarios = await res.json();
+    usuarios.forEach(u => {
+      const opt = document.createElement("option");
+      opt.value = u.nombre;
+      opt.textContent = u.nombre;
+      opt.dataset.unidades = u.unidades || "";
+      select.appendChild(opt);
+    });
+
+    select.onchange = () => {
+      generarCheckboxesPara(select.value, select.selectedOptions[0].dataset.unidades);
+    };
+
+    // Dispara por default para el primero
+    if (usuarios.length) {
+      generarCheckboxesPara(usuarios[0].nombre, usuarios[0].unidades);
+    }
+
+    modal.classList.remove("hidden");
+  } catch (err) {
+    console.error("Error al cargar usuarios:", err);
+  }
+}
+function generarCheckboxesPara(nombre, unidadesStr) {
+  const cont = document.getElementById("listaUnidades");
+  cont.innerHTML = "";
+
+  const unidadesActuales = unidadesStr
+    ? unidadesStr.split(",").map(u => u.trim().toUpperCase())
+    : [];
+
+  for (const clave in unidadesDestino) {
+    const label = document.createElement("label");
+    label.className = "flex items-center gap-2";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.value = clave;
+    checkbox.checked = unidadesActuales.includes(clave);
+
+    label.appendChild(checkbox);
+    label.append(`${clave} - ${unidadesDestino[clave]}`);
+    cont.appendChild(label);
+  }
+}
+function cerrarModalAsignarUnidades() {
+  document.getElementById("modalAsignarUnidades").classList.add("hidden");
+}
+async function guardarUnidadesAsignadas() {
+  const select = document.getElementById("selectUsuario");
+  const nombre = select.value;
+  const checkboxes = document.querySelectorAll("#listaUnidades input[type='checkbox']");
+  const seleccionadas = Array.from(checkboxes)
+    .filter(c => c.checked)
+    .map(c => c.value);
+
+  if (seleccionadas.length === 0) {
+    document.getElementById("unidadAsignarError").textContent = "❌ Debes seleccionar al menos una unidad.";
+    document.getElementById("unidadAsignarError").classList.remove("hidden");
+    return;
+  }
+
+  const payload = {
+    nip_admin: prompt("Ingresa tu NIP para autorizar:"),
+    nombre,
+    nuevo_nip: "sin_cambio", // marcador, se ignora si no se cambia
+    nuevas_unidades: seleccionadas
+  };
+
+  try {
+    const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/actualizar_nip", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      cerrarModalAsignarUnidades();
+      notificar("✅ Unidades actualizadas correctamente", "#16a34a");
+    } else {
+      console.warn("Error desde Supabase:", data);
+      document.getElementById("unidadAsignarError").textContent = "❌ " + (data.error || "Error al guardar unidades.");
+      document.getElementById("unidadAsignarError").classList.remove("hidden");
+    }
+
+  } catch (err) {
+    console.error("Error de red al guardar unidades:", err);
+    document.getElementById("unidadAsignarError").textContent = "❌ Error de red al guardar unidades.";
+    document.getElementById("unidadAsignarError").classList.remove("hidden");
+  }
+}
 function confiabilidadConvertida(original) {
   const resultado = {};
   for (const unidad in original) {
@@ -1274,7 +1487,6 @@ function confiabilidadConvertida(original) {
   }
   return { TOTAL: resultado };
 }
-
 function combinarUnidades(consumo) {
   const total = {};
   for (const unidad in consumo) {
@@ -1286,8 +1498,6 @@ function combinarUnidades(consumo) {
   return total;
 }
 </script>
-
-<div id="versionInfo" class="version-info">v1.5.13</div>
-
+<div id="versionInfo" class="version-info">v2.0.0</div>
 </body>
 </html>
