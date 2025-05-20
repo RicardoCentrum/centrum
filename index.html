@@ -1552,7 +1552,7 @@ async function guardarUnidadesAsignadas() {
   }
 
   const payload = {
-    nip_admin: prompt("Ingresa tu NIP para autorizar:"),
+    nip_admin: prompt("Ingresa el NIP del usuario al que deseas modificar:"),
     nombre,
     nuevo_nip: "sin_cambio", // marcador, se ignora si no se cambia
     nuevas_unidades: seleccionadas
@@ -1603,6 +1603,6 @@ function combinarUnidades(consumo) {
   return total;
 }
 </script>
-<div id="versionInfo" class="version-info">v2.0.2</div>
+<div id="versionInfo" class="version-info">v2.0.3</div>
 </body>
 </html>
