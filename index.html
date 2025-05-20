@@ -28,7 +28,7 @@
     .version-info {
       position: fixed;
       bottom: 10px;
-      right: 15px;
+      left: 15px;
       background: rgba(0, 0, 0, 0.5);
       color: rgb(161, 200, 255);
       font-size: 0.75rem;
@@ -60,8 +60,8 @@
 <div id="modalModo" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
   <div class="bg-white p-6 rounded-2xl shadow-lg text-center w-[90%] max-w-xs text-gray-800">
     <h2 class="text-lg font-bold mb-4">Selecciona el modo de operación</h2>
-    <button onclick="seleccionarModo('entrada')" class="w-full mb-2 px-4 py-2 bg-green-800 text-white rounded-xl hover:bg-green-800">📥 Entrada</button>
-    <button onclick="seleccionarModo('salida')" class="w-full px-4 py-2 bg-red-800 text-white rounded-xl hover:bg-red-800">📤 Salida</button>
+    <button onclick="seleccionarModo('entrada')" class="w-full mb-2 px-4 py-2 bg-green-800 text-white rounded-xl hover:bg-green-900">📥 Entrada</button>
+    <button onclick="seleccionarModo('salida')" class="w-full px-4 py-2 bg-red-800 text-white rounded-xl hover:bg-red-900">📤 Salida</button>
   </div>
 </div>
 <div id="modalAviso" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
@@ -74,9 +74,9 @@
     <h2 class="text-lg font-bold text-center">Acceso requerido</h2>
 
     <div>
-      <label for="inputNIP" class="block text-sm font-semibold mb-1">NIP (ddmm):</label>
+      <label for="inputNIP" class="block text-sm font-semibold mb-1">NIP:</label>
       <input id="inputNIP" type="password" maxlength="4"
-             class="w-full px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500" />
+             class="w-full px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-800" />
     </div>
 
     <div id="unidadDestinoGroup" class="hidden">
@@ -92,7 +92,7 @@
         <button onclick="cerrarModalPin()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400">
           Cancelar
         </button>
-        <button onclick="validarPinYUnidad()" class="px-4 py-2 bg-teal-600 text-white rounded-xl hover:bg-teal-700">
+        <button onclick="validarPinYUnidad()" class="px-4 py-2 bg-teal-900 text-white rounded-xl hover:bg-teal-700">
           Confirmar
         </button>
       </div>
@@ -126,7 +126,7 @@
 
     <div class="flex justify-end gap-2 mt-2">
       <button onclick="cerrarCambioNIP()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400">Cancelar</button>
-      <button onclick="guardarNuevoNIP()" class="px-4 py-2 bg-teal-600 text-white rounded-xl hover:bg-teal-700">Guardar</button>
+      <button onclick="guardarNuevoNIP()" class="px-4 py-2 bg-teal-900 text-white rounded-xl hover:bg-teal-700">Guardar</button>
     </div>
   </div>
 </div>
@@ -159,7 +159,7 @@
   </div>
 </div>
 
-<button onclick="mostrarOpcionesAdmin()" class="fixed bottom-4 right-4 z-50 bg-teal-700 text-white px-4 py-2 rounded-full shadow-lg hover:bg-teal-800 text-sm">
+<button onclick="mostrarOpcionesAdmin()" class="fixed bottom-4 right-4 z-50 bg-teal-900 text-white px-4 py-2 rounded-full shadow-lg hover:bg-teal-800 text-sm">
   ⚙️ Opciones de usuario
 </button>
 <div id="modalOpcionesAdmin" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
@@ -167,11 +167,11 @@
     <h2 class="text-lg font-bold text-center">⚙️ Opciones de Usuario</h2>
     <div class="space-y-2">
    <!-- Cambiar NIP -->
-<button onclick="cerrarModalOpcionesAdmin(); mostrarCambioNIP()" class="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+<button onclick="cerrarModalOpcionesAdmin(); mostrarCambioNIP()" class="w-full bg-blue-900 text-white px-4 py-2 rounded hover:bg-blue-700">
   🔑 Cambiar NIP
 </button>
 <!-- Modificar unidades -->
-<button id="btnModificarUnidades" onclick="cerrarModalOpcionesAdmin(); mostrarModalAsignarUnidades()" class="w-full bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800 hidden">
+<button id="btnModificarUnidades" onclick="cerrarModalOpcionesAdmin(); mostrarModalAsignarUnidades()" class="w-full bg-green-900 text-white px-4 py-2 rounded hover:bg-green-800 hidden">
   🏥 Modificar unidades
 </button>
     </div>
@@ -190,7 +190,7 @@
     </div>
     
     <table id="tablaContenedora" class="w-full text-xs border border-gray-300 hidden opacity-0 transition-opacity duration-500">
-      <thead class="bg-teal-800 text-white">
+      <thead class="bg-teal-900 text-white">
         <tr>
           <th class="p-2">REF</th>
           <th class="p-2">Lote</th>
@@ -201,7 +201,7 @@
       <tbody id="tablaQR" class="bg-white text-gray-800"></tbody>
     </table>
 
-    <button onclick="enviarSupabase()" class="mt-4 w-full bg-teal-800 text-white py-2 rounded-2xl">Enviar a Base de Datos</button>
+    <button onclick="enviarSupabase()" class="mt-4 w-full bg-teal-900 text-white py-2 rounded-2xl">Enviar a Base de Datos</button>
   </div>
   <div id="notificacion" class="modal text-center font-bold"></div>
 <div id="modalAsignarUnidades" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
@@ -219,7 +219,7 @@
 
     <div class="flex justify-end gap-2">
       <button onclick="cerrarModalAsignarUnidades()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400">Cancelar</button>
-      <button onclick="guardarUnidadesAsignadas()" class="px-4 py-2 bg-teal-600 text-white rounded-xl hover:bg-teal-700">Guardar</button>
+      <button onclick="guardarUnidadesAsignadas()" class="px-4 py-2 bg-teal-900 text-white rounded-xl hover:bg-teal-700">Guardar</button>
     </div>
   </div>
 </div>
@@ -636,7 +636,7 @@ async function buscarReferencia(ref) {
         <div class="flex items-center justify-between cursor-pointer hover:bg-gray-100 rounded-xl px-3 py-2"
             onclick="aislarGrupo('${refReal}')">
           <div class="text-left">
-            <div class="font-bold text-base text-red-900">${refReal} <span class="font-bold text-base text-teal-800">(${data.nombre})</span></div>
+            <div class="font-bold text-base text-red-900">${refReal} <span class="font-bold text-base text-teal-900">(${data.nombre})</span></div>
             <div class="text-sm text-gray-600">Fabricante: ${data.fabricante}</div>
           </div>
           <div class="flex items-center gap-2">
@@ -647,7 +647,7 @@ async function buscarReferencia(ref) {
           </div>
         </div>
         <table class="text-base mt-2 w-full border border-gray-300 text-center">
-          <thead class="bg-teal-800 bg-opacity-40 font-semibold">
+          <thead class="bg-teal-900 bg-opacity-40 font-semibold">
             <tr>
               <th class="p-2">Lote</th>
               <th class="p-2">Cantidad</th>
@@ -684,6 +684,7 @@ function verMovimientos(referencia, lote = null) {
   if (lote) {
     url = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/TimeStamps?referencia=eq.${encodeURIComponent(referencia)}&lote=eq.${encodeURIComponent(lote)}&select=usuario,movimiento,fecha_str,lote&order=fecha.desc&limit=50`;
   }
+  console.log("Ver movimientos de:", referencia, lote);
   fetch(url, {
     headers: {
         "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo",
@@ -768,8 +769,8 @@ function ajustarMesLogico(timestamp) {
     <div class="fixed inset-0 bg-white bg-opacity-50 flex items-center justify-center z-50">
       <div class="bg-white text-gray-800 p-6 rounded-xl text-center space-y-4 w-72 shadow-xl">
         <h2 class="font-bold text-lg mb-2">Selecciona el modo</h2>
-        <button onclick="solicitarPinModo('entrada', this)" class="bg-green-600 text-white px-4 py-2 rounded-xl w-full hover:bg-green-700">📥 Modo Entrada</button>
-        <button onclick="solicitarPinModo('salida', this)" class="bg-red-600 text-white px-4 py-2 rounded-xl w-full hover:bg-red-700">📤 Modo Salida</button>
+        <button onclick="solicitarPinModo('entrada', this)" class="bg-green-900 text-white px-4 py-2 rounded-xl w-full hover:bg-green-700">📥 Modo Entrada</button>
+        <button onclick="solicitarPinModo('salida', this)" class="bg-red-900 text-white px-4 py-2 rounded-xl w-full hover:bg-red-700">📤 Modo Salida</button>
         <button onclick="this.closest('.fixed').remove()" class="text-sm text-gray-500 hover:text-gray-800">Cancelar</button>
       </div>
     </div>`;
@@ -884,6 +885,7 @@ function mostrarCambioNIP() {
   cerrarModalOpcionesAdmin(); // Asegura que el anterior se cierre
   document.getElementById("modalCambioNIP").classList.remove("hidden");
 }
+
 function cerrarCambioNIP() {
   document.getElementById("modalCambioNIP").classList.add("hidden");
 }
@@ -914,7 +916,7 @@ async function guardarNuevoNIP() {
     });
 
     if (res.ok) {
-      notificar("✅ NIP actualizado correctamente", "#047857");
+      notificar("✅ NIP actualizado, solicita que se te reasignen tus unidades a un administrador o será imposible que saques producto", "#047857");
       cerrarCambioNIP();
     } else {
       error.textContent = "❌ Error al actualizar NIP.";
@@ -1010,7 +1012,7 @@ function verForecast(referencia, nombre = "", fabricante = "") {
     }
   });
 
-  cargarDatosForecastEdge(referencia);
+  cargarDatosForecastEdge(referencia).then(() => alCambiarUnidadForecast(referencia));
 } window.verForecast = verForecast;
 let graficaForecastInstance = null;
 let graficaRegresionInstance = null;
@@ -1094,7 +1096,7 @@ async function cargarDatosForecastEdge(ref) {
 
       tabla.innerHTML = `
         <table class="w-full mt-2 border border-gray-300 text-xs  text-center">
-          <thead class="bg-teal-800">
+          <thead class="bg-teal-900">
             <tr><th>Mes</th><th>Unidades</th></tr>
           </thead>
           <tbody>
@@ -1312,7 +1314,7 @@ async function exportarRegresionPDF() {
         startY: 105 + altoLogo,
         theme: "grid",
         headStyles: {
-          fillColor: [13, 148, 136], // teal-800
+          fillColor: [13, 148, 136], // teal-900
           textColor: 255,
           fontStyle: "bold"
         },
@@ -1406,6 +1408,132 @@ function generarCheckboxesPara(nombre, unidadesStr) {
     cont.appendChild(label);
   }
 }
+
+// 1. Obtener mes lógico como YYYY-MM
+function obtenerMesLogico(timestamp) {
+  const fecha = new Date(Number(timestamp));
+  const year = fecha.getFullYear();
+  const mes = fecha.getDate() >= 25 ? fecha.getMonth() + 2 : fecha.getMonth() + 1;
+  return `${year}-${String(mes).padStart(2, '0')}`;
+}
+
+// 2. Cargar dotaciones desde Supabase
+async function obtenerDotaciones() {
+  try {
+    const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/dotaciones?select=referencia,unidad,cantidad", {
+      headers: {
+        "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo",
+        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo"
+
+      }
+    });
+    return await res.json();
+  } catch (err) {
+    console.error("Error cargando dotaciones:", err);
+    return [];
+  }
+}
+
+// 3. Calcular entregas por unidad y referencia
+function calcularEntregas(movimientos, ref) {
+  const entregas = {};
+  for (const mov of movimientos) {
+    if (mov.referencia !== ref || mov.movimiento !== "salida") continue;
+    const mesLogico = obtenerMesLogico(mov.fecha);
+    const unidad = mov.unidad_destino || "SIN_UNIDAD";
+    const clave = `${unidad}|${mesLogico}`;
+    entregas[clave] = (entregas[clave] || 0) + 1;
+  }
+  return entregas;
+}
+
+
+// 4. Calcular consumo inferido y sugerido
+function inferirConsumo(entregas, dotaciones, ref) {
+  const porUnidad = {};
+  for (const clave in entregas) {
+    const [unidad, mes] = clave.split("|");
+    if (!porUnidad[unidad]) porUnidad[unidad] = {};
+    porUnidad[unidad][mes] = entregas[clave];
+  }
+
+  const sugerencias = {};
+  for (const unidad in porUnidad) {
+    const meses = Object.keys(porUnidad[unidad]).sort();
+    const consumos = [];
+    for (let i = 1; i < meses.length; i++) {
+      const ant = porUnidad[unidad][meses[i - 1]];
+      const act = porUnidad[unidad][meses[i]];
+      const cons = Math.max(0, act - ant);
+      consumos.push(cons);
+    }
+    const prom = consumos.slice(-3).reduce((a, b) => a + b, 0) / 3;
+    sugerencias[unidad] = Math.ceil((prom || 0) * 1.1);
+  }
+
+  const dotacionTotal = dotaciones.filter(d => d.referencia === ref)
+    .reduce((a, d) => a + parseInt(d.cantidad), 0);
+
+  return { sugerencias, dotacionTotal };
+}
+
+// 5. Verificar si inventario actual cubre la dotación
+async function verificarStockVsDotacion(ref, dotacionTotal) {
+  try {
+    const res = await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos?select=referencia,cantidad&referencia=eq.${ref}`, {
+      headers: {
+        "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo",
+        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo"
+
+      }
+    });
+    const productos = await res.json();
+    const totalEnStock = productos.reduce((a, p) => a + parseInt(p.cantidad), 0);
+
+    if (totalEnStock < dotacionTotal) {
+      mostrarModal("⚠️ No hay suficiente inventario para abastecer dotación autorizada", "#dc2626");
+    } else {
+      mostrarModal("✅ Inventario suficiente para dotación", "#16a34a");
+    }
+  } catch (err) {
+    console.error("Error verificando stock:", err);
+  }
+}
+
+// 6. Hook para ejecutar todo al cambiar unidad en forecast
+async function alCambiarUnidadForecast(ref) {
+  try {
+    const movRes = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/TimeStamps?select=referencia,fecha,unidad_destino,movimiento&referencia=eq." + ref, {
+      headers: {
+        "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo",
+        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo"
+
+      }
+    });
+    const movimientos = await movRes.json();
+    if (!Array.isArray(movimientos)) throw new Error("Movimientos no válidos");
+
+    const dotaciones = await obtenerDotaciones();
+    if (!Array.isArray(dotaciones)) throw new Error("Dotaciones no válidas");
+
+    const entregas = calcularEntregas(movimientos, ref);
+    const { sugerencias, dotacionTotal } = inferirConsumo(entregas, dotaciones, ref);
+    await verificarStockVsDotacion(ref, dotacionTotal);
+  } catch (e) {
+    console.error("Error ejecutando forecast extendido:", e);
+  }
+}
+
+
+// Extender evento onchange
+const selectUnidadForecast = document.getElementById("unidadForecast");
+if (selectUnidadForecast) {
+  selectUnidadForecast.addEventListener("change", () => {
+    const ref = document.querySelector("#grupo-forecast-referencia")?.dataset?.ref;
+    if (ref) alCambiarUnidadForecast(ref);
+  });
+}
+
 function cerrarModalAsignarUnidades() {
   document.getElementById("modalAsignarUnidades").classList.add("hidden");
 }
