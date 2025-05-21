@@ -167,12 +167,15 @@
     <h2 class="text-lg font-bold text-center">⚙️ Opciones de Usuario</h2>
     <div class="space-y-2">
    <!-- Cambiar NIP -->
-<button onclick="cerrarModalOpcionesAdmin(); mostrarCambioNIP()" class="w-full bg-blue-900 text-white px-4 py-2 rounded hover:bg-blue-700">
+<button onclick="cerrarModalOpcionesAdmin(); mostrarCambioNIP()" class="w-full bg-blue-900 text-white rounded-xl shadow-xl px-4 py-2 rounded hover:bg-blue-700">
   🔑 Cambiar NIP
 </button>
 <!-- Modificar unidades -->
-<button id="btnModificarUnidades" onclick="cerrarModalOpcionesAdmin(); mostrarModalAsignarUnidades()" class="w-full bg-green-900 text-white px-4 py-2 rounded hover:bg-green-800 hidden">
+<button id="btnModificarUnidades" onclick="cerrarModalOpcionesAdmin(); mostrarModalAsignarUnidades()" class="w-full bg-green-900 rounded-xl shadow-xl text-white px-4 py-2 rounded hover:bg-green-800 hidden">
   🏥 Modificar unidades
+</button>
+<button id="btnRestablecerNIP" onclick="restablecerNIPUsuario()" class="w-full bg-red-900 text-white rounded-xl shadow-xl px-4 py-2 rounded hover:bg-red-800 hidden">
+  🔁 Restablecer NIP de usuario
 </button>
     </div>
     <div class="text-center mt-4">
@@ -309,6 +312,8 @@ function mostrarOpcionesAdmin() {
   const esAdmin = Boolean(window.usuarioEsAdmin); // debe haberse asignado después de validar NIP
   document.getElementById("modalOpcionesAdmin").classList.remove("hidden");
   document.getElementById("btnModificarUnidades").classList.toggle("hidden", !esAdmin);
+  document.getElementById("btnRestablecerNIP").classList.toggle("hidden", !esAdmin);
+
 }
 function cerrarModalOpcionesAdmin() {
   document.getElementById("modalOpcionesAdmin").classList.add("hidden");
@@ -785,6 +790,7 @@ document.addEventListener("keydown", function (e) {
     cerrarAlertaCaducidad();
   }
 });
+let nipAdmin = null; // Nuevo
 function solicitarPinModo(tipo, boton) {
   // 🔴 Cierra el modal anterior si existe
   const modalAnterior = boton.closest('.modal-modo');
@@ -830,8 +836,10 @@ let modoSeleccionado = null;
 let esAdmin = false;
 async function validarPinYUnidad() {
   const nip = document.getElementById("inputNIP").value.trim();
+  nipAdmin = nip; // justo después de: const nip = document.getElementById("inputNIP").value.trim();
   const unidad = document.getElementById("inputUnidad").value.trim().toUpperCase();
   const esSalida = modoSeleccionado === "salida";
+
 
   try {
     const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/validar_nip", {
@@ -901,12 +909,18 @@ async function guardarNuevoNIP() {
     return;
   }
 
+  if (nipAntiguo === nipNuevo) {
+    error.textContent = "❌ El nuevo NIP no puede ser igual al actual.";
+    error.classList.remove("hidden");
+    return;
+  }
+
   try {
     const payload = {
       nip_admin: nipAntiguo,
       nombre: usuario,
       nuevo_nip: nipNuevo,
-      nuevas_unidades: [] // opcional si deseas modificar también unidades
+      nuevas_unidades: []  // No se cambia ninguna unidad aquí
     };
 
     const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/actualizar_nip", {
@@ -916,7 +930,7 @@ async function guardarNuevoNIP() {
     });
 
     if (res.ok) {
-      notificar("✅ NIP actualizado, solicita que se te reasignen tus unidades a un administrador o será imposible que saques producto", "#047857");
+      notificar("✅ NIP actualizado correctamente", "#047857");
       cerrarCambioNIP();
     } else {
       error.textContent = "❌ Error al actualizar NIP.";
@@ -927,6 +941,51 @@ async function guardarNuevoNIP() {
     error.classList.remove("hidden");
   }
 }
+async function restablecerNIPUsuario() {
+  const nombreUsuario = prompt("Nombre EXACTO del usuario que deseas restablecer:");
+  if (!nombreUsuario) {
+    notificar("❌ Debes ingresar un nombre", "#dc2626");
+    return;
+  }
+
+  const nipAdmin = prompt("NIP del administrador que autoriza:");
+  if (!nipAdmin) {
+    notificar("❌ NIP de administrador requerido", "#dc2626");
+    return;
+  }
+
+  const nuevoNip = prompt("Nuevo NIP para ese usuario:");
+  if (!nuevoNip || nuevoNip.length !== 4) {
+    notificar("❌ NIP inválido (debe ser de 4 dígitos)", "#dc2626");
+    return;
+  }
+
+  const payload = {
+    nip_admin: nipAdmin,
+    nombre: nombreUsuario,
+    nuevo_nip: nuevoNip,
+    nuevas_unidades: [] // sin cambios de unidades
+  };
+
+  try {
+    const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/actualizar_nip", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      notificar("✅ NIP restablecido correctamente", "#16a34a");
+    } else {
+      const json = await res.json();
+      notificar("❌ Error al restablecer: " + json.error, "#dc2626");
+
+    }
+  } catch (err) {
+    notificar("❌ Error de red", "#dc2626");
+  }
+}
+
 function actualizarBotonModo(texto, claseColor, icono) {
     const btn = document.getElementById("btnModo");
     btn.className = `px-3 py-1 rounded-xl text-white ${claseColor}`;
@@ -979,6 +1038,7 @@ function verForecast(referencia, nombre = "", fabricante = "") {
         <div class="flex gap-2">
           <button onclick="exportarRegresionExcel()" class="bg-green-700 text-white px-3 py-1 rounded hover:bg-green-700 text-sm">📤 Excel</button>
           <button onclick="exportarRegresionPDF()" class="bg-rose-800 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm">🖨️ PDF</button>
+          <button onclick="descargarReporteForecast()" class="bg-purple-700 text-white px-4 py-2 rounded-xl hover:bg-purple-800">📤 Descargar reporte global</button>
         </div>
       </div>
 
@@ -1545,16 +1605,24 @@ async function guardarUnidadesAsignadas() {
     .filter(c => c.checked)
     .map(c => c.value);
 
+  const errorDiv = document.getElementById("unidadAsignarError");
+
   if (seleccionadas.length === 0) {
-    document.getElementById("unidadAsignarError").textContent = "❌ Debes seleccionar al menos una unidad.";
-    document.getElementById("unidadAsignarError").classList.remove("hidden");
+    errorDiv.textContent = "❌ Debes seleccionar al menos una unidad.";
+    errorDiv.classList.remove("hidden");
+    return;
+  }
+
+  if (!nipAdmin) {
+    errorDiv.textContent = "❌ No se detectó NIP de administrador.";
+    errorDiv.classList.remove("hidden");
     return;
   }
 
   const payload = {
-    nip_admin: prompt("Ingresa el NIP del usuario al que deseas modificar:"),
+    nip_admin: nipAdmin,
     nombre,
-    nuevo_nip: "sin_cambio", // marcador, se ignora si no se cambia
+    nuevo_nip: "sin_cambio",
     nuevas_unidades: seleccionadas
   };
 
@@ -1572,16 +1640,17 @@ async function guardarUnidadesAsignadas() {
       notificar("✅ Unidades actualizadas correctamente", "#16a34a");
     } else {
       console.warn("Error desde Supabase:", data);
-      document.getElementById("unidadAsignarError").textContent = "❌ " + (data.error || "Error al guardar unidades.");
-      document.getElementById("unidadAsignarError").classList.remove("hidden");
+      errorDiv.textContent = "❌ " + (data.error || "Error al guardar unidades.");
+      errorDiv.classList.remove("hidden");
     }
 
   } catch (err) {
     console.error("Error de red al guardar unidades:", err);
-    document.getElementById("unidadAsignarError").textContent = "❌ Error de red al guardar unidades.";
-    document.getElementById("unidadAsignarError").classList.remove("hidden");
+    errorDiv.textContent = "❌ Error de red al guardar unidades.";
+    errorDiv.classList.remove("hidden");
   }
 }
+
 function confiabilidadConvertida(original) {
   const resultado = {};
   for (const unidad in original) {
@@ -1602,7 +1671,53 @@ function combinarUnidades(consumo) {
   }
   return total;
 }
+
+async function descargarReporteForecast() {
+  try {
+    const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/reporte_forecast_global", {
+      headers: {
+         "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo",
+         "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo"
+      }
+    });
+
+    const data = await res.json();
+    if (!data.resumen || !Array.isArray(data.resumen)) throw new Error("Datos inválidos");
+
+    const resumen = data.resumen;
+    const meses = data.meses;
+
+    const encabezados = [
+      "UNIDAD", "REFERENCIA", "NOMBRE", "INV. OBJETIVO",
+      ...meses.flatMap(m => [`ENTREGADO ${m}`, `CONSUMIDO ${m}`]),
+      "PROMEDIO TRIMESTRAL", "PICO CONSUMO", "DOTACIÓN SUGERIDA", "CONSUMO VS DOTACIÓN"
+    ];
+
+    const filas = resumen.map(f => [
+      f.unidad,
+      f.referencia,
+      f.nombre,
+      f.inv_objetivo,
+      ...meses.flatMap(m => [f[`entregado_${m}`] || 0, f[`consumido_${m}`] || 0]),
+      f.promedio_trimestral,
+      f.pico_consumo,
+      f.dotacion_sugerida,
+      f.consumo_vs_dotacion
+    ]);
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([encabezados, ...filas]);
+    XLSX.utils.book_append_sheet(wb, ws, "Reporte Forecast");
+
+    XLSX.writeFile(wb, "Reporte_Global_Forecast.xlsx");
+
+  } catch (err) {
+    console.error("Error al descargar reporte:", err);
+    alert("❌ Error al generar el reporte.");
+  }
+}
+
 </script>
-<div id="versionInfo" class="version-info">v2.0.3</div>
+<div id="versionInfo" class="version-info">v2.3.3</div>
 </body>
 </html>
