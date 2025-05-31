@@ -36,6 +36,22 @@
       border-radius: 6px;
       z-index: 9999;
     }
+       #mensajeQR {
+      position: fixed;
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 24px 32px;
+      font-weight: 600;
+      border-radius: 16px;
+      font-size: 20px;
+      color: white;
+      display: none;
+      z-index: 9999;
+      text-align: center;
+      max-width: 80%;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    }
   </style>
 </head>
 
@@ -64,6 +80,20 @@
     <button onclick="seleccionarModo('salida')" class="w-full px-4 py-2 bg-red-800 text-white rounded-xl hover:bg-red-900">📤 Salida</button>
   </div>
 </div>
+  <div id="mensajeQR"></div>
+
+  <!-- Modal de cantidad -->
+  <div id="modalCantidad" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center hidden z-50">
+    <div class="bg-white p-6 rounded-xl shadow-lg w-80">
+      <h2 class="text-xl font-semibold mb-4 text-center">¿Cuántas piezas desea retirar?</h2>
+      <input type="number" id="inputCantidadPiezas" min="1" class="w-full p-2 border rounded-md text-center text-lg" placeholder="Cantidad" />
+      <div class="flex justify-between mt-4">
+        <button onclick="cerrarModalCantidad()" class="bg-gray-400 hover:bg-gray-500 text-white py-2 px-4 rounded">Cancelar</button>
+        <button onclick="confirmarCantidad()" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded">Aceptar</button>
+      </div>
+    </div>
+  </div>
+
 <div id="modalAviso" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
   bg-gray-800 text-white text-center px-8 py-5 text-xl rounded-2xl shadow-lg z-50 hidden max-w-lg">
 </div>
@@ -446,8 +476,34 @@ async function mostrarPrevisualizacionDesdeQR(contenido) {
     console.warn("No se pudo mostrar previsualización:", err);
   }
 }
+let callbackCantidad = null;
+
+    function solicitarCantidad(callback) {
+      callbackCantidad = callback;
+      document.getElementById("inputCantidadPiezas").value = "";
+      document.getElementById("modalCantidad").classList.remove("hidden");
+      setTimeout(() => document.getElementById("inputCantidadPiezas").focus(), 100);
+    }
+
+    function cerrarModalCantidad() {
+      document.getElementById("modalCantidad").classList.add("hidden");
+    }
+
+    function confirmarCantidad() {
+      const valor = parseInt(document.getElementById("inputCantidadPiezas").value);
+      if (!valor || valor <= 0) {
+        alert("Por favor ingrese una cantidad válida");
+        return;
+      }
+      cerrarModalCantidad();
+      if (callbackCantidad) callbackCantidad(valor);
+    }
+
+    function enviarQR(qrConCantidad) {
+      // Aquí iría tu lógica de envío al backend con fetch, por ejemplo
+      console.log("QR a enviar:", qrConCantidad);
+    }
 async function procesarQR(contenido) {
-  // Mostrar ventana de previsualización en segundo plano
   mostrarPrevisualizacionDesdeQR(contenido);
 
   const datos = extraerDatosQR(contenido);
@@ -486,10 +542,21 @@ async function procesarQR(contenido) {
     }
 
     if (r.status === "ok" || r.status === "nuevo_producto") {
-      qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
-      agregarFila(datos.referencia, datos.lote, r.status === "ok" ? "Preparado" : "Producto nuevo");
-      mostrarModal(r.status === "ok" ? "✅ Producto agregado" : "✅ Producto nuevo", r.color === "verde" ? "#047857" : "#22c55e");
+      // Verificar si es fraccionable antes de continuar
+      const esFraccionable = await verificarFraccionable(datos.referencia);
 
+      if (esFraccionable) {
+        solicitarCantidad(cantidad => {
+          datos.cantidad = cantidad;
+          qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null, cantidad });
+          agregarFila(datos.referencia, datos.lote, `Preparado (${cantidad})`);
+          mostrarModal("✅ Producto fraccionado", "#22c55e");
+        });
+      } else {
+        qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
+        agregarFila(datos.referencia, datos.lote, "Preparado");
+        mostrarModal("✅ Producto agregado", "#047857");
+      }
     } else if (r.status === "extraido_previo") {
       mostrarModal(`⚠️ Ya extraído por ${r.usuario}`, "#facc15");
 
@@ -499,10 +566,24 @@ async function procesarQR(contenido) {
     } else {
       mostrarModal("❌ Error en el QR", "#6b7280");
     }
-
   } catch (err) {
     console.error("Error de red en validación:", err);
     mostrarModal("❌ Error de conexión", "#b91c1c");
+  }
+}
+
+async function verificarFraccionable(ref) {
+  try {
+    const res = await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/multiplicadores?select=fraccionable&referencia=eq.${ref}`, {
+    headers: {
+            "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo",
+            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo"
+            }
+    });
+    const data = await res.json();
+    return data[0]?.fraccionable === true;
+  } catch {
+    return false;
   }
 }
     async function enviarSupabase() {
