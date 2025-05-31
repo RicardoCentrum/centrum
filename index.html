@@ -82,17 +82,11 @@
 </div>
   <div id="mensajeQR"></div>
 
-  <!-- Modal de cantidad -->
+<!-- Modal para ingresar cantidad -->
 <div id="modalCantidad" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center hidden z-50">
   <div class="bg-teal-800 p-6 rounded-xl shadow-lg w-80">
     <h2 class="text-xl font-bold mb-4 text-white text-center">¿Cuántas piezas desea retirar?</h2>
-    <input
-      type="number"
-      id="inputCantidadPiezas"
-      min="1"
-      class="w-full p-2 border rounded-md text-center text-lg text-teal-900 bg-white"
-      placeholder="Cantidad"
-    />
+    <input type="number" id="inputCantidadPiezas" min="1" class="w-full p-2 border rounded-md text-center text-lg text-teal-900 bg-white" placeholder="Cantidad" />
     <div class="flex justify-between mt-4">
       <button onclick="cerrarModalCantidad()" class="bg-gray-400 hover:bg-gray-500 text-white py-2 px-4 rounded">Cancelar</button>
       <button onclick="confirmarCantidad()" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded">Aceptar</button>
@@ -483,27 +477,25 @@ async function mostrarPrevisualizacionDesdeQR(contenido) {
   }
 }
 let callbackCantidad = null;
-
-    function solicitarCantidad(callback) {
-      callbackCantidad = callback;
-      document.getElementById("inputCantidadPiezas").value = "";
-      document.getElementById("modalCantidad").classList.remove("hidden");
-      setTimeout(() => document.getElementById("inputCantidadPiezas").focus(), 100);
-    }
-
-    function cerrarModalCantidad() {
-      document.getElementById("modalCantidad").classList.add("hidden");
-    }
-
-    function confirmarCantidad() {
-      const valor = parseInt(document.getElementById("inputCantidadPiezas").value);
-      if (!valor || valor <= 0) {
-        alert("Por favor ingrese una cantidad válida");
-        return;
-      }
-      cerrarModalCantidad();
-      if (callbackCantidad) callbackCantidad(valor);
-    }
+function solicitarCantidad(callback) {
+  if (modo !== "salida") return;  // Solo en modo salida
+  callbackCantidad = callback;
+  document.getElementById("inputCantidadPiezas").value = "";
+  document.getElementById("modalCantidad").classList.remove("hidden");
+  setTimeout(() => document.getElementById("inputCantidadPiezas").focus(), 100);
+}
+function cerrarModalCantidad() {
+  document.getElementById("modalCantidad").classList.add("hidden");
+}
+function confirmarCantidad() {
+  const valor = parseInt(document.getElementById("inputCantidadPiezas").value);
+  if (!valor || valor <= 0) {
+    alert("Por favor ingrese una cantidad válida");
+    return;
+  }
+  cerrarModalCantidad();
+  if (callbackCantidad) callbackCantidad(valor);
+}
 
     function enviarQR(qrConCantidad) {
       // Aquí iría tu lógica de envío al backend con fetch, por ejemplo
