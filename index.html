@@ -81,7 +81,21 @@
   </div>
 </div>
   <div id="mensajeQR"></div>
-
+<!-- Modal de previsualización -->
+<div id="modalPrevisualizacion" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50">
+  <div class="bg-white rounded-xl shadow-lg p-6 w-96 text-gray-800 relative">
+    <h2 class="text-xl font-bold text-center mb-4 text-teal-900">Datos del producto</h2>
+    <div id="datosProducto" class="text-sm space-y-2">
+      <p><strong>Referencia:</strong> <span id="prevRef"></span></p>
+      <p><strong>Lote:</strong> <span id="prevLote"></span></p>
+      <p><strong>Nombre:</strong> <span id="prevNombre"></span></p>
+      <p><strong>Fabricante:</strong> <span id="prevFabricante"></span></p>
+    </div>
+    <div class="mt-6 flex justify-end">
+      <button onclick="cerrarVentanaPrevisualizacion()" class="bg-teal-700 hover:bg-teal-800 text-white px-4 py-2 rounded">Cerrar</button>
+    </div>
+  </div>
+</div>
 <!-- Modal para ingresar cantidad -->
 <div id="modalCantidad" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center hidden z-50">
   <div class="bg-teal-800 p-6 rounded-xl shadow-lg w-80">
@@ -476,6 +490,19 @@ async function mostrarPrevisualizacionDesdeQR(contenido) {
     console.warn("No se pudo mostrar previsualización:", err);
   }
 }
+  function mostrarVentanaPrevisualizacion(producto) {
+    document.getElementById("prevRef").textContent = producto.referencia || "-";
+    document.getElementById("prevLote").textContent = producto.lote || "-";
+    document.getElementById("prevNombre").textContent = producto.nombre || "-";
+    document.getElementById("prevFabricante").textContent = producto.fabricante || "-";
+    document.getElementById("modalPrevisualizacion").classList.remove("hidden");
+    document.getElementById("modalPrevisualizacion").classList.add("flex");
+  }
+
+  function cerrarVentanaPrevisualizacion() {
+    document.getElementById("modalPrevisualizacion").classList.add("hidden");
+    document.getElementById("modalPrevisualizacion").classList.remove("flex");
+  }
 let callbackCantidad = null;
 function solicitarCantidad(callback) {
   if (modo !== "salida") return;  // Solo en modo salida
@@ -1797,6 +1824,6 @@ async function descargarReporteForecast() {
 }
 
 </script>
-<div id="versionInfo" class="version-info">v2.3.4</div>
+<div id="versionInfo" class="version-info">v2.3.5</div>
 </body>
 </html>
