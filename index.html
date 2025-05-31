@@ -83,16 +83,22 @@
   <div id="mensajeQR"></div>
 
   <!-- Modal de cantidad -->
-  <div id="modalCantidad" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center hidden z-50">
-    <div class="bg-teal-900 p-6 rounded-xl shadow-lg w-80">
-      <h2 class="text-xl font-semibold mb-4 text-center">¿Cuántas piezas desea retirar?</h2>
-      <input type="number" id="inputCantidadPiezas" min="1" class="w-full p-2 border rounded-md text-center text-lg" placeholder="Cantidad" />
-      <div class="flex justify-between mt-4">
-        <button onclick="cerrarModalCantidad()" class="bg-gray-400 hover:bg-gray-500 text-white py-2 px-4 rounded">Cancelar</button>
-        <button onclick="confirmarCantidad()" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded">Aceptar</button>
-      </div>
+<div id="modalCantidad" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center hidden z-50">
+  <div class="bg-teal-800 p-6 rounded-xl shadow-lg w-80">
+    <h2 class="text-xl font-bold mb-4 text-white text-center">¿Cuántas piezas desea retirar?</h2>
+    <input
+      type="number"
+      id="inputCantidadPiezas"
+      min="1"
+      class="w-full p-2 border rounded-md text-center text-lg text-teal-900 bg-white"
+      placeholder="Cantidad"
+    />
+    <div class="flex justify-between mt-4">
+      <button onclick="cerrarModalCantidad()" class="bg-gray-400 hover:bg-gray-500 text-white py-2 px-4 rounded">Cancelar</button>
+      <button onclick="confirmarCantidad()" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded">Aceptar</button>
     </div>
   </div>
+</div>
 
 <div id="modalAviso" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
   bg-gray-800 text-white text-center px-8 py-5 text-xl rounded-2xl shadow-lg z-50 hidden max-w-lg">
