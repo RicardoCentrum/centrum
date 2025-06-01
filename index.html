@@ -4,7 +4,26 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Inventario QR - Centrum</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.tailwindcss.com">function agregarFila(ref, lote, estado) {
+    const tabla = document.getElementById("tablaRegistros");
+    const contenedor = document.getElementById("tablaContenedora");
+
+    // Asegura que el contenedor esté visible
+    contenedor.classList.remove("hidden");
+    setTimeout(() => contenedor.classList.remove("opacity-0"), 10);
+
+    // Crea la fila
+    const fila = document.createElement("tr");
+    fila.innerHTML = `
+      <td class='p-1'>${ref}</td>
+      <td class='p-1'>${lote}</td>
+      <td class='p-1'>${estado}</td>
+      <td class='p-1 text-center'><button onclick='eliminarFila(this)' class='text-red-600'>✖</button></td>
+    `;
+    tabla.appendChild(fila);
+  }
+
+</script>
   <link rel="icon" href="medinova.ico" type="image/x-icon" />
   
   <style>
@@ -55,9 +74,67 @@
   </style>
 </head>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">function agregarFila(ref, lote, estado) {
+    const tabla = document.getElementById("tablaRegistros");
+    const contenedor = document.getElementById("tablaContenedora");
+
+    // Asegura que el contenedor esté visible
+    contenedor.classList.remove("hidden");
+    setTimeout(() => contenedor.classList.remove("opacity-0"), 10);
+
+    // Crea la fila
+    const fila = document.createElement("tr");
+    fila.innerHTML = `
+      <td class='p-1'>${ref}</td>
+      <td class='p-1'>${lote}</td>
+      <td class='p-1'>${estado}</td>
+      <td class='p-1 text-center'><button onclick='eliminarFila(this)' class='text-red-600'>✖</button></td>
+    `;
+    tabla.appendChild(fila);
+  }
+
+
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js">function agregarFila(ref, lote, estado) {
+    const tabla = document.getElementById("tablaRegistros");
+    const contenedor = document.getElementById("tablaContenedora");
+
+    // Asegura que el contenedor esté visible
+    contenedor.classList.remove("hidden");
+    setTimeout(() => contenedor.classList.remove("opacity-0"), 10);
+
+    // Crea la fila
+    const fila = document.createElement("tr");
+    fila.innerHTML = `
+      <td class='p-1'>${ref}</td>
+      <td class='p-1'>${lote}</td>
+      <td class='p-1'>${estado}</td>
+      <td class='p-1 text-center'><button onclick='eliminarFila(this)' class='text-red-600'>✖</button></td>
+    `;
+    tabla.appendChild(fila);
+  }
+
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js">function agregarFila(ref, lote, estado) {
+    const tabla = document.getElementById("tablaRegistros");
+    const contenedor = document.getElementById("tablaContenedora");
+
+    // Asegura que el contenedor esté visible
+    contenedor.classList.remove("hidden");
+    setTimeout(() => contenedor.classList.remove("opacity-0"), 10);
+
+    // Crea la fila
+    const fila = document.createElement("tr");
+    fila.innerHTML = `
+      <td class='p-1'>${ref}</td>
+      <td class='p-1'>${lote}</td>
+      <td class='p-1'>${estado}</td>
+      <td class='p-1 text-center'><button onclick='eliminarFila(this)' class='text-red-600'>✖</button></td>
+    `;
+    tabla.appendChild(fila);
+  }
+
+</script>
 
 <div class="absolute top-4 right-4 flex flex-col items-center text-center">
   <h1 class="text-sm font-bold tracking-widest text-white">Powered by</h1>
@@ -387,38 +464,20 @@ function cerrarModalOpcionesAdmin() {
         console.error("Error cargando productos urgentes:", err);
       }
     }
- function agregarFila(ref, lote, estado) {
-    const tabla = document.getElementById("tablaRegistros");
-    const contenedor = document.getElementById("tablaContenedora");
+function eliminarFila(boton) {
+  const fila = boton.closest("tr");
+  fila.remove();
 
-    // Asegura que el contenedor esté visible
-    contenedor.classList.remove("hidden");
-    setTimeout(() => contenedor.classList.remove("opacity-0"), 10);
+  const tabla = document.getElementById("tablaRegistros");
+  const contenedor = document.getElementById("tablaContenedora");
 
-    // Crea la fila
-    const fila = document.createElement("tr");
-    fila.innerHTML = `
-      <td class='p-1'>${ref}</td>
-      <td class='p-1'>${lote}</td>
-      <td class='p-1'>${estado}</td>
-      <td class='p-1 text-center'><button onclick='eliminarFila(this)' class='text-red-600'>✖</button></td>
-    `;
-    tabla.appendChild(fila);
+  // Oculta el contenedor si ya no hay filas
+  if (tabla.querySelectorAll("tr").length === 0) {
+    contenedor.classList.add("opacity-0");
+    setTimeout(() => contenedor.classList.add("hidden"), 500);
   }
+}
 
-  function eliminarFila(boton) {
-    const fila = boton.closest("tr");
-    fila.remove();
-
-    const tabla = document.getElementById("tablaRegistros");
-    const contenedor = document.getElementById("tablaContenedora");
-
-    // Oculta el contenedor si ya no hay filas
-    if (tabla.querySelectorAll("tr").length === 0) {
-      contenedor.classList.add("opacity-0");
-      setTimeout(() => contenedor.classList.add("hidden"), 500);
-    }
-  }
 // Extraer datos de QR incluso si el lote está vacío
 function extraerDatosQR(qr) {
   const limpio = qr.replace(/\s+/g, '');
@@ -491,7 +550,11 @@ async function mostrarPrevisualizacionDesdeQR(contenido) {
 
 // Procesamiento principal
 async function procesarQR(contenido) {
+  console.log("✅ Se llamó a procesarQR con contenido:", contenido);
+
   const datos = extraerDatosQR(contenido);
+  console.log("✅ Datos extraídos:", datos);
+
   if (!datos || !datos.referencia || !datos.timestamp) {
     mostrarModal("❌ QR incompleto o ilegible", "#6b7280");
     return;
@@ -506,6 +569,12 @@ async function procesarQR(contenido) {
     mostrarModal("📦 Ya escaneado localmente", "#0284c7");
     return;
   }
+
+  // Agrega a qrsPendientes y muestra en tabla
+  qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
+  agregarFila(datos.referencia, datos.lote || "-", "pendiente");
+
+  mostrarModal("✅ QR escaneado y pendiente de envío", "#22c55e");
 
   try {
     const fraccionableRes = await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/multiplicadores?select=fraccionable,referencia,referencia_unidad,multiplicador&or=(referencia.eq.${datos.referencia},referencia_unidad.eq.${datos.referencia})`, {
@@ -760,7 +829,26 @@ function ajustarMesLogico(timestamp) {
 }
 
     //window.addEventListener("DOMContentLoaded", mostrarAlertasCaducidad);
-  </script>
+  function agregarFila(ref, lote, estado) {
+    const tabla = document.getElementById("tablaRegistros");
+    const contenedor = document.getElementById("tablaContenedora");
+
+    // Asegura que el contenedor esté visible
+    contenedor.classList.remove("hidden");
+    setTimeout(() => contenedor.classList.remove("opacity-0"), 10);
+
+    // Crea la fila
+    const fila = document.createElement("tr");
+    fila.innerHTML = `
+      <td class='p-1'>${ref}</td>
+      <td class='p-1'>${lote}</td>
+      <td class='p-1'>${estado}</td>
+      <td class='p-1 text-center'><button onclick='eliminarFila(this)' class='text-red-600'>✖</button></td>
+    `;
+    tabla.appendChild(fila);
+  }
+
+</script>
  <!-- Ventana de moviemientos -->
   <div id="modalMovimientos" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50 hidden">
     <div class="bg-white rounded-xl p-6 w-[90%] max-w-lg text-gray-800">
@@ -1021,8 +1109,46 @@ function actualizarBotonModo(texto, claseColor, icono) {
       validarPinYUnidad();
     }
   });
+function agregarFila(ref, lote, estado) {
+    const tabla = document.getElementById("tablaRegistros");
+    const contenedor = document.getElementById("tablaContenedora");
+
+    // Asegura que el contenedor esté visible
+    contenedor.classList.remove("hidden");
+    setTimeout(() => contenedor.classList.remove("opacity-0"), 10);
+
+    // Crea la fila
+    const fila = document.createElement("tr");
+    fila.innerHTML = `
+      <td class='p-1'>${ref}</td>
+      <td class='p-1'>${lote}</td>
+      <td class='p-1'>${estado}</td>
+      <td class='p-1 text-center'><button onclick='eliminarFila(this)' class='text-red-600'>✖</button></td>
+    `;
+    tabla.appendChild(fila);
+  }
+
 </script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js">function agregarFila(ref, lote, estado) {
+    const tabla = document.getElementById("tablaRegistros");
+    const contenedor = document.getElementById("tablaContenedora");
+
+    // Asegura que el contenedor esté visible
+    contenedor.classList.remove("hidden");
+    setTimeout(() => contenedor.classList.remove("opacity-0"), 10);
+
+    // Crea la fila
+    const fila = document.createElement("tr");
+    fila.innerHTML = `
+      <td class='p-1'>${ref}</td>
+      <td class='p-1'>${lote}</td>
+      <td class='p-1'>${estado}</td>
+      <td class='p-1 text-center'><button onclick='eliminarFila(this)' class='text-red-600'>✖</button></td>
+    `;
+    tabla.appendChild(fila);
+  }
+
+</script>
 <script>
 function calcularRegresionLineal(x, y) {
   const n = x.length;
@@ -1802,6 +1928,25 @@ function enviarSupabase() {
       mostrarModal("❌ Fallo en el envío", "#b91c1c");
     });
 }
+
+function agregarFila(ref, lote, estado) {
+    const tabla = document.getElementById("tablaRegistros");
+    const contenedor = document.getElementById("tablaContenedora");
+
+    // Asegura que el contenedor esté visible
+    contenedor.classList.remove("hidden");
+    setTimeout(() => contenedor.classList.remove("opacity-0"), 10);
+
+    // Crea la fila
+    const fila = document.createElement("tr");
+    fila.innerHTML = `
+      <td class='p-1'>${ref}</td>
+      <td class='p-1'>${lote}</td>
+      <td class='p-1'>${estado}</td>
+      <td class='p-1 text-center'><button onclick='eliminarFila(this)' class='text-red-600'>✖</button></td>
+    `;
+    tabla.appendChild(fila);
+  }
 
 </script>
 <div id="versionInfo" class="version-info">v2.5.17</div>
