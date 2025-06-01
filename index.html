@@ -532,35 +532,34 @@ async function procesarQR(contenido) {
           mostrarModal("❌ Error al registrar", "#6b7280");
         }
       });
-      return;
-    }
-
-    const payload = {
-      registros: [{ ...datos, modo, usuario, unidad: unidadSeleccionada || null }]
-    };
-    const res = await fetch(VALIDAR_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    const json = await res.json();
-    const r = json.resultados?.[0];
-
-    if (!r) {
-      mostrarModal("❌ Validación fallida", "#6b7280");
-      return;
-    }
-
-    if (r.status === "ok" || r.status === "nuevo_producto") {
-      qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
-      agregarFila(datos.referencia, datos.lote, "Preparado");
-      mostrarModal("✅ Producto agregado", "#047857");
-    } else if (r.status === "extraido_previo") {
-      mostrarModal(`⚠️ Ya extraído por ${r.usuario}`, "#facc15");
-    } else if (r.status === "error" && r.mensaje) {
-      mostrarModal(`⚠️ ${r.mensaje}`, "#6b7280");
     } else {
-      mostrarModal("❌ Error en el QR", "#6b7280");
+      const payload = {
+        registros: [{ ...datos, modo, usuario, unidad: unidadSeleccionada || null }]
+      };
+      const res = await fetch(VALIDAR_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+      const r = json.resultados?.[0];
+
+      if (!r) {
+        mostrarModal("❌ Validación fallida", "#6b7280");
+        return;
+      }
+
+      if (r.status === "ok" || r.status === "nuevo_producto") {
+        qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
+        agregarFila(datos.referencia, datos.lote, "Preparado");
+        mostrarModal("✅ Producto agregado", "#047857");
+      } else if (r.status === "extraido_previo") {
+        mostrarModal(`⚠️ Ya extraído por ${r.usuario}`, "#facc15");
+      } else if (r.status === "error" && r.mensaje) {
+        mostrarModal(`⚠️ ${r.mensaje}`, "#6b7280");
+      } else {
+        mostrarModal("❌ Error en el QR", "#6b7280");
+      }
     }
   } catch (err) {
     console.error("Error en procesarQR:", err);
@@ -584,7 +583,7 @@ async function verificarFraccionable(ref) {
   }
 }
 
-  // Filtrar coincidencias por referencia o nombre
+async function mostrarResultadosCoincidencias(ref, referenciasCache, cont) {
   const coincidencias = referenciasCache.filter(p =>
     p.referencia?.toLowerCase().includes(ref) ||
     p.nombre?.toLowerCase().includes(ref)
@@ -595,7 +594,6 @@ async function verificarFraccionable(ref) {
     return;
   }
 
-  // Agrupar por referencia
   const agrupadas = {};
   coincidencias.forEach(p => {
     if (!agrupadas[p.referencia]) agrupadas[p.referencia] = [];
@@ -650,6 +648,8 @@ async function verificarFraccionable(ref) {
   });
 
   cont.innerHTML = html;
+}
+
 
 function verMovimientos(referencia, lote = null) {
   let url = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/TimeStamps?referencia=eq.${encodeURIComponent(referencia)}&select=usuario,movimiento,fecha_str,lote&order=fecha.desc&limit=50`;
