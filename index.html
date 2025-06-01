@@ -240,7 +240,7 @@
       <tbody id="tablaQR" class="bg-white text-gray-800"></tbody>
     </table>
 
-    <button onclick="enviarQRSupabase()" class="mt-4 w-full bg-teal-900 text-white py-2 rounded-2xl">Enviar a Base de Datos</button>
+    <button onclick="enviarSupabase()" class="mt-4 w-full bg-teal-900 text-white py-2 rounded-2xl">Enviar a Base de Datos</button>
   </div>
   <div id="notificacion" class="modal text-center font-bold"></div>
 <div id="modalAsignarUnidades" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
@@ -581,6 +581,34 @@ async function verificarFraccionable(ref) {
   } catch {
     return false;
   }
+}
+function enviarSupabase() {
+  if (!modo || modo === "inactivo") {
+    mostrarModal("⚠️ Selecciona primero el modo", "#f59e0b");
+    return;
+  }
+
+  if (qrsPendientes.length === 0) {
+    mostrarModal("⚠️ No hay productos para enviar", "#f59e0b");
+    return;
+  }
+
+  const registros = [...qrsPendientes];
+  fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ registros })
+  })
+    .then(res => res.json())
+    .then(data => {
+      mostrarModal("📦 Productos enviados correctamente", "#22c55e");
+      qrsPendientes = [];
+      actualizarTablaPendientes();
+    })
+    .catch(err => {
+      console.error("Error al enviar a Supabase:", err);
+      mostrarModal("❌ Fallo en el envío", "#b91c1c");
+    });
 }
 
 async function mostrarResultadosCoincidencias(ref, referenciasCache, cont) {
