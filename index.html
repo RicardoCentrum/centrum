@@ -528,6 +528,7 @@ async function procesarQR(contenido) {
       if (r?.status === "ok") {
         qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
         agregarFila(datos.referencia, datos.lote, `Unidad`);
+        actualizarTablaRegistros();  // 🔧 Esto faltaba
         mostrarModal("✅ Unidad procesada", "#22c55e");
       } else if (r?.status === "repetido") {
         mostrarModal("📦 El producto ya fue ingresado anteriormente", "#0d9488");
