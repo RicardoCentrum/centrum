@@ -624,8 +624,31 @@ async function verificarFraccionable(ref) {
   }
 }
 
+let referenciasCache = [];
 
-async function mostrarResultadosCoincidencias(ref, referenciasCache, cont) {
+async function cargarReferencias() {
+  const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos?select=referencia,nombre,fabricante,lote,caducidad,cantidad", {
+    headers: {
+      "apikey": API_KEY,
+      "Authorization": `Bearer ${API_KEY}`
+    }
+  });
+  referenciasCache = await res.json();
+}
+
+// ✅ Esta es la función que estaba faltando
+function buscarReferencia(valor) {
+  const cont = document.getElementById("resultadoBusqueda");
+  if (!valor || !referenciasCache?.length) {
+    cont.innerHTML = "<p class='text-gray-500'>Escribe para buscar...</p>";
+    return;
+  }
+
+  mostrarResultadosCoincidencias(valor.toLowerCase(), referenciasCache, cont);
+}
+
+// ✅ Esta ya la tenías completa
+async function mostrarResultadosCoincidencias(ref, referenciasCache, cont) { 
   const coincidencias = referenciasCache.filter(p =>
     p.referencia?.toLowerCase().includes(ref) ||
     p.nombre?.toLowerCase().includes(ref)
@@ -691,6 +714,9 @@ async function mostrarResultadosCoincidencias(ref, referenciasCache, cont) {
 
   cont.innerHTML = html;
 }
+
+// ✅ Al cargar la página, carga los productos
+window.addEventListener("DOMContentLoaded", cargarReferencias);
 
 
 function verMovimientos(referencia, lote = null) {
