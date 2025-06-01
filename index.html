@@ -1736,7 +1736,7 @@ function enviarSupabase() {
       console.log("Respuesta Supabase:", data);
       mostrarModal("📦 Productos enviados correctamente", "#22c55e");
       qrsPendientes = [];
-      actualizarTablaPendientes();  // Asegúrate de tener esta función definida
+      actualizarTablaRegistros();  // Asegúrate de tener esta función definida
     })
     .catch(err => {
       console.error("Error al enviar a Supabase:", err);
