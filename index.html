@@ -228,17 +228,20 @@
       </button>
     </div>
     
-    <table id="tablaContenedora" class="w-full text-xs border border-gray-300 hidden opacity-0 transition-opacity duration-500">
-      <thead class="bg-teal-900 text-white">
-        <tr>
-          <th class="p-2">REF</th>
-          <th class="p-2">Lote</th>
-          <th class="p-2">Estado</th>
-          <th class="p-2">Eliminar</th>
-        </tr>
-      </thead>
-      <tbody id="tablaRegistros" class="bg-white text-gray-800"></tbody>
-    </table>
+<div id="tablaContenedora" class="hidden opacity-0 transition-opacity duration-300">
+  <table class="min-w-full text-sm text-left" id="tablaRegistros">
+    <thead>
+      <tr>
+        <th class="p-1">Referencia</th>
+        <th class="p-1">Lote</th>
+        <th class="p-1">Estado</th>
+        <th class="p-1 text-center">Eliminar</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
 
     <button onclick="enviarSupabase()" class="mt-4 w-full bg-teal-900 text-white py-2 rounded-2xl">Enviar a Base de Datos</button>
   </div>
@@ -1737,7 +1740,10 @@ async function descargarReporteForecast() {
 function actualizarTablaRegistros() {
   const tabla = document.getElementById("tablaRegistros");
   const contenedor = document.getElementById("tablaContenedora");
-  tabla.innerHTML = "";  // Limpia todo
+  if (!tabla || !contenedor) return;
+
+  // Limpia la tabla
+  tabla.querySelector("tbody").innerHTML = "";
 
   if (qrsPendientes.length === 0) {
     contenedor.classList.add("opacity-0");
@@ -1753,12 +1759,13 @@ function actualizarTablaRegistros() {
       <td class='p-1'>${qr.cantidad ? `Fraccionado (${qr.cantidad})` : 'Unidad'}</td>
       <td class='p-1 text-center'><button onclick='eliminarFila(this)' class='text-red-600'>✖</button></td>
     `;
-    tabla.appendChild(fila);
+    tabla.querySelector("tbody").appendChild(fila);
   }
 
   contenedor.classList.remove("hidden");
   setTimeout(() => contenedor.classList.remove("opacity-0"), 10);
 }
+
 
 function enviarSupabase() {
   if (!modo || modo === "inactivo") {
@@ -1774,6 +1781,7 @@ function enviarSupabase() {
   const registros = [...qrsPendientes];
 
   console.log("Enviando a registrar_qr_fraccionable:", JSON.stringify({ registros }));
+  console.log("QRS pendientes al actualizar:", qrsPendientes);
 
   fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_fraccionable", {
     method: "POST",
@@ -1796,6 +1804,6 @@ function enviarSupabase() {
 }
 
 </script>
-<div id="versionInfo" class="version-info">v2.5.16</div>
+<div id="versionInfo" class="version-info">v2.5.17</div>
 </body>
 </html>
