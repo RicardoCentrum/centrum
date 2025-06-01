@@ -483,7 +483,6 @@ async function mostrarPrevisualizacionDesdeQR(contenido) {
     console.warn("No se pudo mostrar previsualización:", err);
   }
 }
-let estaProcesandoSalida = false;
 
 // Procesamiento principal
 async function procesarQR(contenido) {
@@ -588,8 +587,11 @@ async function procesarQR(contenido) {
 
       return; // ✅ importante para evitar que continúe el flujo normal
     }
-
-
+  } catch (err) {
+    console.error("❌ Error general en procesarQR:", err);
+    mostrarModal("❌ Error general", "#6b7280");
+  }
+}
 async function verificarFraccionable(ref) {
   try {
     const res = await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/multiplicadores?select=fraccionable&referencia=eq.${ref}`, {
