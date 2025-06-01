@@ -84,7 +84,7 @@
 
   <!-- Modal de cantidad -->
 <div id="modalCantidad" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center hidden z-50">
-  <div class="bg-teal-800 p-6 rounded-xl shadow-lg w-80">
+  <div class="bg-teal-900 p-6 rounded-xl shadow-lg w-80">
     <h2 class="text-xl font-bold mb-4 text-white text-center">¿Cuántas piezas desea retirar?</h2>
     <input
       type="number"
@@ -94,8 +94,8 @@
       placeholder="Cantidad"
     />
     <div class="flex justify-between mt-4">
-      <button onclick="cerrarModalCantidad()" class="bg-gray-400 hover:bg-gray-500 text-white py-2 px-4 rounded">Cancelar</button>
-      <button onclick="confirmarCantidad()" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded">Aceptar</button>
+      <button onclick="cerrarModalCantidad()" class="bg-gray-900 hover:bg-gray-800 text-white py-2 px-4 rounded">Cancelar</button>
+      <button onclick="confirmarCantidad()" class="bg-green-900 hover:bg-green-800 text-white py-2 px-4 rounded">Aceptar</button>
     </div>
   </div>
 </div>
@@ -413,43 +413,45 @@ function cerrarModalOpcionesAdmin() {
         setTimeout(() => contenedor.classList.add("hidden"), 500);
       }
     }
-    function extraerDatosQR(qr) {
-      const limpio = qr.replace(/\s+/g, ''); // elimina TODOS los espacios
-      const match = limpio.match(/R:(.*?)\|L:(.*?)\|T:(.*)/);
-      if (!match) return null;
+// Extraer datos de QR incluso si el lote está vacío
+function extraerDatosQR(qr) {
+  const limpio = qr.replace(/\s+/g, '');
+  const match = limpio.match(/R:(.*?)\|L:(.*?)\|T:(.*)/);
+  if (!match) return null;
+  return {
+    referencia: match[1],
+    lote: match[2] || null,
+    timestamp: match[3]
+  };
+}
 
-      return {
-        referencia: match[1],
-        lote: match[2],
-        timestamp: match[3]
-      };
-    }
-    let timeoutAviso = null;
-    function mostrarModal(mensaje, color) {
-      const modal = document.getElementById("modalAviso");
-      const overlay = document.getElementById("overlayColor");
+// Mostrar mensajes temporales
+let timeoutAviso = null;
+function mostrarModal(mensaje, color) {
+  const modal = document.getElementById("modalAviso");
+  const overlay = document.getElementById("overlayColor");
 
-      if (timeoutAviso) clearTimeout(timeoutAviso);
+  if (timeoutAviso) clearTimeout(timeoutAviso);
 
-      // Asegura que el modal esté al frente
-      modal.textContent = mensaje;
-      modal.style.backgroundColor = color;
-      modal.style.zIndex = "99999";  // 👈 Asegura que esté por encima
-      modal.style.display = "block";
+  modal.textContent = mensaje;
+  modal.style.backgroundColor = color;
+  modal.style.zIndex = "99999";
+  modal.style.display = "block";
 
-      if (overlay) {
-        overlay.style.backgroundColor = color;
-        overlay.style.display = "block";
-        overlay.style.opacity = "0.6";
-        overlay.style.zIndex = "99998"; // justo detrás del modal
-      }
+  if (overlay) {
+    overlay.style.backgroundColor = color;
+    overlay.style.display = "block";
+    overlay.style.opacity = "0.6";
+    overlay.style.zIndex = "99998";
+  }
 
-      timeoutAviso = setTimeout(() => {
-        modal.style.display = "none";
-        if (overlay) overlay.style.display = "none";
-        timeoutAviso = null;
-      }, 2500);
-    }
+  timeoutAviso = setTimeout(() => {
+    modal.style.display = "none";
+    if (overlay) overlay.style.display = "none";
+    timeoutAviso = null;
+  }, 2500);
+}
+
 async function mostrarPrevisualizacionDesdeQR(contenido) {
   const ref = extraerReferenciaDesdeQR(contenido);
   if (!ref) return;
@@ -458,9 +460,7 @@ async function mostrarPrevisualizacionDesdeQR(contenido) {
     const res = await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/buscar_referencia?ref=${encodeURIComponent(ref)}`);
     const data = await res.json();
 
-    if (!data || !data.nombre) {
-      return;
-    }
+    if (!data || !data.nombre) return;
 
     const lote = (() => {
       const partes = contenido.trim().split("|");
@@ -477,43 +477,16 @@ async function mostrarPrevisualizacionDesdeQR(contenido) {
       referencia: ref
     };
 
-    mostrarVentanaPrevisualizacion(producto);
+    mostrarVentanaPrevisualizacion(producto); // <-- esta línea faltaba
   } catch (err) {
     console.warn("No se pudo mostrar previsualización:", err);
   }
 }
-let callbackCantidad = null;
 
-    function solicitarCantidad(callback) {
-      callbackCantidad = callback;
-      document.getElementById("inputCantidadPiezas").value = "";
-      document.getElementById("modalCantidad").classList.remove("hidden");
-      setTimeout(() => document.getElementById("inputCantidadPiezas").focus(), 100);
-    }
-
-    function cerrarModalCantidad() {
-      document.getElementById("modalCantidad").classList.add("hidden");
-    }
-
-    function confirmarCantidad() {
-      const valor = parseInt(document.getElementById("inputCantidadPiezas").value);
-      if (!valor || valor <= 0) {
-        alert("Por favor ingrese una cantidad válida");
-        return;
-      }
-      cerrarModalCantidad();
-      if (callbackCantidad) callbackCantidad(valor);
-    }
-
-    function enviarQR(qrConCantidad) {
-      // Aquí iría tu lógica de envío al backend con fetch, por ejemplo
-      console.log("QR a enviar:", qrConCantidad);
-    }
+// Procesamiento principal
 async function procesarQR(contenido) {
-  mostrarPrevisualizacionDesdeQR(contenido);
-
   const datos = extraerDatosQR(contenido);
-  if (!datos || !datos.referencia || !datos.lote || !datos.timestamp) {
+  if (!datos || !datos.referencia || !datos.timestamp) {
     mostrarModal("❌ QR incompleto o ilegible", "#6b7280");
     return;
   }
@@ -528,63 +501,79 @@ async function procesarQR(contenido) {
     return;
   }
 
-  const validarPayload = {
-    registros: [{ ...datos, modo }]
-  };
-
   try {
-    const res = await fetch(VALIDAR_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(validarPayload)
+    const fraccionableRes = await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/multiplicadores?select=fraccionable&referencia=eq.${datos.referencia}`, {
+      headers: {
+        "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo",
+        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo"
+      }
     });
+    const fraccionableData = await fraccionableRes.json();
+    const esFraccionable = fraccionableData[0]?.fraccionable === true;
 
-    const json = await res.json();
-    const r = json.resultados?.[0];
-
-    if (!r) {
-      mostrarModal("❌ Validación fallida", "#6b7280");
-      return;
-    }
-
-    if (r.status === "ok" || r.status === "nuevo_producto") {
-      // Verificar si es fraccionable antes de continuar
-      const esFraccionable = await verificarFraccionable(datos.referencia);
-
-      if (esFraccionable) {
-        solicitarCantidad(cantidad => {
-          datos.cantidad = cantidad;
-          qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null, cantidad });
-          agregarFila(datos.referencia, datos.lote, `Preparado (${cantidad})`);
-          mostrarModal("✅ Producto fraccionado", "#22c55e");
+    if (esFraccionable) {
+      solicitarCantidad(async cantidad => {
+        const payload = {
+          registros: [{ ...datos, modo, usuario, unidad: unidadSeleccionada || null, cantidad }]
+        };
+        const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_fraccionable", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
         });
-      } else {
+        const result = await res.json();
+        const r = result.resultados?.[0];
+        if (r?.status === "ok") {
+          qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null, cantidad });
+          agregarFila(datos.referencia, datos.lote, `Fraccionado (${cantidad})`);
+          mostrarModal("✅ Producto fraccionado", "#22c55e");
+        } else {
+          mostrarModal("❌ Error al registrar", "#6b7280");
+        }
+      });
+    } else {
+      const payload = {
+        registros: [{ ...datos, modo, usuario, unidad: unidadSeleccionada || null }]
+      };
+      const res = await fetch(VALIDAR_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+      const r = json.resultados?.[0];
+
+      if (!r) {
+        mostrarModal("❌ Validación fallida", "#6b7280");
+        return;
+      }
+
+      if (r.status === "ok" || r.status === "nuevo_producto") {
         qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
         agregarFila(datos.referencia, datos.lote, "Preparado");
         mostrarModal("✅ Producto agregado", "#047857");
+      } else if (r.status === "extraido_previo") {
+        mostrarModal(`⚠️ Ya extraído por ${r.usuario}`, "#facc15");
+      } else if (r.status === "error" && r.mensaje) {
+        mostrarModal(`⚠️ ${r.mensaje}`, "#6b7280");
+      } else {
+        mostrarModal("❌ Error en el QR", "#6b7280");
       }
-    } else if (r.status === "extraido_previo") {
-      mostrarModal(`⚠️ Ya extraído por ${r.usuario}`, "#facc15");
-
-    } else if (r.status === "error" && r.mensaje) {
-      mostrarModal(`⚠️ ${r.mensaje}`, "#6b7280");
-
-    } else {
-      mostrarModal("❌ Error en el QR", "#6b7280");
     }
   } catch (err) {
-    console.error("Error de red en validación:", err);
-    mostrarModal("❌ Error de conexión", "#b91c1c");
+    console.error("Error en procesarQR:", err);
+    mostrarModal("❌ Error de conexión o validación", "#b91c1c");
   }
 }
 
 async function verificarFraccionable(ref) {
   try {
     const res = await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/multiplicadores?select=fraccionable&referencia=eq.${ref}`, {
-    headers: {
-            "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo",
-            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo"
-            }
+      headers: {
+        "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo",
+        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo"
+
+      }
     });
     const data = await res.json();
     return data[0]?.fraccionable === true;
@@ -592,115 +581,7 @@ async function verificarFraccionable(ref) {
     return false;
   }
 }
-    async function enviarSupabase() {
-      if (!qrsPendientes.length) {
-        mostrarModal("⚠️ No hay registros para enviar", "#f59e0b");
-        return;
-      }
 
-      if (modo === "inactivo") {
-        mostrarMenuModo();
-        return;
-      }
-
-      registrosQR = [...qrsPendientes];  // ← lo validado se prepara para envío
-
-      const payload = { registros: registrosQR };
-
-      try {
-        const res = await fetch(API_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-
-        const json = await res.json();
-        console.log("Supabase dice:", json);
-        mostrarModal("✅ Datos enviados a Base de Datos", "#003f40");
-
-        registrosQR = [];
-        qrsPendientes = [];
-        document.getElementById("tablaQR").innerHTML = "";
-        document.getElementById("tablaContenedora").classList.add("hidden");
-
-      } catch (err) {
-        console.error("Error enviando:", err);
-        mostrarModal("❌ Error al enviar a Base de Datos", "#b91c1c");
-      }
-    }
-    function agregarFila(ref, lote, estado) {
-      const tabla = document.getElementById("tablaQR");
-      const contenedor = document.getElementById("tablaContenedora");
-
-      if (contenedor.classList.contains("hidden")) {
-        contenedor.classList.remove("hidden");
-        setTimeout(() => contenedor.classList.remove("opacity-0"), 10);
-      }
-
-      const fila = document.createElement("tr");
-      fila.innerHTML = `
-        <td class='p-1'>${ref}</td>
-        <td class='p-1'>${lote}</td>
-        <td class='p-1'>${estado}</td>
-        <td class='p-1 text-center'><button onclick='eliminarFila(this)' class='text-red-600'>✖</button></td>
-      `;
-      tabla.appendChild(fila);
-    }
-    function notificar(mensaje, color, icono = '') {
-      const div = document.getElementById("notificacion");
-      div.style.backgroundColor = color;
-      div.textContent = `${icono} ${mensaje}`;
-      div.style.display = "block";
-      setTimeout(() => div.style.display = "none", 2500);
-    }
-    function extraerReferenciaDesdeQR(qr) {
-      try {
-        const partes = qr.trim().split("|");
-        for (let parte of partes) {
-          if (parte.startsWith("R:")) {
-            return parte.slice(2).trim();
-          }
-        }
-      } catch {
-        return null;
-      }
-      return null;
-    }
-let referenciasCache = [];
-function mostrarTodosLosGrupos() {
-  document.querySelectorAll(".grupo-referencia").forEach(div => {
-    div.style.display = "block";
-  });
-}
-async function buscarReferencia(ref) {
-  const cont = document.getElementById("resultadoBusqueda");
-
-  if (!ref || ref.length < 2) {
-    cont.innerHTML = "";
-    return;
-  }
-
-  mostrarTodosLosGrupos(); // restablece visibilidad si hubo un aislado
-
-  ref = extraerReferenciaDesdeQR(ref) || ref.trim().toLowerCase();
-
-  if (!Array.isArray(referenciasCache) || !referenciasCache.length) {
-    try {
-      const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos?select=referencia,nombre,fabricante,lote,caducidad,cantidad", {
-        headers: {
-        "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo",
-        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo"
-
-        }
-      });
-
-      referenciasCache = await res.json();
-      if (!Array.isArray(referenciasCache)) throw new Error("Formato inválido");
-    } catch (err) {
-      cont.innerHTML = "<p class='text-red-600'>Error al obtener datos</p>";
-      return;
-    }
-  }
 
   // Filtrar coincidencias por referencia o nombre
   const coincidencias = referenciasCache.filter(p =>
@@ -768,7 +649,7 @@ async function buscarReferencia(ref) {
   });
 
   cont.innerHTML = html;
-}
+
 function verMovimientos(referencia, lote = null) {
   let url = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/TimeStamps?referencia=eq.${encodeURIComponent(referencia)}&select=usuario,movimiento,fecha_str,lote&order=fecha.desc&limit=50`;
   
@@ -1555,7 +1436,6 @@ function generarCheckboxesPara(nombre, unidadesStr) {
     cont.appendChild(label);
   }
 }
-
 // 1. Obtener mes lógico como YYYY-MM
 function obtenerMesLogico(timestamp) {
   const fecha = new Date(Number(timestamp));
@@ -1563,7 +1443,6 @@ function obtenerMesLogico(timestamp) {
   const mes = fecha.getDate() >= 25 ? fecha.getMonth() + 2 : fecha.getMonth() + 1;
   return `${year}-${String(mes).padStart(2, '0')}`;
 }
-
 // 2. Cargar dotaciones desde Supabase
 async function obtenerDotaciones() {
   try {
@@ -1580,7 +1459,6 @@ async function obtenerDotaciones() {
     return [];
   }
 }
-
 // 3. Calcular entregas por unidad y referencia
 function calcularEntregas(movimientos, ref) {
   const entregas = {};
@@ -1593,8 +1471,6 @@ function calcularEntregas(movimientos, ref) {
   }
   return entregas;
 }
-
-
 // 4. Calcular consumo inferido y sugerido
 function inferirConsumo(entregas, dotaciones, ref) {
   const porUnidad = {};
@@ -1623,7 +1499,6 @@ function inferirConsumo(entregas, dotaciones, ref) {
 
   return { sugerencias, dotacionTotal };
 }
-
 // 5. Verificar si inventario actual cubre la dotación
 async function verificarStockVsDotacion(ref, dotacionTotal) {
   try {
@@ -1646,7 +1521,6 @@ async function verificarStockVsDotacion(ref, dotacionTotal) {
     console.error("Error verificando stock:", err);
   }
 }
-
 // 6. Hook para ejecutar todo al cambiar unidad en forecast
 async function alCambiarUnidadForecast(ref) {
   try {
@@ -1805,6 +1679,6 @@ async function descargarReporteForecast() {
 }
 
 </script>
-<div id="versionInfo" class="version-info">v2.3.6</div>
+<div id="versionInfo" class="version-info">v2.4.6</div>
 </body>
 </html>
