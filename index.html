@@ -1721,22 +1721,29 @@ function enviarSupabase() {
   }
 
   const registros = [...qrsPendientes];
-  fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr", {
+
+  console.log("Enviando a registrar_qr_fraccionable:", JSON.stringify({ registros }));
+
+  fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_fraccionable", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ registros })
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ registros })  // 👈 esto es lo importante
   })
     .then(res => res.json())
     .then(data => {
+      console.log("Respuesta Supabase:", data);
       mostrarModal("📦 Productos enviados correctamente", "#22c55e");
       qrsPendientes = [];
-      actualizarTablaRegistros();
+      actualizarTablaPendientes();  // Asegúrate de tener esta función definida
     })
     .catch(err => {
       console.error("Error al enviar a Supabase:", err);
       mostrarModal("❌ Fallo en el envío", "#b91c1c");
     });
 }
+
 function actualizarTablaRegistros() {
   const tabla = document.getElementById("tablaRegistros");
   if (!tabla) return;
