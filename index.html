@@ -384,36 +384,38 @@ function cerrarModalOpcionesAdmin() {
         console.error("Error cargando productos urgentes:", err);
       }
     }
-    function agregarFila(ref, lote, estado) {
-      const tabla = document.getElementById("tablaRegistros");
-      const contenedor = document.getElementById("tablaContenedora");
+ function agregarFila(ref, lote, estado) {
+    const tabla = document.getElementById("tablaRegistros");
+    const contenedor = document.getElementById("tablaContenedora");
 
-      // Mostrar la tabla si está oculta
-      if (contenedor.classList.contains("hidden")) {
-        contenedor.classList.remove("hidden");
-        setTimeout(() => contenedor.classList.remove("opacity-0"), 10);
-      }
-      const fila = document.createElement("tr");
-      fila.innerHTML = `
-        <td class='p-1'>${ref}</td>
-        <td class='p-1'>${lote}</td>
-        <td class='p-1'>${estado}</td>
-        <td class='p-1 text-center'><button onclick='eliminarFila(this)' class='text-red-600'>✖</button></td>
-      `;
-      tabla.appendChild(fila);
+    // Asegura que el contenedor esté visible
+    contenedor.classList.remove("hidden");
+    setTimeout(() => contenedor.classList.remove("opacity-0"), 10);
+
+    // Crea la fila
+    const fila = document.createElement("tr");
+    fila.innerHTML = `
+      <td class='p-1'>${ref}</td>
+      <td class='p-1'>${lote}</td>
+      <td class='p-1'>${estado}</td>
+      <td class='p-1 text-center'><button onclick='eliminarFila(this)' class='text-red-600'>✖</button></td>
+    `;
+    tabla.appendChild(fila);
+  }
+
+  function eliminarFila(boton) {
+    const fila = boton.closest("tr");
+    fila.remove();
+
+    const tabla = document.getElementById("tablaRegistros");
+    const contenedor = document.getElementById("tablaContenedora");
+
+    // Oculta el contenedor si ya no hay filas
+    if (tabla.querySelectorAll("tr").length === 0) {
+      contenedor.classList.add("opacity-0");
+      setTimeout(() => contenedor.classList.add("hidden"), 500);
     }
-    function eliminarFila(boton) {
-      const fila = boton.parentNode.parentNode;
-      fila.remove();
-
-      const tabla = document.getElementById("tablaRegistros");
-      const contenedor = document.getElementById("tablaContenedora");
-
-      if (tabla.rows.length === 0) {
-        contenedor.classList.add("opacity-0");
-        setTimeout(() => contenedor.classList.add("hidden"), 500);
-      }
-    }
+  }
 // Extraer datos de QR incluso si el lote está vacío
 function extraerDatosQR(qr) {
   const limpio = qr.replace(/\s+/g, '');
@@ -1775,6 +1777,6 @@ function actualizarTablaRegistros() {
 }
 
 </script>
-<div id="versionInfo" class="version-info">v2.5.13</div>
+<div id="versionInfo" class="version-info">v2.5.15</div>
 </body>
 </html>
