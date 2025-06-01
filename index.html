@@ -1734,6 +1734,31 @@ async function descargarReporteForecast() {
     alert("❌ Error al generar el reporte.");
   }
 }
+function actualizarTablaRegistros() {
+  const tabla = document.getElementById("tablaRegistros");
+  const contenedor = document.getElementById("tablaContenedora");
+  tabla.innerHTML = "";  // Limpia todo
+
+  if (qrsPendientes.length === 0) {
+    contenedor.classList.add("opacity-0");
+    setTimeout(() => contenedor.classList.add("hidden"), 500);
+    return;
+  }
+
+  for (const qr of qrsPendientes) {
+    const fila = document.createElement("tr");
+    fila.innerHTML = `
+      <td class='p-1'>${qr.referencia}</td>
+      <td class='p-1'>${qr.lote}</td>
+      <td class='p-1'>${qr.cantidad ? `Fraccionado (${qr.cantidad})` : 'Unidad'}</td>
+      <td class='p-1 text-center'><button onclick='eliminarFila(this)' class='text-red-600'>✖</button></td>
+    `;
+    tabla.appendChild(fila);
+  }
+
+  contenedor.classList.remove("hidden");
+  setTimeout(() => contenedor.classList.remove("opacity-0"), 10);
+}
 
 function enviarSupabase() {
   if (!modo || modo === "inactivo") {
