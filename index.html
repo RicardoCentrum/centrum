@@ -512,7 +512,7 @@ async function procesarQR(contenido) {
     const fraccionableData = await fraccionableRes.json();
     const esFraccionable = fraccionableData[0]?.fraccionable === true;
 
-    if (esFraccionable) {
+    if (esFraccionable && modo === "salida") {
       solicitarCantidad(async cantidad => {
         const payload = {
           registros: [{ ...datos, modo, usuario, unidad: unidadSeleccionada || null, cantidad }]
@@ -582,7 +582,6 @@ async function verificarFraccionable(ref) {
     return false;
   }
 }
-
 
 async function mostrarResultadosCoincidencias(ref, referenciasCache, cont) {
   const coincidencias = referenciasCache.filter(p =>
