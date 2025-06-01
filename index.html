@@ -582,34 +582,7 @@ async function verificarFraccionable(ref) {
     return false;
   }
 }
-function enviarSupabase() {
-  if (!modo || modo === "inactivo") {
-    mostrarModal("⚠️ Selecciona primero el modo", "#f59e0b");
-    return;
-  }
 
-  if (qrsPendientes.length === 0) {
-    mostrarModal("⚠️ No hay productos para enviar", "#f59e0b");
-    return;
-  }
-
-  const registros = [...qrsPendientes];
-  fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ registros })
-  })
-    .then(res => res.json())
-    .then(data => {
-      mostrarModal("📦 Productos enviados correctamente", "#22c55e");
-      qrsPendientes = [];
-      actualizarTablaPendientes();
-    })
-    .catch(err => {
-      console.error("Error al enviar a Supabase:", err);
-      mostrarModal("❌ Fallo en el envío", "#b91c1c");
-    });
-}
 
 async function mostrarResultadosCoincidencias(ref, referenciasCache, cont) {
   const coincidencias = referenciasCache.filter(p =>
@@ -1573,8 +1546,15 @@ async function alCambiarUnidadForecast(ref) {
     console.error("Error ejecutando forecast extendido:", e);
   }
 }
-
-
+function solicitarCantidad(callback) {
+  const cantidad = prompt("¿Cuántas piezas deseas retirar?");
+  const cantidadNum = parseInt(cantidad);
+  if (!isNaN(cantidadNum) && cantidadNum > 0) {
+    callback(cantidadNum);
+  } else {
+    mostrarModal("⚠️ Cantidad inválida", "#f59e0b");
+  }
+}
 // Extender evento onchange
 const selectUnidadForecast = document.getElementById("unidadForecast");
 if (selectUnidadForecast) {
@@ -1707,7 +1687,36 @@ async function descargarReporteForecast() {
   }
 }
 
+function enviarSupabase() {
+  if (!modo || modo === "inactivo") {
+    mostrarModal("⚠️ Selecciona primero el modo", "#f59e0b");
+    return;
+  }
+
+  if (qrsPendientes.length === 0) {
+    mostrarModal("⚠️ No hay productos para enviar", "#f59e0b");
+    return;
+  }
+
+  const registros = [...qrsPendientes];
+  fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ registros })
+  })
+    .then(res => res.json())
+    .then(data => {
+      mostrarModal("📦 Productos enviados correctamente", "#22c55e");
+      qrsPendientes = [];
+      actualizarTablaPendientes();
+    })
+    .catch(err => {
+      console.error("Error al enviar a Supabase:", err);
+      mostrarModal("❌ Fallo en el envío", "#b91c1c");
+    });
+}
+
 </script>
-<div id="versionInfo" class="version-info">v2.5.7</div>
+<div id="versionInfo" class="version-info">v2.5.8</div>
 </body>
 </html>
