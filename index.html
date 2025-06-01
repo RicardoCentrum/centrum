@@ -1707,15 +1707,20 @@ function enviarSupabase() {
     .then(data => {
       mostrarModal("📦 Productos enviados correctamente", "#22c55e");
       qrsPendientes = [];
-      actualizarTablaPendientes();
+      actualizarTablaRegistros();
     })
     .catch(err => {
       console.error("Error al enviar a Supabase:", err);
       mostrarModal("❌ Fallo en el envío", "#b91c1c");
     });
 }
+function actualizarTablaRegistros() {
+  const tabla = document.getElementById("tablaRegistros");
+  if (!tabla) return;
+  tabla.innerHTML = ""; // Limpia el contenido de la tabla visual
+}
 
 </script>
-<div id="versionInfo" class="version-info">v2.5.10</div>
+<div id="versionInfo" class="version-info">v2.5.11</div>
 </body>
 </html>
