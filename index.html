@@ -483,6 +483,7 @@ async function mostrarPrevisualizacionDesdeQR(contenido) {
     console.warn("No se pudo mostrar previsualización:", err);
   }
 }
+let estaProcesandoSalida = false;
 
 // Procesamiento principal
 async function procesarQR(contenido) {
@@ -544,69 +545,49 @@ async function procesarQR(contenido) {
     // Fraccionable completo (referencia)
     const esFraccionable = entry?.fraccionable === true;
     if (esFraccionable && modo === "salida") {
+      if (estaProcesandoSalida) {
+        console.warn("🚫 Ya se está procesando una salida, espera...");
+        return;
+      }
+      estaProcesandoSalida = true;
+
       solicitarCantidad(async cantidad => {
         const payload = {
           registros: [{ ...datos, modo, usuario, unidad: unidadSeleccionada || null, cantidad, tipo: "fraccion" }]
         };
-        const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_fraccionable", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-        const result = await res.json();
-        const r = result.resultados?.[0];
 
-        if (r?.status === "ok") {
-          qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null, cantidad });
-          agregarFila(datos.referencia, datos.lote, `Fraccionado (${cantidad})`);
-          mostrarModal("✅ Producto fraccionado", "#22c55e");
-        } else if (r?.status === "repetido") {
-          mostrarModal("📦 El producto ya fue ingresado anteriormente", "#0d9488");
-        } else if (r?.status === "extraido_previo") {
-          mostrarModal(`⚠️ Ya extraído por ${r.usuario}`, "#facc15");
-        } else if (r?.mensaje) {
-          mostrarModal(`⚠️ ${r.mensaje}`, "#6b7280");
-        } else {
-          mostrarModal("❌ Error en el QR", "#6b7280");
+        try {
+          const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_fraccionable", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          const result = await res.json();
+          const r = result.resultados?.[0];
+
+          if (r?.status === "ok") {
+            qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null, cantidad });
+            agregarFila(datos.referencia, datos.lote, `Fraccionado (${cantidad})`);
+            mostrarModal("✅ Producto fraccionado", "#22c55e");
+          } else if (r?.status === "repetido") {
+            mostrarModal("📦 El producto ya fue ingresado anteriormente", "#0d9488");
+          } else if (r?.status === "extraido_previo") {
+            mostrarModal(`⚠️ Ya extraído por ${r.usuario}`, "#facc15");
+          } else if (r?.mensaje) {
+            mostrarModal(`⚠️ ${r.mensaje}`, "#6b7280");
+          } else {
+            mostrarModal("❌ Error en el QR", "#6b7280");
+          }
+        } catch (err) {
+          console.error("❌ Error en fetch:", err);
+          mostrarModal("❌ Error de red o conexión", "#6b7280");
+        } finally {
+          estaProcesandoSalida = false; // Libera el bloqueo pase lo que pase
         }
       });
-    } else {
-      // Normal o entrada de caja fraccionable
-      const payload = {
-        registros: [{ ...datos, modo, usuario, unidad: unidadSeleccionada || null }]
-      };
-      const res = await fetch(VALIDAR_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      const json = await res.json();
-      const r = json.resultados?.[0];
 
-      if (!r) {
-        mostrarModal("❌ Validación fallida", "#6b7280");
-        return;
-      }
-
-      if (r.status === "ok" || r.status === "nuevo_producto") {
-        qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
-        agregarFila(datos.referencia, datos.lote, "Preparado");
-        mostrarModal("✅ Producto agregado", "#047857");
-      } else if (r.status === "repetido") {
-        mostrarModal("📦 El producto ya fue ingresado anteriormente", "#0d9488");
-      } else if (r.status === "extraido_previo") {
-        mostrarModal(`⚠️ Ya extraído por ${r.usuario}`, "#facc15");
-      } else if (r.status === "error" && r.mensaje) {
-        mostrarModal(`⚠️ ${r.mensaje}`, "#6b7280");
-      } else {
-        mostrarModal("❌ Error en el QR", "#6b7280");
-      }
+      return; // ✅ importante para evitar que continúe el flujo normal
     }
-  } catch (err) {
-    console.error("Error en procesarQR:", err);
-    mostrarModal("❌ Error de conexión o validación", "#b91c1c");
-  }
-}
 
 
 async function verificarFraccionable(ref) {
