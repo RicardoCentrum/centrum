@@ -504,8 +504,8 @@ async function procesarQR(contenido) {
   try {
     const fraccionableRes = await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/multiplicadores?select=fraccionable&referencia=eq.${datos.referencia}`, {
       headers: {
-        "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo",
-        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo"
+        "apikey": API_KEY,
+        "Authorization": `Bearer ${API_KEY}`
       }
     });
     const fraccionableData = await fraccionableRes.json();
@@ -531,34 +531,35 @@ async function procesarQR(contenido) {
           mostrarModal("❌ Error al registrar", "#6b7280");
         }
       });
+      return;
+    }
+
+    const payload = {
+      registros: [{ ...datos, modo, usuario, unidad: unidadSeleccionada || null }]
+    };
+    const res = await fetch(VALIDAR_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    const r = json.resultados?.[0];
+
+    if (!r) {
+      mostrarModal("❌ Validación fallida", "#6b7280");
+      return;
+    }
+
+    if (r.status === "ok" || r.status === "nuevo_producto") {
+      qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
+      agregarFila(datos.referencia, datos.lote, "Preparado");
+      mostrarModal("✅ Producto agregado", "#047857");
+    } else if (r.status === "extraido_previo") {
+      mostrarModal(`⚠️ Ya extraído por ${r.usuario}`, "#facc15");
+    } else if (r.status === "error" && r.mensaje) {
+      mostrarModal(`⚠️ ${r.mensaje}`, "#6b7280");
     } else {
-      const payload = {
-        registros: [{ ...datos, modo, usuario, unidad: unidadSeleccionada || null }]
-      };
-      const res = await fetch(VALIDAR_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      const json = await res.json();
-      const r = json.resultados?.[0];
-
-      if (!r) {
-        mostrarModal("❌ Validación fallida", "#6b7280");
-        return;
-      }
-
-      if (r.status === "ok" || r.status === "nuevo_producto") {
-        qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
-        agregarFila(datos.referencia, datos.lote, "Preparado");
-        mostrarModal("✅ Producto agregado", "#047857");
-      } else if (r.status === "extraido_previo") {
-        mostrarModal(`⚠️ Ya extraído por ${r.usuario}`, "#facc15");
-      } else if (r.status === "error" && r.mensaje) {
-        mostrarModal(`⚠️ ${r.mensaje}`, "#6b7280");
-      } else {
-        mostrarModal("❌ Error en el QR", "#6b7280");
-      }
+      mostrarModal("❌ Error en el QR", "#6b7280");
     }
   } catch (err) {
     console.error("Error en procesarQR:", err);
@@ -570,9 +571,8 @@ async function verificarFraccionable(ref) {
   try {
     const res = await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/multiplicadores?select=fraccionable&referencia=eq.${ref}`, {
       headers: {
-        "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo",
-        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo"
-
+        "apikey": API_KEY,
+        "Authorization": `Bearer ${API_KEY}`
       }
     });
     const data = await res.json();
@@ -581,7 +581,6 @@ async function verificarFraccionable(ref) {
     return false;
   }
 }
-
 
   // Filtrar coincidencias por referencia o nombre
   const coincidencias = referenciasCache.filter(p =>
@@ -1679,6 +1678,6 @@ async function descargarReporteForecast() {
 }
 
 </script>
-<div id="versionInfo" class="version-info">v2.4.6</div>
+<div id="versionInfo" class="version-info">v2.5.6</div>
 </body>
 </html>
