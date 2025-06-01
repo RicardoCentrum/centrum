@@ -452,6 +452,8 @@ function mostrarModal(mensaje, color) {
     timeoutAviso = null;
   }, 2500);
 }
+let referenciasCache = [];
+
 function buscarReferencia(valor) {
   const cont = document.getElementById("resultadoBusqueda");
   if (!valor || !referenciasCache?.length) {
