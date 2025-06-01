@@ -702,22 +702,16 @@ async function mostrarResultadosCoincidencias(ref, referenciasCache, cont) {
 window.addEventListener("DOMContentLoaded", cargarReferencias);
 
 
-function verMovimientos(referencia, lote = null) {
-  let url = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/TimeStamps?referencia=eq.${encodeURIComponent(referencia)}&select=usuario,movimiento,fecha_str,lote&order=fecha.desc&limit=50`;
-  
-  // Si se proporciona un lote, también filtramos por él
-  if (lote) {
-    url = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/TimeStamps?referencia=eq.${encodeURIComponent(referencia)}&lote=eq.${encodeURIComponent(lote)}&select=usuario,movimiento,fecha_str,lote&order=fecha.desc&limit=50`;
-  }
-  console.log("Ver movimientos de:", referencia, lote);
+function verMovimientos(referencia) {
+  const url = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/TimeStamps?referencia=eq.${encodeURIComponent(referencia)}&select=usuario,movimiento,fecha_str,lote&order=fecha.desc&limit=50`;
+
   fetch(url, {
     headers: {
-        "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo",
-        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo"
-
+      "apikey": API_KEY,
+      "Authorization": `Bearer ${API_KEY}`
     }
   })
-        .then(res => {
+    .then(res => {
       if (!res.ok) throw new Error("No se pudo obtener movimientos");
       return res.json();
     })
@@ -752,6 +746,7 @@ function verMovimientos(referencia, lote = null) {
       document.getElementById("modalMovimientos").classList.remove("hidden");
     });
 }
+
 function ajustarMesLogico(timestamp) {
   const fecha = new Date(Number(timestamp));
   const mes = fecha.getMonth();
