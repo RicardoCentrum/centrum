@@ -452,37 +452,6 @@ function mostrarModal(mensaje, color) {
     timeoutAviso = null;
   }, 2500);
 }
-let referenciasCache = [];
-
-function buscarReferencia(valor) {
-  const cont = document.getElementById("resultadoBusqueda");
-  if (!valor || !referenciasCache?.length) {
-    cont.innerHTML = "<p class='text-gray-500'>Escribe para buscar...</p>";
-    return;
-  }
-
-  const coincidencias = referenciasCache.filter(p =>
-    p.referencia?.toLowerCase().includes(valor.toLowerCase()) ||
-    p.nombre?.toLowerCase().includes(valor.toLowerCase())
-  );
-
-  if (!coincidencias.length) {
-    cont.innerHTML = "<p class='text-red-600'>Producto no encontrado</p>";
-    return;
-  }
-
-  let html = "<ul class='divide-y divide-gray-300'>";
-  for (const p of coincidencias) {
-    html += `
-      <li class="p-2 hover:bg-gray-100 cursor-pointer rounded" onclick="mostrarPrevisualizacionDesdeBusqueda('${p.referencia}', '${p.lote}')">
-        <div class="font-semibold text-blue-900">${p.referencia}</div>
-        <div class="text-sm text-gray-600">${p.nombre} - ${p.fabricante}</div>
-      </li>
-    `;
-  }
-  html += "</ul>";
-  cont.innerHTML = html;
-}
 
 async function mostrarPrevisualizacionDesdeQR(contenido) {
   const ref = extraerReferenciaDesdeQR(contenido);
