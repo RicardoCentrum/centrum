@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -202,7 +203,7 @@
 
     <div class="flex flex-col gap-2 mt-4">
       <div class="flex justify-end gap-2">
-        <button onclick="cerrarModalPin()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400">
+        <button onclick="cerrarModalPin()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-900">
           Cancelar
         </button>
         <button onclick="validarPinYUnidad()" class="px-4 py-2 bg-teal-900 text-white rounded-xl hover:bg-teal-700">
@@ -244,32 +245,38 @@
   </div>
 </div>
 <body class="min-h-screen flex flex-col items-center justify-center text-white">
-  <div class="bg-white bg-opacity-80 rounded-2xl shadow-xl p-6 w-full max-w-xl text-gray-800">
+  <div class="bg-white bg-opacity-60 rounded-3xl shadow-xl p-6 w-full max-w-xl text-gray-900">
     <div class="flex items-center justify-between mb-4">
-      <h1 class="text-2xl font-bold">Inventario QR - Centrum</h1>
-      <button id="btnModo" onclick="mostrarMenuModo()" class="bg-gray-500 text-white px-3 py-1 rounded-xl flex items-center gap-2">
+      <!--<h1 class="text-2xl font-bold">Inventario QR - Centrum</h1>
+     <button id="btnModo" onclick="mostrarMenuModo()" class="bg-gray-500 text-white px-3 py-1 rounded-xl flex items-center gap-2">
         🔒 Modo inactivo
-      </button>      
+      </button>  -->    
           </div>
 
     <div class="mt-4">
       <input type="text" id="refBusqueda" placeholder="Buscar por referencia..." class="w-full p-3 mb-4 rounded-xl border text-center" oninput="buscarReferencia(this.value)" />
       <div id="resultadoBusqueda" class="text-sm text-gray-800"></div>
     </div>
-<div class="mb-4 px-4 py-3 rounded-xl bg-white/70 text-black font-semibold text-center shadow">
+<div id="estadoUsuario" onclick="mostrarMenuModo()" class="cursor-pointer mb-2 px-4 py-3 bg-white/40 rounded-xl font-semibold text-center shadow hover:bg-white/90 transition">
   <div class="text-base flex items-center justify-center gap-2">
-    Usuario actual:
+    Usuario Actual:
     <span id="usuarioActivo" class="text-lg font-extrabold ml-2">-</span>
-    <button id="btnCambiarUnidades" onclick="mostrarModalAsignarUnidades()"
-      class="text-xs px-2 py-1 bg-blue-800 text-white rounded-xl hover:bg-blue-700 hidden">
-      ⚙️ Cambiar unidades
-    </button>
   </div>
   <div class="mt-2">
     <span id="modoLabel" class="inline-block font-bold px-3 py-1 rounded-xl text-white bg-gray-400 text-sm">
       INACTIVO
     </span>
   </div>
+</div>
+
+
+<!-- BOTÓN INDEPENDIENTE PARA CAMBIAR UNIDADES (solo visible para admin) -->
+<div class="text-center mb-4">
+  <button id="btnCambiarUnidades"
+    onclick="mostrarModalAsignarUnidades()"
+    class="text-xs px-3 py-1 bg-blue-800 text-white rounded-xl hover:bg-blue-700 hidden">
+    ⚙️ Cambiar unidades
+  </button>
 </div>
 
 <button onclick="mostrarOpcionesAdmin()" class="fixed bottom-4 right-4 z-50 bg-teal-900 text-white px-4 py-2 rounded-full shadow-lg hover:bg-teal-800 text-sm">
@@ -342,12 +349,16 @@
     </div>
   </div>
 </div>
+
   <script>
 const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo";
 const VALIDAR_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/validar_qr";
 const API_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr";
-    let modo = "entrada";
-    let qrsPendientes = [];  // lo que se ha validado pero aún no enviado
+let modo = "entrada";
+let qrsPendientes = [];  // lo que se ha validado pero aún no enviado
+let estaProcesandoSalida = false;
+let filtroReferenciaGlobal = null;
+
     const unidadesDestino = {
   //"C03442": "C.S. GALEANA",
   //"C03441": "C.S. HIDALGO",
@@ -550,9 +561,9 @@ async function mostrarPrevisualizacionDesdeQR(contenido) {
 
 // Procesamiento principal
 async function procesarQR(contenido) {
-  console.log("✅ Se llamó a procesarQR con contenido:", contenido);
+const datos = extraerDatosQR(contenido); 
+console.log("✅ Se llamó a procesarQR con contenido:", contenido);
 
-  const datos = extraerDatosQR(contenido);
   console.log("✅ Datos extraídos:", datos);
 
   if (!datos || !datos.referencia || !datos.timestamp) {
@@ -570,11 +581,7 @@ async function procesarQR(contenido) {
     return;
   }
 
-  // Agrega a qrsPendientes y muestra en tabla
-  qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
-  agregarFila(datos.referencia, datos.lote || "-", "pendiente");
-
-  mostrarModal("✅ QR escaneado y pendiente de envío", "#22c55e");
+  mostrarModal("📤 Procesando QR...", "#0ea5e9");
 
   try {
     const fraccionableRes = await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/multiplicadores?select=fraccionable,referencia,referencia_unidad,multiplicador&or=(referencia.eq.${datos.referencia},referencia_unidad.eq.${datos.referencia})`, {
@@ -601,9 +608,10 @@ async function procesarQR(contenido) {
 
       if (r?.status === "ok") {
         qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
-        agregarFila(datos.referencia, datos.lote, `Unidad`);
-        actualizarTablaRegistros();  // 🔧 Esto faltaba
+        //agregarFila(datos.referencia, datos.lote || "-", `Unidad`);
+        actualizarTablaRegistros();
         mostrarModal("✅ Unidad procesada", "#22c55e");
+        return;  // ⛔️⬅️ Esto evita que se ejecute también el flujo general
       } else if (r?.status === "repetido") {
         mostrarModal("📦 El producto ya fue ingresado anteriormente", "#0d9488");
       } else if (r?.status === "extraido_previo") {
@@ -641,7 +649,7 @@ async function procesarQR(contenido) {
 
           if (r?.status === "ok") {
             qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null, cantidad });
-            agregarFila(datos.referencia, datos.lote, `Fraccionado (${cantidad})`);
+            actualizarTablaRegistros();
             mostrarModal("✅ Producto fraccionado", "#22c55e");
           } else if (r?.status === "repetido") {
             mostrarModal("📦 El producto ya fue ingresado anteriormente", "#0d9488");
@@ -656,30 +664,24 @@ async function procesarQR(contenido) {
           console.error("❌ Error en fetch:", err);
           mostrarModal("❌ Error de red o conexión", "#6b7280");
         } finally {
-          estaProcesandoSalida = false; // Libera el bloqueo pase lo que pase
+          estaProcesandoSalida = false;
         }
       });
 
-      return; // ✅ importante para evitar que continúe el flujo normal
+      return;
     }
+
   } catch (err) {
     console.error("❌ Error general en procesarQR:", err);
     mostrarModal("❌ Error general", "#6b7280");
+    return;
   }
-}
-async function verificarFraccionable(ref) {
-  try {
-    const res = await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/multiplicadores?select=fraccionable&referencia=eq.${ref}`, {
-      headers: {
-        "apikey": API_KEY,
-        "Authorization": `Bearer ${API_KEY}`
-      }
-    });
-    const data = await res.json();
-    return data[0]?.fraccionable === true;
-  } catch {
-    return false;
-  }
+
+
+qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
+actualizarTablaRegistros();
+mostrarModal("✅ Producto agregado", "#22c55e");
+return;
 }
 
 let referenciasCache = [];
@@ -776,9 +778,25 @@ async function mostrarResultadosCoincidencias(ref, referenciasCache, cont) {
 // ✅ Al cargar la página, carga los productos
 window.addEventListener("DOMContentLoaded", cargarReferencias);
 
-
 function verMovimientos(referencia) {
-  const url = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/TimeStamps?referencia=eq.${encodeURIComponent(referencia)}&select=usuario,movimiento,fecha_str,lote&order=fecha.desc&limit=50`;
+  filtroReferenciaGlobal = referencia;
+
+  const cantidad = document.getElementById("cantidadMovimientos")?.value || "50";
+  const fechaInicio = document.getElementById("fechaInicio")?.value;
+  const fechaFin = document.getElementById("fechaFin")?.value;
+  const lote = document.getElementById("selectLote")?.value;
+
+  let url = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/TimeStamps?referencia=eq.${encodeURIComponent(referencia)}&select=usuario,movimiento,fecha_str,lote,unidad_destino,fecha`;
+
+  const filtros = [];
+
+  if (fechaInicio) filtros.push(`fecha=gte.${new Date(fechaInicio).getTime()}`);
+  if (fechaFin) filtros.push(`fecha=lte.${new Date(fechaFin).getTime() + 86400000 - 1}`);
+  if (lote) filtros.push(`lote=eq.${encodeURIComponent(lote)}`);
+
+  if (filtros.length) url += `&${filtros.join("&")}`;
+  if (cantidad !== "todos") url += `&order=fecha.desc&limit=${cantidad}`;
+  else url += `&order=fecha.desc`;
 
   fetch(url, {
     headers: {
@@ -791,28 +809,49 @@ function verMovimientos(referencia) {
       return res.json();
     })
     .then(data => {
+      console.log("🧾 Movimientos recibidos:", data);
       const contenedor = document.getElementById("movimientosContenido");
-      if (!data.length) {
-        contenedor.innerHTML = "<p class='text-sm text-center text-gray-600'>No hay movimientos registrados.</p>";
-      } else {
-        let html = `<table class="w-full text-sm text-left border mt-2">
-          <thead class="bg-gray-200">
-            <tr><th class="p-2">Fecha</th><th class="p-2">Usuario</th><th class="p-2">Acción</th><th class="p-2">Lote</th></tr>
-          </thead><tbody>`;
+      const selectLote = document.getElementById("selectLote");
 
-        data.forEach(mov => {
-          html += `<tr>
-            <td class="p-2">${mov.fecha_str || "-"}</td>
-            <td class="p-2">${mov.usuario || "-"}</td>
-            <td class="p-2 capitalize">${mov.movimiento || "-"}</td>
-            <td class="p-2">${mov.lote || "-"}</td>
-          </tr>`;
-        });
-
-        html += "</tbody></table>";
-        contenedor.innerHTML = html;
+      // Actualiza select de lote si es la primera vez o si ha cambiado la referencia
+      if (selectLote && referencia !== selectLote.dataset.referencia) {
+        const lotesUnicos = [...new Set(data.map(m => m.lote))].filter(Boolean);
+        selectLote.innerHTML = `<option value="">Todos</option>` + 
+          lotesUnicos.map(l => `<option value="${l}">${l}</option>`).join("");
+        selectLote.dataset.referencia = referencia;
       }
 
+      if (!data.length) {
+        contenedor.innerHTML = "<p class='text-sm text-center text-gray-600'>No hay movimientos registrados.</p>";
+        return;
+      }
+
+let html = `<table class="w-full text-sm text-left border mt-2 rounded-xl overflow-hidden">
+  <thead class="bg-teal-900 text-white text-center">
+    <tr>
+      <th class="p-2">Fecha</th>
+      <th class="p-2">Usuario</th>
+      <th class="p-2">Acción</th>
+      <th class="p-2">Lote</th>
+      <th class="p-2">Unidad Destino</th>
+    </tr>
+  </thead>
+  <tbody class="text-black text-center">`;      
+
+    data.forEach(mov => {
+      const unidadNombre = unidadesDestino[mov.unidad_destino] || mov.unidad_destino || "-";
+
+      html += `<tr>
+        <td class="p-2">${mov.fecha_str || "-"}</td>
+        <td class="p-2">${mov.usuario || "-"}</td>
+        <td class="p-2 capitalize">${mov.movimiento || "-"}</td>
+        <td class="p-2">${mov.lote || "-"}</td>
+        <td class="p-2">${unidadNombre}</td>
+      </tr>`;
+    });
+
+      html += "</tbody></table>";
+      contenedor.innerHTML = html;
       document.getElementById("modalMovimientos").classList.remove("hidden");
     })
     .catch(err => {
@@ -851,11 +890,40 @@ function ajustarMesLogico(timestamp) {
 </script>
  <!-- Ventana de moviemientos -->
   <div id="modalMovimientos" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50 hidden">
-    <div class="bg-white rounded-xl p-6 w-[90%] max-w-lg text-gray-800">
+    <div class="bg-white rounded-xl p-6 w-[90%] max-w-4xl text-gray-800">
       <h2 class="text-lg font-bold mb-4 text-center">📋 Movimientos del producto</h2>
+      <div class="flex flex-col md:flex-row items-center justify-between mb-4 gap-3">
+      <div>
+        <label for="cantidadMovimientos" class="text-sm font-semibold mr-2">Mostrar:</label>
+        <select id="cantidadMovimientos" class="px-2 py-1 border rounded-xl">
+          <option value="20">Últimos 20</option>
+          <option value="50" selected>Últimos 50</option>
+          <option value="100">Últimos 100</option>
+          <option value="todos">Todos</option>
+        </select>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <label class="text-sm font-semibold" for="selectLote">Lote:</label>
+        <select id="selectLote" class="px-2 py-1 border rounded-xl text-sm" onchange="verMovimientos(filtroReferenciaGlobal)">
+          <option value="">Todos</option> <!-- default -->
+        </select>
+      </div>
+
+      <div class="flex gap-2 items-center">
+        <label class="text-sm font-semibold">Entre:</label>
+        <label for="fechaInicio" class="sr-only">Fecha de inicio</label>
+        <input id="fechaInicio" type="date" class="..." placeholder="Inicio" title="Fecha de inicio" />
+        <span class="text-sm">y</span>
+        <label for="fechaFin" class="sr-only">Fecha de fin</label>
+        <input id="fechaFin" type="date" class="..." placeholder="Fin" title="Fecha de fin" />    <button onclick="verMovimientos(filtroReferenciaGlobal)" class="bg-teal-900 text-white px-3 py-1 rounded-xl hover:bg-teal-800 text-sm">
+          🔍 Filtrar
+        </button>
+      </div>
+    </div>
       <div id="movimientosContenido" class="max-h-64 overflow-y-auto text-sm"></div>
       <div class="text-center mt-4">
-        <button onclick="document.getElementById('modalMovimientos').classList.add('hidden')" class="bg-red-600 text-white px-4 py-2 rounded-xl hover:bg-red-700">
+        <button onclick="document.getElementById('modalMovimientos').classList.add('hidden')" class="bg-red-800 text-white px-4 py-2 rounded-xl hover:bg-red-900">
           Cerrar
         </button>
       </div>
@@ -883,8 +951,8 @@ function ajustarMesLogico(timestamp) {
     <div class="fixed inset-0 bg-white bg-opacity-50 flex items-center justify-center z-50">
       <div class="bg-white text-gray-800 p-6 rounded-xl text-center space-y-4 w-72 shadow-xl">
         <h2 class="font-bold text-lg mb-2">Selecciona el modo</h2>
-        <button onclick="solicitarPinModo('entrada', this)" class="bg-green-900 text-white px-4 py-2 rounded-xl w-full hover:bg-green-700">📥 Modo Entrada</button>
-        <button onclick="solicitarPinModo('salida', this)" class="bg-red-900 text-white px-4 py-2 rounded-xl w-full hover:bg-red-700">📤 Modo Salida</button>
+        <button onclick="solicitarPinModo('entrada', this)" class="bg-green-900 text-white px-4 py-2 rounded-3xl w-full hover:bg-green-700">📥 Modo Entrada</button>
+        <button onclick="solicitarPinModo('salida', this)" class="bg-red-900 text-white px-4 py-2 rounded-3xl w-full hover:bg-red-700">📤 Modo Salida</button>
         <button onclick="this.closest('.fixed').remove()" class="text-sm text-gray-500 hover:text-gray-800">Cancelar</button>
       </div>
     </div>`;
@@ -945,10 +1013,9 @@ let modoSeleccionado = null;
 let esAdmin = false;
 async function validarPinYUnidad() {
   const nip = document.getElementById("inputNIP").value.trim();
-  nipAdmin = nip; // justo después de: const nip = document.getElementById("inputNIP").value.trim();
+  nipAdmin = nip;
   const unidad = document.getElementById("inputUnidad").value.trim().toUpperCase();
   const esSalida = modoSeleccionado === "salida";
-
 
   try {
     const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/validar_nip", {
@@ -958,11 +1025,10 @@ async function validarPinYUnidad() {
     });
 
     const data = await res.json();
-
-    const unidadesLista = typeof data.unidades === "string" 
+    const unidadesLista = typeof data.unidades === "string"
       ? data.unidades.split(",").map(u => u.trim().toUpperCase())
-      : Array.isArray(data.unidades) 
-        ? data.unidades 
+      : Array.isArray(data.unidades)
+        ? data.unidades
         : [];
 
     if (!data || (esSalida && !unidadesLista.includes(unidad))) {
@@ -978,18 +1044,24 @@ async function validarPinYUnidad() {
     unidadSeleccionada = esSalida ? unidad : null;
 
     document.getElementById("modalPinUnidad").classList.add("hidden");
+
     const nombreUnidad = unidadesDestino[unidad] || "Unidad desconocida";
     document.getElementById("usuarioActivo").textContent = esSalida
       ? `${usuario} → ${unidad} ${nombreUnidad}`
       : usuario;
 
     modo = modoSeleccionado;
-    const color = modo === "entrada" ? "bg-green-800" : "bg-red-800";
-    const icono = modo === "entrada" ? "📥" : "📤";
 
-    actualizarBotonModo(modo.charAt(0).toUpperCase() + modo.slice(1), color, icono);
-    document.getElementById("modoLabel").textContent = modo.toUpperCase();
-    document.getElementById("modoLabel").className = "font-bold px-2 py-1 rounded-lg text-white " + color;
+    // Aplicar estilos y actualización visual coherente
+    const texto = modo;
+    const color = modo === "entrada" ? "bg-green-700"
+                : modo === "salida" ? "bg-red-700"
+                : "bg-gray-500";
+    const icono = modo === "entrada" ? "📥"
+                : modo === "salida" ? "📤"
+                : "🔒";
+
+    actualizarBotonModo(texto.charAt(0).toUpperCase() + texto.slice(1), color, icono);
 
     notificar(`Modo ${modo.toUpperCase()} activado`, "#003f40");
     document.getElementById("inputQR").focus();
@@ -998,6 +1070,7 @@ async function validarPinYUnidad() {
     document.getElementById("pinError").classList.remove("hidden");
   }
 }
+
 function mostrarCambioNIP() {
   cerrarModalOpcionesAdmin(); // Asegura que el anterior se cierre
   document.getElementById("modalCambioNIP").classList.remove("hidden");
@@ -1094,21 +1167,43 @@ async function restablecerNIPUsuario() {
     notificar("❌ Error de red", "#dc2626");
   }
 }
-
 function actualizarBotonModo(texto, claseColor, icono) {
-    const btn = document.getElementById("btnModo");
+  const btn = document.getElementById("btnModo");
+  if (btn) {
     btn.className = `px-3 py-1 rounded-xl text-white ${claseColor}`;
     btn.innerHTML = `${icono} Modo ${texto}`;
   }
-  document.addEventListener("keydown", function (e) {
-    const modal = document.getElementById("modalPinUnidad");
-    const activo = modal && !modal.classList.contains("hidden");
 
-    if (activo && e.key === "Enter") {
-      e.preventDefault();
-      validarPinYUnidad();
-    }
-  });
+  const contenedor = document.getElementById("estadoUsuario");
+  const label = document.getElementById("modoLabel");
+
+  if (!contenedor || !label) return;
+
+  // Limpia clases anteriores
+  contenedor.className = "cursor-pointer mb-2 px-4 py-3 rounded-xl font-semibold text-center shadow transition";
+  label.className = "inline-block font-bold px-3 py-1 rounded-xl text-white text-sm";
+
+  // Aplica según el modo
+  switch (texto.toLowerCase()) {
+    case "entrada":
+      contenedor.classList.add("bg-green-100", "text-green-900", "hover:bg-green-200");
+      label.classList.add("bg-green-700");
+      label.textContent = "ENTRADA";
+      break;
+    case "salida":
+      contenedor.classList.add("bg-red-100", "text-red-900", "hover:bg-red-200");
+      label.classList.add("bg-red-700");
+      label.textContent = "SALIDA";
+      break;
+    default:
+      contenedor.classList.add("bg-gray-200", "text-black", "hover:bg-white/90");
+      label.classList.add("bg-gray-400");
+      label.textContent = "INACTIVO";
+      break;
+  }
+}
+
+
 function agregarFila(ref, lote, estado) {
     const tabla = document.getElementById("tablaRegistros");
     const contenedor = document.getElementById("tablaContenedora");
