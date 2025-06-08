@@ -1447,6 +1447,8 @@ async function cargarDatosForecastEdge(ref) {
     </table>`;
 
   graficarRegresionLineal(labels, valores);
+  document.getElementById("tablaForecast")?.scrollIntoView({ behavior: "smooth", block: "start" });
+
 };
 
     select.dispatchEvent(new Event("change"));
