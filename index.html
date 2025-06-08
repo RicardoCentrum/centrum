@@ -358,6 +358,15 @@ let modo = "entrada";
 let qrsPendientes = [];  // lo que se ha validado pero aún no enviado
 let estaProcesandoSalida = false;
 let filtroReferenciaGlobal = null;
+let fraccionesEscaneadas = []; // cada item: { timestamp, cantidad_restante, lote }
+let cantidadFaltante = 0;
+let referenciasCache = [];
+let usuario = null;                 // Se debe asignar al seleccionar usuario
+let unidadSeleccionada = null;      // Se asigna desde la selección de unidad médica
+let modoSeleccionado = null;
+let esAdmin = false;
+let USUARIO_ACTUAL = null;          // Refleja al usuario activo, puede ser el mismo que `usuario`
+let UNIDAD_DESTINO = null;          // Se usa en modo salida para fraccionados
 
     const unidadesDestino = {
   //"C03442": "C.S. GALEANA",
@@ -561,9 +570,8 @@ async function mostrarPrevisualizacionDesdeQR(contenido) {
 
 // Procesamiento principal
 async function procesarQR(contenido) {
-const datos = extraerDatosQR(contenido); 
-console.log("✅ Se llamó a procesarQR con contenido:", contenido);
-
+  const datos = extraerDatosQR(contenido);
+  console.log("✅ Se llamó a procesarQR con contenido:", contenido);
   console.log("✅ Datos extraídos:", datos);
 
   if (!datos || !datos.referencia || !datos.timestamp) {
@@ -583,20 +591,31 @@ console.log("✅ Se llamó a procesarQR con contenido:", contenido);
 
   mostrarModal("📤 Procesando QR...", "#0ea5e9");
 
+  let yaProcesado = false;
+
   try {
-    const fraccionableRes = await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/multiplicadores?select=fraccionable,referencia,referencia_unidad,multiplicador&or=(referencia.eq.${datos.referencia},referencia_unidad.eq.${datos.referencia})`, {
-      headers: {
-        "apikey": API_KEY,
-        "Authorization": `Bearer ${API_KEY}`
+    const fraccionableRes = await fetch(
+      `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/multiplicadores?select=fraccionable,referencia,referencia_unidad,multiplicador&or=(referencia.eq.${datos.referencia},referencia_unidad.eq.${datos.referencia})`,
+      {
+        headers: {
+          "apikey": API_KEY,
+          "Authorization": `Bearer ${API_KEY}`
+        }
       }
-    });
+    );
     const fraccionableData = await fraccionableRes.json();
     const entry = fraccionableData[0];
 
-    // Unidad suelta (referencia_unidad)
     if (entry?.referencia_unidad === datos.referencia) {
       const payload = {
-        registros: [{ ...datos, modo, usuario, unidad: unidadSeleccionada || null, referenciaCaja: entry.referencia, tipo: "unidad" }]
+        registros: [{
+          ...datos,
+          modo,
+          usuario,
+          unidad: unidadSeleccionada || null,
+          referenciaCaja: entry.referencia,
+          tipo: "unidad"
+        }]
       };
       const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_fraccionable", {
         method: "POST",
@@ -608,10 +627,8 @@ console.log("✅ Se llamó a procesarQR con contenido:", contenido);
 
       if (r?.status === "ok") {
         qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
-        //agregarFila(datos.referencia, datos.lote || "-", `Unidad`);
         actualizarTablaRegistros();
         mostrarModal("✅ Unidad procesada", "#22c55e");
-        return;  // ⛔️⬅️ Esto evita que se ejecute también el flujo general
       } else if (r?.status === "repetido") {
         mostrarModal("📦 El producto ya fue ingresado anteriormente", "#0d9488");
       } else if (r?.status === "extraido_previo") {
@@ -621,10 +638,11 @@ console.log("✅ Se llamó a procesarQR con contenido:", contenido);
       } else {
         mostrarModal("❌ Error al registrar unidad", "#6b7280");
       }
+
+      yaProcesado = true;
       return;
     }
 
-    // Fraccionable completo (referencia)
     const esFraccionable = entry?.fraccionable === true;
     if (esFraccionable && modo === "salida") {
       if (estaProcesandoSalida) {
@@ -635,7 +653,14 @@ console.log("✅ Se llamó a procesarQR con contenido:", contenido);
 
       solicitarCantidad(async cantidad => {
         const payload = {
-          registros: [{ ...datos, modo, usuario, unidad: unidadSeleccionada || null, cantidad, tipo: "fraccion" }]
+          registros: [{
+            ...datos,
+            modo,
+            usuario,
+            unidad: unidadSeleccionada || null,
+            cantidad,
+            tipo: "fraccion"
+          }]
         };
 
         try {
@@ -668,6 +693,7 @@ console.log("✅ Se llamó a procesarQR con contenido:", contenido);
         }
       });
 
+      yaProcesado = true;
       return;
     }
 
@@ -677,14 +703,69 @@ console.log("✅ Se llamó a procesarQR con contenido:", contenido);
     return;
   }
 
-
-qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
-actualizarTablaRegistros();
-mostrarModal("✅ Producto agregado", "#22c55e");
-return;
+  if (!yaProcesado) {
+    qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
+    actualizarTablaRegistros();
+    mostrarModal("✅ Producto agregado", "#22c55e");
+  }
 }
 
-let referenciasCache = [];
+// === Funciones auxiliares ===
+
+async function iniciarExtraccionFraccionable(cantidadTotal) {
+  fraccionesEscaneadas = [];
+  cantidadFaltante = cantidadTotal;
+  mostrarModal("🔄 Escanea la primera caja...", "#6b7280");
+}
+
+async function procesarCajaFraccionable(contenidoQR) {
+  const datos = extraerDatosQR(contenidoQR);
+  const ts = datos.timestamp;
+  const ref = datos.referencia;
+  const lote = datos.lote;
+
+  const res = await fetch(`${URL}/fracciones?timestamp=eq.${ts}`, { headers });
+  const [fraccion] = await res.json();
+
+  if (!fraccion || fraccion.cantidad_restante === 0) {
+    mostrarModal("❌ Caja vacía o inválida", "#dc2626");
+    return;
+  }
+
+  const usado = Math.min(fraccion.cantidad_restante, cantidadFaltante);
+  fraccionesEscaneadas.push({ timestamp: ts, lote, usado });
+
+  cantidadFaltante -= usado;
+
+  if (cantidadFaltante <= 0) {
+    await registrarExtraccionConjunta(fraccionesEscaneadas, ref, USUARIO_ACTUAL, UNIDAD_DESTINO);
+    mostrarModal("✅ Retiro completado", "#16a34a");
+  } else {
+    mostrarModal(`🔄 Faltan ${cantidadFaltante} piezas. Escanea otra caja...`, "#facc15");
+  }
+}
+
+async function registrarExtraccionConjunta(fracciones, referencia, usuario, unidad) {
+  for (const f of fracciones) {
+    await fetch(`${URL}/registrar_qr_fraccionable`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        registros: [{
+          referencia,
+          lote: f.lote,
+          timestamp: f.timestamp,
+          cantidad: f.usado,
+          usuario,
+          modo: "salida",
+          unidad
+        }]
+      })
+    });
+  }
+}
+
+
 
 async function cargarReferencias() {
   const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos?select=referencia,nombre,fabricante,lote,caducidad,cantidad", {
@@ -1009,10 +1090,7 @@ function solicitarPinModo(tipo, boton) {
 function cerrarModalPin() {
   document.getElementById("modalPinUnidad").classList.add("hidden");
 }
-let usuario = null;
-let unidadSeleccionada = null;
-let modoSeleccionado = null;
-let esAdmin = false;
+
 async function validarPinYUnidad() {
   const nip = document.getElementById("inputNIP").value.trim();
   nipAdmin = nip;
