@@ -349,7 +349,16 @@
     </div>
   </div>
 </div>
-
+<div id="modalCantidadFraccionable" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60">
+  <div class="bg-white rounded-xl p-6 w-[90%] max-w-sm text-gray-800 shadow-lg">
+    <h2 class="text-lg font-bold mb-3 text-center">🔢 ¿Cuántas piezas deseas retirar?</h2>
+    <input id="inputCantidadFraccionable" type="number" min="1" placeholder="Ej. 15" class="w-full border px-4 py-2 rounded-xl mb-4">
+    <div class="flex justify-end gap-3">
+      <button onclick="cerrarModalCantidadFraccionable()" class="px-4 py-1 rounded-xl bg-gray-300 hover:bg-gray-400">Cancelar</button>
+      <button onclick="confirmarCantidadFraccionable()" class="px-4 py-1 rounded-xl bg-green-700 text-white hover:bg-green-800">Aceptar</button>
+    </div>
+  </div>
+</div>
   <script>
 const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo";
 const VALIDAR_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/validar_qr";
@@ -367,7 +376,9 @@ let modoSeleccionado = null;
 let esAdmin = false;
 let USUARIO_ACTUAL = null;          // Refleja al usuario activo, puede ser el mismo que `usuario`
 let UNIDAD_DESTINO = null;          // Se usa en modo salida para fraccionados
-
+let REF_GLOBAL = null;
+let referenciaActual = "";
+let loteActual = "";
     const unidadesDestino = {
   //"C03442": "C.S. GALEANA",
   //"C03441": "C.S. HIDALGO",
@@ -643,12 +654,15 @@ async function procesarQR(contenido) {
       return;
     }
 
-    const esFraccionable = entry?.fraccionable === true;
+       const esFraccionable = entry?.fraccionable === true;
+
     if (esFraccionable && modo === "salida") {
-      if (estaProcesandoSalida) {
-        console.warn("🚫 Ya se está procesando una salida, espera...");
-        return;
-      }
+      abrirModalCantidadFraccionable(datos.referencia, datos.lote);
+      return;  // ⛔️ Esto sí detiene el flujo
+    }
+
+    // Solo si es fraccionable en modo entrada
+    if (esFraccionable && modo === "entrada") {
       estaProcesandoSalida = true;
 
       solicitarCantidad(async cantidad => {
@@ -697,6 +711,7 @@ async function procesarQR(contenido) {
       return;
     }
 
+
   } catch (err) {
     console.error("❌ Error general en procesarQR:", err);
     mostrarModal("❌ Error general", "#6b7280");
@@ -711,45 +726,67 @@ async function procesarQR(contenido) {
 }
 
 // === Funciones auxiliares ===
+function prepararEventoCantidadFraccionable() {
+  const input = document.getElementById("inputCantidadFraccionable");
+  if (!input) return;
 
-async function iniciarExtraccionFraccionable(cantidadTotal) {
+  input.addEventListener("keyup", function(e) {
+    if (e.key === "Enter") confirmarCantidadFraccionable();
+  });
+}
+
+function iniciarExtraccionFraccionableFrontend(ref, lote, cantidad) {
   fraccionesEscaneadas = [];
-  cantidadFaltante = cantidadTotal;
+  cantidadFaltante = cantidad;
+  referenciaActual = ref;
+  loteActual = lote;
   mostrarModal("🔄 Escanea la primera caja...", "#6b7280");
 }
 
 async function procesarCajaFraccionable(contenidoQR) {
   const datos = extraerDatosQR(contenidoQR);
   const ts = datos.timestamp;
-  const ref = datos.referencia;
-  const lote = datos.lote;
 
-  const res = await fetch(`${URL}/fracciones?timestamp=eq.${ts}`, { headers });
+  if (!ts || !datos.referencia || datos.referencia !== referenciaActual || datos.lote !== loteActual) {
+    mostrarModal("⚠️ Caja no coincide con la referencia o lote esperado", "#f59e0b");
+    return;
+  }
+
+  const res = await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/fracciones?timestamp=eq.${ts}`, {
+    headers: {
+      "apikey": API_KEY,
+      "Authorization": `Bearer ${API_KEY}`
+    }
+  });
+
   const [fraccion] = await res.json();
 
-  if (!fraccion || fraccion.cantidad_restante === 0) {
-    mostrarModal("❌ Caja vacía o inválida", "#dc2626");
+  if (!fraccion || fraccion.cantidad_restante <= 0) {
+    mostrarModal("❌ Caja vacía o no encontrada", "#dc2626");
     return;
   }
 
   const usado = Math.min(fraccion.cantidad_restante, cantidadFaltante);
-  fraccionesEscaneadas.push({ timestamp: ts, lote, usado });
+  fraccionesEscaneadas.push({ timestamp: ts, lote: datos.lote, usado });
 
   cantidadFaltante -= usado;
 
-  if (cantidadFaltante <= 0) {
-    await registrarExtraccionConjunta(fraccionesEscaneadas, ref, USUARIO_ACTUAL, UNIDAD_DESTINO);
-    mostrarModal("✅ Retiro completado", "#16a34a");
+  if (cantidadFaltante > 0) {
+    mostrarModal(`🔄 Se usaron ${usado}. Faltan ${cantidadFaltante} piezas. Escanea otra caja...`, "#facc15");
   } else {
-    mostrarModal(`🔄 Faltan ${cantidadFaltante} piezas. Escanea otra caja...`, "#facc15");
+    mostrarModal("✅ Listo. Cajas completas. Enviando a Supabase...", "#22c55e");
+    await registrarExtraccionConjunta(fraccionesEscaneadas, referenciaActual, usuario, unidadSeleccionada);
+    actualizarTablaRegistros();  // si aplica
   }
 }
 
 async function registrarExtraccionConjunta(fracciones, referencia, usuario, unidad) {
   for (const f of fracciones) {
-    await fetch(`${URL}/registrar_qr_fraccionable`, {
+    await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_fraccionable", {
       method: "POST",
-      headers,
+      headers: {
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify({
         registros: [{
           referencia,
@@ -765,6 +802,98 @@ async function registrarExtraccionConjunta(fracciones, referencia, usuario, unid
   }
 }
 
+function abrirModalCantidadFraccionable(referencia, lote) {
+  const existente = document.getElementById("modalFraccionable");
+  if (existente) existente.remove(); // Evita duplicados
+
+  const modal = document.createElement("div");
+  modal.id = "modalFraccionable";
+  modal.className = "fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50";
+  modal.innerHTML = `
+    <div class="bg-white rounded-xl p-6 w-[90%] max-w-sm text-gray-800 relative">
+      <button onclick="cerrarModalFraccionable()" class="absolute top-2 right-3 text-2xl font-bold text-red-600">×</button>
+      <h2 class="text-lg font-bold mb-4 text-center">📦 Producto fraccionable</h2>
+      <p class="text-sm mb-2 text-center">Referencia: <b>${referencia}</b></p>
+      <p class="text-sm mb-4 text-center">Lote: <b>${lote}</b></p>
+      <label class="block mb-1 text-sm font-semibold">Cantidad a retirar:</label>
+      <input id="inputCantidadFraccionable" type="number" min="1"
+        class="w-full px-3 py-2 border border-gray-300 rounded-md text-center text-lg font-bold focus:outline-none focus:ring focus:border-blue-500"
+        placeholder="Ej. 5" autofocus />
+
+      <div class="mt-4 flex justify-between">
+        <button onclick="cerrarModalFraccionable()" class="bg-gray-300 px-4 py-2 rounded-md hover:bg-gray-400">Cancelar</button>
+        <button onclick="confirmarCantidadFraccionable()" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">Aceptar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  // Permitir Enter para confirmar
+  document.getElementById("inputCantidadFraccionable").addEventListener("keyup", function(e) {
+    if (e.key === "Enter") confirmarCantidadFraccionable();
+  });
+
+  // Guardar valores temporalmente
+  window.referenciaFraccionable = referencia;
+  window.loteFraccionable = lote;
+}
+
+function cerrarModalFraccionable() {
+  const modal = document.getElementById("modalFraccionable");
+  if (modal) modal.remove();
+}
+async function procesarQRFraccionableSalida(referencia, lote, cantidad) {
+  const payload = {
+    registros: [{
+      referencia,
+      lote,
+      cantidad,
+      usuario,
+      modo: "salida",
+      unidad: unidadSeleccionada || null
+    }]
+  };
+
+  try {
+    const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_fraccionable", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const result = await res.json();
+    const r = result.resultados?.[0];
+
+    if (r?.status === "ok") {
+      qrsPendientes.push({ referencia, lote, cantidad, modo: "salida", usuario, unidad: unidadSeleccionada });
+      actualizarTablaRegistros();
+      mostrarModal("✅ Retiro fraccionado exitoso", "#22c55e");
+    } else if (r?.status === "extraido_previo") {
+      mostrarModal(`⚠️ Ya extraído por ${r.usuario}`, "#facc15");
+    } else if (r?.mensaje) {
+      mostrarModal(`⚠️ ${r.mensaje}`, "#6b7280");
+    } else {
+      mostrarModal("❌ Error en el retiro", "#6b7280");
+    }
+  } catch (err) {
+    console.error("❌ Error de red:", err);
+    mostrarModal("❌ Error de conexión", "#6b7280");
+  }
+}
+
+function confirmarCantidadFraccionable() {
+  const input = document.getElementById("inputCantidadFraccionable");
+  const cantidad = parseInt(input.value);
+
+  if (!cantidad || cantidad <= 0) {
+    mostrarModal("⚠️ Ingresa una cantidad válida", "#f59e0b");
+    return;
+  }
+
+  cerrarModalFraccionable();
+
+  // Ejecutar el flujo de salida fraccionable
+  iniciarExtraccionFraccionableFrontend(window.referenciaFraccionable, window.loteFraccionable, cantidad);
+}
 
 
 async function cargarReferencias() {
@@ -2171,6 +2300,6 @@ function agregarFila(ref, lote, estado) {
   }
 
 </script>
-<div id="versionInfo" class="version-info">v2.3.9</div>
+<div id="versionInfo" class="version-info">v2.4.0</div>
 </body>
 </html>
