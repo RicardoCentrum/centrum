@@ -1269,7 +1269,7 @@ function verForecast(referencia, nombre = "", fabricante = "") {
   modal.innerHTML = `
     <div class="bg-white rounded-xl p-4 w-[95%] max-w-5xl text-gray-800 relative mt-6 mb-6">
       <button onclick="document.getElementById('modalForecast').remove()" class="absolute top-2 right-2 text-red-800 hover:text-red-600 text-xl font-bold">×</button>
-
+      <div id="anclaForecast" class="h-1"></div>
       <h2 class="text-lg font-bold mb-3 text-center">📊 Estadísticas del producto</h2>
 
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
@@ -1447,7 +1447,7 @@ async function cargarDatosForecastEdge(ref) {
     </table>`;
 
   graficarRegresionLineal(labels, valores);
-  document.getElementById("tablaForecast")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  document.getElementById("anclaForecast")?.scrollIntoView({ behavior: "smooth", block: "start" });
 
 };
 
