@@ -1267,7 +1267,7 @@ function verForecast(referencia, nombre = "", fabricante = "") {
   modal.id = "modalForecast";
   modal.className = "fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50 overflow-y-auto";
   modal.innerHTML = `
-    <div class="bg-white rounded-xl p-4 w-[95%] max-w-5xl text-gray-800 relative">
+    <div class="bg-white rounded-xl p-4 w-[95%] max-w-5xl text-gray-800 relative mt-6 mb-6">
       <button onclick="document.getElementById('modalForecast').remove()" class="absolute top-2 right-2 text-red-800 hover:text-red-600 text-xl font-bold">×</button>
 
       <h2 class="text-lg font-bold mb-3 text-center">📊 Estadísticas del producto</h2>
@@ -1288,7 +1288,7 @@ function verForecast(referencia, nombre = "", fabricante = "") {
 
       <!-- Gráfica superior -->
       <div class="w-full max-w-full mx-auto mb-4">
-        <canvas id="graficaForecast" class="fixed inset-0 bg-black bg-opacity-60 z-50 overflow-y-auto pt-[env(safe-area-inset-top,1rem)] flex justify-center items-start"
+        <canvas id="graficaForecast" class="w-full h-[260px] sm:h-[320px] max-w-full"></canvas>
       </div>
 
 <div id="alertaForecast" class="text-sm mt-4 p-2 items-center text-center w-full mx-auto md:w-1/2 bg-gray-100 text-gray-700 rounded-xl border border-gray-300 hidden"></div>
@@ -1296,7 +1296,7 @@ function verForecast(referencia, nombre = "", fabricante = "") {
       <!-- Gráfica de pronóstico + tabla -->
       <div class="flex flex-col md:flex-row gap-4 w-full">
         <div class="md:w-2/3">
-          <canvas id="graficaForecastLinea" class="fixed inset-0 bg-black bg-opacity-60 z-50 overflow-y-auto pt-[env(safe-area-inset-top,1rem)] flex justify-center items-start"
+      <canvas id="graficaForecastLinea" class="w-full h-[180px] sm:h-[220px] max-w-full"></canvas>
         </div>
         <div id="tablaForecast" class="text-sm md:w-1/3 h-[300px] overflow-y-auto"></div>
       </div>
@@ -2091,6 +2091,6 @@ function agregarFila(ref, lote, estado) {
   }
 
 </script>
-<div id="versionInfo" class="version-info">v2.3.2</div>
+<div id="versionInfo" class="version-info">v2.3.8</div>
 </body>
 </html>
