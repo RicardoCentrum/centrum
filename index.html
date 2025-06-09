@@ -225,19 +225,15 @@
       <label for="nipAntiguo" class="block text-sm font-semibold mb-1">NIP actual:</label>
       <input id="nipAntiguo" type="password" maxlength="4" class="w-full px-4 py-2 border rounded-xl" />
     </div>
-
     <div>
       <label for="nipNuevo" class="block text-sm font-semibold mb-1">NIP nuevo:</label>
       <input id="nipNuevo" type="password" maxlength="4" class="w-full px-4 py-2 border rounded-xl" />
     </div>
-
     <div>
       <label for="nipConfirmar" class="block text-sm font-semibold mb-1">Confirmar nuevo NIP:</label>
       <input id="nipConfirmar" type="password" maxlength="4" class="w-full px-4 py-2 border rounded-xl" />
     </div>
-
     <div id="cambioNipError" class="text-sm text-red-600 hidden">❌ Error en los datos ingresados.</div>
-
     <div class="flex justify-end gap-2 mt-2">
       <button onclick="cerrarCambioNIP()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400">Cancelar</button>
       <button onclick="guardarNuevoNIP()" class="px-4 py-2 bg-teal-900 text-white rounded-xl hover:bg-teal-700">Guardar</button>
@@ -252,7 +248,6 @@
         🔒 Modo inactivo
       </button>  -->    
           </div>
-
     <div class="mt-4">
       <input type="text" id="refBusqueda" placeholder="Buscar por referencia..." class="w-full p-3 mb-4 rounded-xl border text-center" oninput="buscarReferencia(this.value)" />
       <div id="resultadoBusqueda" class="text-sm text-gray-800"></div>
@@ -268,8 +263,6 @@
     </span>
   </div>
 </div>
-
-
 <!-- BOTÓN INDEPENDIENTE PARA CAMBIAR UNIDADES (solo visible para admin) -->
 <div class="text-center mb-4">
   <button id="btnCambiarUnidades"
@@ -278,7 +271,6 @@
     ⚙️ Cambiar unidades
   </button>
 </div>
-
 <button onclick="mostrarOpcionesAdmin()" class="fixed bottom-4 right-4 z-50 bg-teal-900 text-white px-4 py-2 rounded-full shadow-lg hover:bg-teal-800 text-sm">
   ⚙️ Opciones de usuario
 </button>
@@ -303,15 +295,12 @@
     </div>
   </div>
 </div>
-
     <input type="text" id="inputQR" placeholder="Escanea el código QR" class="w-full p-3 mb-4 rounded-xl border text-center" autofocus />
-    
     <div class="text-center mt-2 mb-4">
       <button onclick="mostrarAlertasCaducidad()" class="bg-yellow-500 bg-opacity-20 px-4 py-1 rounded-xl hover:bg-yellow-600 font-semibold shadow">
         ⚠️ Ver productos proximos a caducar
       </button>
     </div>
-    
 <div id="tablaContenedora" class="hidden opacity-0 transition-opacity duration-300">
   <table class="min-w-full text-sm text-left" id="tablaRegistros">
     <thead>
@@ -325,8 +314,6 @@
     <tbody></tbody>
   </table>
 </div>
-
-
     <button onclick="enviarSupabase()" class="mt-4 w-full bg-teal-900 text-white py-2 rounded-2xl">Enviar a Base de Datos</button>
   </div>
   <div id="notificacion" class="modal text-center font-bold"></div>
@@ -340,22 +327,10 @@
     <div class="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto mb-4" id="listaUnidades">
       <!-- Aquí se generarán dinámicamente los checkboxes -->
     </div>
-
     <div id="unidadAsignarError" class="text-sm text-red-600 hidden mb-2">❌ Error al guardar unidades.</div>
-
     <div class="flex justify-end gap-2">
       <button onclick="cerrarModalAsignarUnidades()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400">Cancelar</button>
       <button onclick="guardarUnidadesAsignadas()" class="px-4 py-2 bg-teal-900 text-white rounded-xl hover:bg-teal-700">Guardar</button>
-    </div>
-  </div>
-</div>
-<div id="modalCantidadFraccionable" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60">
-  <div class="bg-white rounded-xl p-6 w-[90%] max-w-sm text-gray-800 shadow-lg">
-    <h2 class="text-lg font-bold mb-3 text-center">🔢 ¿Cuántas piezas deseas retirar?</h2>
-    <input id="inputCantidadFraccionable" type="number" min="1" placeholder="Ej. 15" class="w-full border px-4 py-2 rounded-xl mb-4">
-    <div class="flex justify-end gap-3">
-      <button onclick="cerrarModalCantidadFraccionable()" class="px-4 py-1 rounded-xl bg-gray-300 hover:bg-gray-400">Cancelar</button>
-      <button onclick="confirmarCantidadFraccionable()" class="px-4 py-1 rounded-xl bg-green-700 text-white hover:bg-green-800">Aceptar</button>
     </div>
   </div>
 </div>
@@ -377,8 +352,12 @@ let esAdmin = false;
 let USUARIO_ACTUAL = null;          // Refleja al usuario activo, puede ser el mismo que `usuario`
 let UNIDAD_DESTINO = null;          // Se usa en modo salida para fraccionados
 let REF_GLOBAL = null;
-let referenciaActual = "";
-let loteActual = "";
+let modoExtraccionFraccionableActivo = false;
+let referenciaActual = null;
+let loteActual = null;
+let ultimoContenidoEscaneado = null;
+
+
     const unidadesDestino = {
   //"C03442": "C.S. GALEANA",
   //"C03441": "C.S. HIDALGO",
@@ -595,14 +574,18 @@ async function procesarQR(contenido) {
     return;
   }
 
+  // Si está activo el flujo de extracción fraccionada, procesar directamente
+  if (modoExtraccionFraccionableActivo) {
+    procesarCajaFraccionable(contenido);
+    return;
+  }
+
   if (qrsPendientes.some(q => q.timestamp === datos.timestamp)) {
     mostrarModal("📦 Ya escaneado localmente", "#0284c7");
     return;
   }
 
   mostrarModal("📤 Procesando QR...", "#0ea5e9");
-
-  let yaProcesado = false;
 
   try {
     const fraccionableRes = await fetch(
@@ -649,22 +632,18 @@ async function procesarQR(contenido) {
       } else {
         mostrarModal("❌ Error al registrar unidad", "#6b7280");
       }
-
-      yaProcesado = true;
       return;
     }
 
-       const esFraccionable = entry?.fraccionable === true;
+    const esFraccionable = entry?.fraccionable === true;
 
     if (esFraccionable && modo === "salida") {
-      abrirModalCantidadFraccionable(datos.referencia, datos.lote);
-      return;  // ⛔️ Esto sí detiene el flujo
+      ultimoContenidoEscaneado = contenido;
+      abrirModalCantidadFraccionable(datos.referencia, datos.lote, contenido);
+      return;
     }
 
-    // Solo si es fraccionable en modo entrada
     if (esFraccionable && modo === "entrada") {
-      estaProcesandoSalida = true;
-
       solicitarCantidad(async cantidad => {
         const payload = {
           registros: [{
@@ -702,26 +681,18 @@ async function procesarQR(contenido) {
         } catch (err) {
           console.error("❌ Error en fetch:", err);
           mostrarModal("❌ Error de red o conexión", "#6b7280");
-        } finally {
-          estaProcesandoSalida = false;
         }
       });
-
-      yaProcesado = true;
       return;
     }
 
-
-  } catch (err) {
-    console.error("❌ Error general en procesarQR:", err);
-    mostrarModal("❌ Error general", "#6b7280");
-    return;
-  }
-
-  if (!yaProcesado) {
+    // Si no fue procesado como fraccionable ni unidad
     qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
     actualizarTablaRegistros();
     mostrarModal("✅ Producto agregado", "#22c55e");
+  } catch (err) {
+    console.error("❌ Error general en procesarQR:", err);
+    mostrarModal("❌ Error general", "#6b7280");
   }
 }
 
@@ -747,101 +718,232 @@ async function procesarCajaFraccionable(contenidoQR) {
   const datos = extraerDatosQR(contenidoQR);
   const ts = datos.timestamp;
 
-  if (!ts || !datos.referencia || datos.referencia !== referenciaActual || datos.lote !== loteActual) {
-    mostrarModal("⚠️ Caja no coincide con la referencia o lote esperado", "#f59e0b");
+  if (!ts || !datos.referencia || !datos.lote) {
+    mostrarModal("⚠️ QR incompleto", "#f59e0b");
     return;
   }
 
-  const res = await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/fracciones?timestamp=eq.${ts}`, {
-    headers: {
-      "apikey": API_KEY,
-      "Authorization": `Bearer ${API_KEY}`
+  if (datos.referencia !== referenciaFraccionable || datos.lote !== loteFraccionable) {
+    mostrarModal("⚠️ Caja no coincide con referencia o lote esperado", "#facc15");
+    reenfocarInputFraccionable();
+    return;
+  }
+
+  if (fraccionesEscaneadas.some(f => f.timestamp === ts)) {
+    mostrarModal("⚠️ Esta caja ya fue escaneada", "#facc15");
+    reenfocarInputFraccionable();
+    return;
+  }
+
+  try {
+    const res = await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/fracciones?timestamp=eq.${ts}`, {
+      headers: {
+        "apikey": API_KEY,
+        "Authorization": `Bearer ${API_KEY}`
+      }
+    });
+
+    const [fraccion] = await res.json();
+
+    if (!fraccion || fraccion.cantidad_restante <= 0) {
+      mostrarModal("❌ Caja vacía o no encontrada", "#dc2626");
+      reenfocarInputFraccionable();
+      return;
     }
-  });
 
-  const [fraccion] = await res.json();
+    const usado = Math.min(fraccion.cantidad_restante, cantidadFaltante);
+    fraccionesEscaneadas.push({ timestamp: ts, lote: datos.lote, usado });
+    cantidadFaltante -= usado;
 
-  if (!fraccion || fraccion.cantidad_restante <= 0) {
-    mostrarModal("❌ Caja vacía o no encontrada", "#dc2626");
-    return;
-  }
+    actualizarModalFraccionable();
 
-  const usado = Math.min(fraccion.cantidad_restante, cantidadFaltante);
-  fraccionesEscaneadas.push({ timestamp: ts, lote: datos.lote, usado });
-
-  cantidadFaltante -= usado;
-
-  if (cantidadFaltante > 0) {
-    mostrarModal(`🔄 Se usaron ${usado}. Faltan ${cantidadFaltante} piezas. Escanea otra caja...`, "#facc15");
-  } else {
-    mostrarModal("✅ Listo. Cajas completas. Enviando a Supabase...", "#22c55e");
-    await registrarExtraccionConjunta(fraccionesEscaneadas, referenciaActual, usuario, unidadSeleccionada);
-    actualizarTablaRegistros();  // si aplica
+    if (cantidadFaltante > 0) {
+      mostrarModal(`📦 Se usaron ${usado}. Faltan ${cantidadFaltante} piezas. Escanea otra caja...`, "#0ea5e9");
+      reenfocarInputFraccionable();
+    } else {
+      mostrarModal("✅ Todo listo. Enviando información...", "#22c55e");
+      cerrarModalFraccionable();
+      modoExtraccionFraccionableActivo = false;
+      await registrarExtraccionConjunta(fraccionesEscaneadas, referenciaFraccionable, usuario, unidadSeleccionada);
+      actualizarTablaRegistros();
+    }
+  } catch (error) {
+    console.error("❌ Error al consultar fracción:", error);
+    mostrarModal("❌ Error al verificar la caja", "#6b7280");
+    reenfocarInputFraccionable();
   }
 }
-
 async function registrarExtraccionConjunta(fracciones, referencia, usuario, unidad) {
-  for (const f of fracciones) {
-    await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_fraccionable", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        registros: [{
+  let errores = 0;
+
+  for (const [i, f] of fracciones.entries()) {
+    try {
+      const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_fraccionable", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          registros: [{
+            referencia,
+            lote: f.lote,
+            timestamp: f.timestamp,
+            cantidad: f.usado,
+            usuario,
+            modo: "salida",
+            unidad
+          }]
+        })
+      });
+
+      const result = await res.json();
+      const r = result.resultados?.[0];
+
+      if (r?.status === "ok") {
+        qrsPendientes.push({
           referencia,
           lote: f.lote,
-          timestamp: f.timestamp,
           cantidad: f.usado,
-          usuario,
           modo: "salida",
+          usuario,
           unidad
-        }]
-      })
-    });
+        });
+        mostrarModal(`✅ Caja ${i + 1} procesada (${f.usado} piezas)`, "#22c55e");
+      } else {
+        errores++;
+        mostrarModal(`⚠️ Caja ${i + 1} falló: ${r?.mensaje || "desconocido"}`, "#facc15");
+      }
+
+    } catch (err) {
+      console.error(`❌ Error al registrar caja ${i + 1}:`, err);
+      errores++;
+      mostrarModal(`❌ Error de red al registrar caja ${i + 1}`, "#dc2626");
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 200)); // Pausa leve para claridad visual
+  }
+
+  if (errores === 0) {
+    mostrarModal("🎉 Todas las cajas registradas con éxito", "#4ade80");
+  } else {
+    mostrarModal(`⚠️ ${errores} de ${fracciones.length} cajas fallaron`, "#f59e0b");
   }
 }
 
-function abrirModalCantidadFraccionable(referencia, lote) {
+function abrirModalCantidadFraccionable(referencia, lote, contenidoQR) {
   const existente = document.getElementById("modalFraccionable");
-  if (existente) existente.remove(); // Evita duplicados
+  if (existente) existente.remove();
+
+  // Variables globales
+  window.referenciaFraccionable = referencia;
+  window.loteFraccionable = lote;
+  window.ultimoContenidoEscaneado = contenidoQR;
+  window.fraccionesEscaneadas = [];
+  window.cantidadFaltante = 0;
+  window.modoExtraccionFraccionableActivo = false;
 
   const modal = document.createElement("div");
   modal.id = "modalFraccionable";
-  modal.className = "fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50";
-  modal.innerHTML = `
-    <div class="bg-white rounded-xl p-6 w-[90%] max-w-sm text-gray-800 relative">
-      <button onclick="cerrarModalFraccionable()" class="absolute top-2 right-3 text-2xl font-bold text-red-600">×</button>
-      <h2 class="text-lg font-bold mb-4 text-center">📦 Producto fraccionable</h2>
-      <p class="text-sm mb-2 text-center">Referencia: <b>${referencia}</b></p>
-      <p class="text-sm mb-4 text-center">Lote: <b>${lote}</b></p>
-      <label class="block mb-1 text-sm font-semibold">Cantidad a retirar:</label>
-      <input id="inputCantidadFraccionable" type="number" min="1"
-        class="w-full px-3 py-2 border border-gray-300 rounded-md text-center text-lg font-bold focus:outline-none focus:ring focus:border-blue-500"
-        placeholder="Ej. 5" autofocus />
+  modal.className = "fixed inset-0 z-50 backdrop-blur-sm bg-black/40 flex items-center justify-center";
 
-      <div class="mt-4 flex justify-between">
-        <button onclick="cerrarModalFraccionable()" class="bg-gray-300 px-4 py-2 rounded-md hover:bg-gray-400">Cancelar</button>
-        <button onclick="confirmarCantidadFraccionable()" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">Aceptar</button>
+  modal.innerHTML = `
+    <div class="bg-white text-gray-800 rounded-xl p-6 w-[92%] max-w-md shadow-xl relative animate-fade-in overflow-y-auto max-h-[90vh] space-y-4">
+      <button onclick="cerrarModalFraccionable()" class="absolute top-2 right-3 text-2xl font-bold text-red-600 hover:text-red-800">×</button>
+      <h2 class="text-xl font-bold text-center">📦 Producto fraccionable</h2>
+      <p class="text-sm text-center">Referencia: <b>${referencia}</b></p>
+      <p class="text-sm text-center">Lote: <b>${lote}</b></p>
+
+      <div class="mt-2">
+        <label class="block text-sm font-semibold">Cantidad total a retirar:</label>
+        <input id="inputCantidadFraccionable" type="number" min="1"
+          class="w-full px-4 py-2 mt-1 rounded-md border border-gray-300 text-center text-lg font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Ej. 10" autofocus />
+      </div>
+
+      <div class="flex justify-between mt-4">
+        <button onclick="cerrarModalFraccionable()" class="bg-gray-300 hover:bg-gray-400 text-sm px-4 py-2 rounded-md">Cancelar</button>
+        <button onclick="confirmarCantidadFraccionable()" class="bg-green-600 hover:bg-green-700 text-white text-sm px-4 py-2 rounded-md">Aceptar</button>
+      </div>
+
+      <div id="seccionFracciones" class="hidden mt-4 space-y-3">
+        <div>
+          <label class="block text-sm font-semibold">📷 Escanea o ingresa caja:</label>
+          <input id="inputEscaneoFraccionable" type="text"
+            class="w-full px-4 py-2 rounded-md border border-gray-300 text-center font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Escanea aquí..." />
+        </div>
+
+        <div class="text-sm text-gray-800">
+          <p><b>Piezas restantes:</b> <span id="faltanFracciones">-</span></p>
+          <p><b>Cajas escaneadas:</b></p>
+          <ul id="listaFracciones" class="list-disc list-inside text-gray-700 mt-1"></ul>
+        </div>
       </div>
     </div>
   `;
+
   document.body.appendChild(modal);
 
-  // Permitir Enter para confirmar
-  document.getElementById("inputCantidadFraccionable").addEventListener("keyup", function(e) {
-    if (e.key === "Enter") confirmarCantidadFraccionable();
+  setTimeout(() => {
+    const input = document.getElementById("inputCantidadFraccionable");
+    if (input) {
+      input.focus();
+      input.value = "";
+      input.addEventListener("keyup", function (e) {
+        if (e.key === "Enter") confirmarCantidadFraccionable();
+      }, { once: true });
+    }
+  }, 100);
+}
+
+function actualizarModalFraccionable() {
+  const modal = document.getElementById("modalFraccionable");
+  if (!modal) return;
+
+  // Mostrar resumen de cajas escaneadas
+  let info = document.getElementById("infoFracciones");
+  let lista = document.getElementById("listaFracciones");
+  let faltan = document.getElementById("faltanFracciones");
+
+  if (!info || !lista || !faltan) {
+    // Si no existen aún, crearlos dentro del modal
+    const contenedor = document.createElement("div");
+    contenedor.id = "infoFracciones";
+    contenedor.className = "mt-4";
+
+    contenedor.innerHTML = `
+      <p class="text-sm mb-1 font-semibold text-center">📦 Cajas escaneadas:</p>
+      <ul id="listaFracciones" class="text-sm list-disc list-inside text-gray-700"></ul>
+      <p class="text-sm mt-2 text-center"><b>Faltan: <span id="faltanFracciones">-</span> piezas</b></p>
+    `;
+
+    modal.querySelector("div.bg-white").appendChild(contenedor);
+
+    info = contenedor;
+    lista = contenedor.querySelector("#listaFracciones");
+    faltan = contenedor.querySelector("#faltanFracciones");
+  }
+
+  // Limpiar lista
+  lista.innerHTML = "";
+
+  // Agregar elementos escaneados
+  fraccionesEscaneadas.forEach((f, i) => {
+    const li = document.createElement("li");
+    li.textContent = `Caja ${i + 1} → ${f.usado} piezas (ID ${f.timestamp})`;
+    lista.appendChild(li);
   });
 
-  // Guardar valores temporalmente
-  window.referenciaFraccionable = referencia;
-  window.loteFraccionable = lote;
+  // Actualizar faltantes
+  const piezasAcumuladas = fraccionesEscaneadas.reduce((sum, f) => sum + f.usado, 0);
+  const piezasRestantes = Math.max(0, cantidadFaltante);
+  faltan.textContent = piezasRestantes;
 }
+
 
 function cerrarModalFraccionable() {
   const modal = document.getElementById("modalFraccionable");
   if (modal) modal.remove();
 }
+
 async function procesarQRFraccionableSalida(referencia, lote, cantidad) {
   const payload = {
     registros: [{
@@ -853,7 +955,6 @@ async function procesarQRFraccionableSalida(referencia, lote, cantidad) {
       unidad: unidadSeleccionada || null
     }]
   };
-
   try {
     const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_fraccionable", {
       method: "POST",
@@ -882,20 +983,50 @@ async function procesarQRFraccionableSalida(referencia, lote, cantidad) {
 
 function confirmarCantidadFraccionable() {
   const input = document.getElementById("inputCantidadFraccionable");
-  const cantidad = parseInt(input.value);
+  const cantidad = Number(input.value?.trim());
 
-  if (!cantidad || cantidad <= 0) {
+  if (isNaN(cantidad) || cantidad <= 0) {
     mostrarModal("⚠️ Ingresa una cantidad válida", "#f59e0b");
     return;
   }
 
-  cerrarModalFraccionable();
+  modoExtraccionFraccionableActivo = true;
+  cantidadFaltante = cantidad;
+  fraccionesEscaneadas = [];
 
-  // Ejecutar el flujo de salida fraccionable
-  iniciarExtraccionFraccionableFrontend(window.referenciaFraccionable, window.loteFraccionable, cantidad);
-}
+  // Mostrar sección de escaneo
+  setTimeout(() => {
+    const seccion = document.getElementById("seccionFracciones");
+    const lista = document.getElementById("listaFracciones");
+    const faltan = document.getElementById("faltanFracciones");
+    const escaneo = document.getElementById("inputEscaneoFraccionable");
+
+    if (!seccion || !lista || !faltan || !escaneo) {
+      mostrarModal("❌ Error interno en el modal", "#dc2626");
+      return;
+    }
+
+    seccion.classList.remove("hidden");
+    lista.innerHTML = "";
+    faltan.textContent = cantidad;
+
+    escaneo.focus();
+    escaneo.addEventListener("keyup", function (e) {
+      if (e.key === "Enter") {
+        procesarCajaFraccionable(escaneo.value.trim());
+        escaneo.value = "";
+      }
+    }, { once: false });
+
+    if (ultimoContenidoEscaneado) {
+      procesarCajaFraccionable(ultimoContenidoEscaneado);
+      ultimoContenidoEscaneado = null;
+  }
+  }, 0); 
+} 
 
 
+// Nueva función independiente
 async function cargarReferencias() {
   const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos?select=referencia,nombre,fabricante,lote,caducidad,cantidad", {
     headers: {
@@ -905,6 +1036,7 @@ async function cargarReferencias() {
   });
   referenciasCache = await res.json();
 }
+
 
 // ✅ Esta es la función que estaba faltando
 function buscarReferencia(valor) {
@@ -1411,8 +1543,6 @@ function actualizarBotonModo(texto, claseColor, icono) {
       break;
   }
 }
-
-
 function agregarFila(ref, lote, estado) {
     const tabla = document.getElementById("tablaRegistros");
     const contenedor = document.getElementById("tablaContenedora");
