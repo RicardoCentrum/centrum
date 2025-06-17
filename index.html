@@ -107,9 +107,6 @@
   }
 </script>
 
-   <button onclick="solicitarNIP()" class="bg-teal-800 text-white px-4 py-2 rounded-xl shadow hover:bg-teal-600">
-      📝 Capturar Inventario
-    </button>
 <div class="absolute top-4 right-4 flex flex-col items-center text-center">
   <h1 class="text-sm font-bold tracking-widest text-white">Powered by</h1>
   <a href="https://instagram.com/medinova.cuu" target="_blank" rel="noopener noreferrer">
@@ -215,12 +212,17 @@
 </div>
 <body class="min-h-screen flex flex-col items-center justify-center text-white">
   <div class="bg-white bg-opacity-60 rounded-3xl shadow-xl p-6 w-full max-w-xl text-gray-900">
-    <div class="flex items-center justify-between mb-4">
+    <div class="flex items-center justify-between ">
       <!--<h1 class="text-2xl font-bold">Inventario QR - Centrum</h1>
      <button id="btnModo" onclick="mostrarMenuModo()" class="bg-gray-500 text-white px-3 py-1 rounded-xl flex items-center gap-2">
         🔒 Modo inactivo
       </button>  -->    
           </div>
+<div class="flex justify-center">
+  <button onclick="solicitarNIP()" class="bg-teal-800 text-white px-4 py-2 rounded-2xl shadow hover:bg-teal-600">
+    📝 Capturar Inventario
+  </button>
+</div>
     <div class="mt-4">
       <input type="text" id="refBusqueda" placeholder="Buscar por referencia..." class="w-full p-3 mb-4 rounded-xl border text-center" oninput="buscarReferencia(this.value)" />
       <div id="resultadoBusqueda" class="text-sm text-gray-800"></div>
@@ -283,7 +285,7 @@
         <th class="p-1 text-center">Eliminar</th>
       </tr>
     </thead>
-    <tbody></tbody>
+   
   </table>
 </div>
     <button onclick="enviarSupabase()" class="mt-4 w-full bg-teal-900 text-white py-2 rounded-2xl">Enviar a Base de Datos</button>
@@ -306,6 +308,100 @@
     </div>
   </div>
 </div>
+  <!-- MODAL NIP -->
+<div id="modalNIP" class="fixed inset-0 hidden z-50 flex items-center justify-center blur-fondo">
+  <div class="bg-white text-black rounded-2xl p-6 shadow-lg w-full max-w-sm relative">
+    <!-- Botón Cerrar -->
+    <button onclick="cerrarModalNIP()" class="absolute top-2 right-3 text-red-600 text-xl font-bold hover:text-red-800">×</button>
+    
+    <h2 class="text-xl font-bold mb-4">🔐 Ingresa tu NIP</h2>
+    <input id="nipInput" type="password" placeholder="NIP"
+           class="w-full px-4 py-2 border rounded-2xl mb-4"
+           onkeydown="if(event.key==='Enter'){ validarNIP(); }" />
+    <button onclick="validarNIP()" class="w-full bg-teal-900 text-white py-2 rounded-xl hover:bg-teal-800">Ingresar</button>
+    <p id="nipError" class="text-red-600 text-sm mt-2 hidden">❌ NIP inválido.</p>
+  </div>
+</div>
+
+  <!-- MODAL CAPTURA -->
+<div id="modalCaptura" class="fixed inset-0 hidden z-50 flex items-center justify-center blur-fondo">
+  <div class="bg-white text-black rounded-2xl p-6 shadow-lg w-[95%] max-w-6xl max-h-[95vh] overflow-auto">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold">📋 Captura de Inventario / Pruebas Facturadas</h2>
+        <button onclick="cerrarModalCaptura()" class="text-red-600 font-bold text-xl">×</button>
+      </div>
+
+<div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end mb-4 w-full">
+  <!-- Modo -->
+  <div>
+    <label class="block font-semibold mb-1">Modo:</label>
+    <div class="flex items-center gap-2">
+      <span id="modoTexto" class="font-bold text-sm text-emerald-900">🟢 Inventario</span>
+      <label class="inline-flex items-center cursor-pointer">
+        <input type="checkbox" id="modoToggle" class="sr-only peer" onchange="actualizarModoCaptura()" />
+        <div class="w-14 h-7 bg-emerald-900 rounded-full peer-checked:bg-rose-900 relative transition">
+          <div class="w-6 h-6 bg-white rounded-full absolute top-0.5 left-0.5 peer-checked:translate-x-full transition-transform"></div>
+        </div>
+      </label>
+    </div>
+    <input type="hidden" id="modoCaptura" value="inventario">
+  </div>
+
+  <!-- Unidad -->
+  <div>
+    <label class="block font-semibold mb-1">Unidad asignada:</label>
+    <select id="unidadCaptura" class="w-full px-4 py-2 border rounded-xl" onchange="mostrarReferenciasUnidad()"></select>
+  </div>
+  <!-- Referencia -->
+  <div>
+    <label class="block font-semibold mb-1">Referencia:</label>
+    <input id="inputReferencia" class="w-full px-4 py-2 border rounded-xl"
+      placeholder="Ej. 368171 o MD-VE-C22"
+      oninput="buscarReferenciaCaptura()"
+      onkeydown="if(event.key==='Enter'){ agregarFilaCaptura(); }" />
+    <div id="sugerenciasReferencia" class="absolute z-50 bg-white border rounded-xl shadow hidden"></div>
+  </div>
+
+  <!-- Cantidad -->
+  <div>
+    <label class="block font-semibold mb-1">Cantidad:</label>
+    <input id="inputCantidad" type="number" step="0.01" placeholder="Cantidad"
+      class="w-full px-4 py-2 border rounded-xl"
+      onkeydown="if(event.key==='Enter'){ agregarFilaCaptura(); }" />
+  </div>
+
+  <!-- Botón agregar -->
+  <div class="pt-6">
+  <button id="btnAgregarCaptura" onclick="agregarFilaCaptura()" class="bg-emerald-900 text-white px-4 py-2 rounded-2xl hover:bg-emerald-800">
+    Agregar
+  </button>
+  </div>
+</div>
+<div class="flex items-center justify-between mt-2 w-full">
+  <div class="flex items-center gap-2">
+    <input type="checkbox" onchange="toggleFilasCompletadas(this.checked)" id="checkboxFilas" />
+    <label for="checkboxFilas" class="text-sm">Ocultar filas completadas</label>
+  </div>
+  <button id="btnEnviarCaptura" onclick="enviarCapturaBase()" class="bg-emerald-900 text-white px-4 py-2 rounded-xl hover:bg-emerald-800">
+    📤 Enviar Inventario
+  </button>
+</div>
+
+<div id="contenedorTabla" class="overflow-x-auto max-h-[75vh] overflow-y-auto hidden">
+  <table class="w-full text-sm text-left border" id="tablaCaptura">
+    <thead id="tablaEncabezado" class="bg-emerald-900 text-white">
+      <tr>
+        <th class="p-2">Referencia</th>
+        <th class="p-2">Nombre</th>
+        <th class="p-2">Cantidad</th>
+        <th class="p-2">Eliminar</th>
+      </tr>
+    </thead>
+    <tbody class="bg-white text-black"></tbody>
+  </table>
+</div>
+
+
   <script>
 const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo";
 const VALIDAR_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/validar_qr";
@@ -328,6 +424,7 @@ let modoExtraccionFraccionableActivo = false;
 let referenciaActual = null;
 let loteActual = null;
 let ultimoContenidoEscaneado = null;
+let datosCaptura = [], usuarioActivo = "", unidadesAsignadas = [], referenciasPorUnidad = [];
 
 
     const unidadesDestino = {
@@ -2403,7 +2500,304 @@ function agregarFila(ref, lote, estado) {
     `;
     tabla.appendChild(fila);
   }
+  function normalizarTexto(texto) {
+    return (texto || "")
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^\w]/g, "");
+  }
+    async function solicitarNIP() {
+      document.getElementById("modalNIP").classList.remove("hidden");
+    }
 
+    async function validarNIP() {
+      const nip = document.getElementById("nipInput").value.trim();
+      const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/validar_nip", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nip })
+      });
+      const data = await res.json();
+      if (!data?.nombre) {
+        document.getElementById("nipError").classList.remove("hidden");
+        return;
+      }
+      usuarioActivo = data.nombre;
+      unidadesAsignadas = typeof data.unidades === "string" ? data.unidades.split(",").map(u => u.trim()) : [];
+      document.getElementById("modalNIP").classList.add("hidden");
+      cargarUnidades();
+      await cargarReferencias();
+      mostrarModalCaptura();
+    }
+
+    function cargarUnidades() {
+      const unidadSelect = document.getElementById("unidadCaptura");
+      unidadSelect.innerHTML = unidadesAsignadas.map(u => `<option value="${u}">${u}</option>`).join("");
+    }
+
+    async function cargarReferencias() {
+      const totalMaximo = 10000; // Límite máximo si se espera que la tabla crezca más
+      const batchSize = 1000;    // Tamaño de lote por petición
+      const todasReferencias = [];
+
+      try {
+        for (let inicio = 0; inicio < totalMaximo; inicio += batchSize) {
+          const res = await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/historicos?select=unidad_medica,referencia,nombre`, {
+            headers: {
+              apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NjQyNzE2NiwiZXhwIjoyMDYyMDAzMTY2fQ.jTu9cMjOgTsvHgNaW5V1mZQM6VqSE55kASVijuCsGaE",
+              Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NjQyNzE2NiwiZXhwIjoyMDYyMDAzMTY2fQ.jTu9cMjOgTsvHgNaW5V1mZQM6VqSE55kASVijuCsGaE",
+              "Range-Unit": "items",
+              "Range": `${inicio}-${inicio + batchSize - 1}`
+            }
+          });
+
+          if (!res.ok) throw new Error(`HTTP ${res.status} - ${res.statusText}`);
+          const datos = await res.json();
+          todasReferencias.push(...datos);
+
+          // Si el lote que recibimos es menor que el batchSize, ya no hay más
+          if (datos.length < batchSize) break;
+        }
+
+        referenciasPorUnidad = todasReferencias;
+        console.log("✅ Total referencias cargadas:", referenciasPorUnidad.length);
+        console.log("📋 Unidades distintas:", [...new Set(referenciasPorUnidad.map(r => r.unidad_medica))]);
+      } catch (err) {
+        console.error("❌ Error al cargar referencias:", err);
+        alert("❌ No se pudieron cargar las referencias. Verifica la conexión y credenciales.");
+      }
+    }
+
+
+    function buscarReferenciaCaptura() {
+      const texto = document.getElementById("inputReferencia").value.trim().toLowerCase();
+      const unidad = document.getElementById("unidadCaptura").value;
+      const contenedor = document.getElementById("sugerenciasReferencia");
+      const unidadNorm = normalizarTexto(unidad);
+
+      const sugerencias = referenciasPorUnidad.filter(r =>
+        normalizarTexto(r.unidad_medica) === unidadNorm &&
+        (
+          (r.referencia || "").toLowerCase().includes(texto) ||
+          (r.nombre || "").toLowerCase().includes(texto)
+        )
+      );
+
+      contenedor.innerHTML = "";
+      if (!texto || sugerencias.length === 0) {
+        contenedor.classList.add("hidden");
+        return;
+      }
+
+      sugerencias.slice(0, 10).forEach(s => {
+        const div = document.createElement("div");
+        div.className = "px-4 py-2 hover:bg-gray-100 cursor-pointer";
+        div.textContent = `${s.referencia} - ${s.nombre || ''}`;
+        div.onclick = () => {
+          document.getElementById("inputReferencia").value = s.referencia;
+          contenedor.classList.add("hidden");
+          document.getElementById("inputCantidad").focus();  // 👈 Autoenfoque al campo de cantidad
+        };
+        contenedor.appendChild(div);
+      });
+
+      contenedor.classList.remove("hidden");
+    }
+
+    function actualizarModoCaptura() {
+      const toggle = document.getElementById("modoToggle");
+      const texto = document.getElementById("modoTexto");
+      const nuevoModo = toggle.checked ? "pruebas_facturadas" : "inventario";
+      document.getElementById("modoCaptura").value = nuevoModo;
+
+      // Texto e ícono del modo
+      texto.textContent = toggle.checked ? "🔴 Pruebas facturadas" : "🟢 Inventario";
+      texto.className = toggle.checked ? "font-bold text-sm text-rose-900" : "font-bold text-sm text-emerald-900";
+
+      // Botón
+      const btn = document.getElementById("btnEnviarCaptura");
+      btn.textContent = toggle.checked ? "📤 Enviar Pruebas Facturadas" : "📤 Enviar Inventario";
+      btn.classList.remove("bg-emerald-900", "hover:bg-emerald-800", "bg-rose-900", "hover:bg-rose-800");
+      if (toggle.checked) {
+        btn.classList.add("bg-rose-900", "hover:bg-rose-800");
+      } else {
+        btn.classList.add("bg-emerald-900", "hover:bg-emerald-800");
+      }
+      
+      // Botón Agregar
+      const btnAgregar = document.getElementById("btnAgregarCaptura");
+      btnAgregar.classList.remove("bg-emerald-900", "hover:bg-emerald-800", "bg-rose-900", "hover:bg-rose-800");
+
+      if (toggle.checked) {
+        btnAgregar.classList.add("bg-rose-900", "hover:bg-rose-800");
+      } else {
+        btnAgregar.classList.add("bg-emerald-900", "hover:bg-emerald-800");
+      }
+
+      // Encabezado de tabla
+      const encabezado = document.getElementById("tablaEncabezado");
+      encabezado.classList.remove("bg-emerald-900", "bg-rose-900");
+
+      if (toggle.checked) {
+        encabezado.classList.add("bg-rose-900");
+      } else {
+        encabezado.classList.add("bg-emerald-900");
+      }
+
+    }
+    function mostrarModalCaptura() {
+      document.getElementById("modalCaptura").classList.remove("hidden");
+    }
+
+    function cerrarModalCaptura() {
+      document.getElementById("modalCaptura").classList.add("hidden");
+    }
+
+    function mostrarReferenciasUnidad() {
+      const unidad = document.getElementById("unidadCaptura").value;
+      const tabla = document.querySelector("#tablaCaptura tbody");
+      const contenedorTabla = document.getElementById("contenedorTabla");
+
+      console.log("📌 Unidad seleccionada:", unidad, "→ Normalizada:", normalizarTexto(unidad));
+      console.log("🔢 Total referencias cargadas:", referenciasPorUnidad.length);
+
+      referenciasPorUnidad.forEach((r, i) => {
+        if (!r.unidad_medica) {
+          console.warn(`⚠️ Fila ${i} sin unidad_medica definida:`, r);
+        } else {
+          console.log(`Ref ${i}: ${r.unidad_medica} (${normalizarTexto(r.unidad_medica)}) vs ${unidad} (${normalizarTexto(unidad)})`);
+        }
+      });
+
+      const referencias = referenciasPorUnidad.filter(
+        r => normalizarTexto(r.unidad_medica) === normalizarTexto(unidad)
+      );
+
+      console.log("✅ Referencias encontradas para esta unidad:", referencias.length);
+
+      tabla.innerHTML = "";
+      datosCaptura = [];
+
+      referencias.forEach(r => {
+        const fila = document.createElement("tr");
+        fila.innerHTML = `
+          <td class='p-2'>${r.referencia}</td>
+          <td class='p-2'>${r.nombre || ""}</td>
+          <td class='p-2'>
+            <input type="number" step="0.01" min="0" placeholder="0" 
+                  class="w-24 px-2 py-1 border rounded-lg text-right"
+                  onchange="marcarComoCompletada(this)" />
+          </td>
+          <td class='p-2 text-center'>
+            <button onclick='this.closest("tr").remove(); actualizarDatosCaptura()' class='text-red-600'>✖</button>
+          </td>
+        `;
+        tabla.appendChild(fila);
+      });
+
+      contenedorTabla.classList.toggle("hidden", referencias.length === 0);
+    }
+
+
+
+    function agregarFilaCaptura() {
+      const ref = document.getElementById("inputReferencia").value.trim();
+      const cantidad = parseFloat(document.getElementById("inputCantidad").value);
+      const tipo = document.getElementById("modoCaptura").value;
+      if (!ref || isNaN(cantidad)) return alert("Faltan datos");
+
+      const filas = document.querySelectorAll("#tablaCaptura tbody tr");
+
+      let encontrada = false;
+      filas.forEach(fila => {
+        const refFila = fila.children[0].textContent.trim();
+        if (refFila === ref) {
+          // Actualiza cantidad
+          const inputCantidad = fila.querySelector("input");
+          if (inputCantidad) {
+            inputCantidad.value = cantidad;
+            marcarComoCompletada(inputCantidad);  // Marca y actualiza datosCaptura
+            encontrada = true;
+          }
+        }
+      });
+
+      if (!encontrada) {
+        // Si no se encontró, alerta
+        alert("Esta referencia no está en la lista. Verifica que esté asignada a esta unidad.");
+      }
+
+      document.getElementById("inputReferencia").value = "";
+      document.getElementById("inputCantidad").value = "";
+    }
+
+    function cerrarModalNIP() {
+      document.getElementById("modalNIP").classList.add("hidden");
+    }
+
+    document.addEventListener("keydown", function(e) {
+      if (e.key === "Escape") {
+        cerrarModalNIP();
+      }
+    });
+
+    function toggleFilasCompletadas(ocultar) {
+      document.querySelectorAll("#tablaCaptura tbody tr.completada").forEach(f => f.style.display = ocultar ? "none" : "");
+    }
+
+    function marcarComoCompletada(input) {
+      const fila = input.closest("tr");
+      const referencia = fila.children[0].textContent.trim();
+      const nombre = fila.children[1].textContent.trim();
+      const cantidad = parseFloat(input.value);
+      const tipo = document.getElementById("modoCaptura").value;
+
+      if (!isNaN(cantidad) && cantidad > 0) {
+        fila.classList.add("completada");
+
+        // ⬇️ Si el toggle está activo, oculta inmediatamente la fila completada
+        const ocultar = document.querySelector("input[type='checkbox'][onchange*='toggleFilasCompletadas']")?.checked;
+        if (ocultar) fila.style.display = "none";
+
+      } else {
+        fila.classList.remove("completada");
+        fila.style.display = "";  // Asegura que se muestre de nuevo si se borra la cantidad
+      }
+
+      // Actualizar o insertar en datosCaptura
+      const existente = datosCaptura.find(d => d.referencia === referencia);
+      if (existente) {
+        existente.cantidad = cantidad;
+        existente.tipo = tipo;
+      } else {
+        datosCaptura.push({ referencia, nombre, cantidad, tipo });
+      }
+    }
+     async function enviarCapturaBase() {
+      if (!datosCaptura.length) return alert("No hay datos que enviar.");
+      const unidad = document.getElementById("unidadCaptura").value;
+      if (!unidad || !usuarioActivo) return alert("Faltan unidad o usuario");
+      try {
+        console.log("Enviando datos de captura:", JSON.stringify({ unidad, usuario: usuarioActivo, registros: datosCaptura }));
+        const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/guardar_captura", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ unidad, usuario: usuarioActivo, registros: datosCaptura })
+        });
+        const resultado = await res.json();
+        if (res.ok && resultado.status === "ok") {
+          alert("✅ Datos enviados correctamente.");
+          datosCaptura = [];
+          document.querySelector("#tablaCaptura tbody").innerHTML = "";
+        } else {
+          alert("❌ Error al enviar: " + (resultado.error || "desconocido"));
+        }
+      } catch (err) {
+        alert("❌ Error de conexión al enviar.");
+        console.error(err);
+      }
+    }
 </script>
 <div id="versionInfo" class="version-info">v2.4.0</div>
 </body>
