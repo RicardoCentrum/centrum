@@ -72,8 +72,28 @@
       max-width: 80%;
       box-shadow: 0 4px 12px rgba(0,0,0,0.25);
     }
+
+       .blur-fondo::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      -webkit-backdrop-filter: blur(5px);
+      backdrop-filter: blur(5px);
+      z-index: -1;
+    }
+    .completada {
+      background-color: #d1fae5;
+    }
   </style>
 </head>
+
+<body class="bg-gray-100 text-gray-800">
+  <div class="p-6">
+    <button onclick="solicitarNIP()" class="bg-teal-800 text-white px-4 py-2 rounded-xl shadow hover:bg-teal-600">
+      📝 Capturar Inventario
+    </button>
+  </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">function agregarFila(ref, lote, estado) {
     const tabla = document.getElementById("tablaRegistros");
@@ -254,8 +274,7 @@
     </div>
 <div id="estadoUsuario" onclick="mostrarMenuModo()" class="cursor-pointer mb-2 px-4 py-3 bg-white/40 rounded-xl font-semibold text-center shadow hover:bg-white/90 transition">
   <div class="text-base flex items-center justify-center gap-2">
-    Usuario Actual:
-    <span id="usuarioActivo" class="text-lg font-extrabold ml-2">-</span>
+    <span id="usuarioActivo" class="text-lg font-extrabold ml-2">Selecciona un modo para iniciar</span>
   </div>
   <div class="mt-2">
     <span id="modoLabel" class="inline-block font-bold px-3 py-1 rounded-xl text-white bg-gray-400 text-sm">
@@ -334,6 +353,99 @@
     </div>
   </div>
 </div>
+
+
+  <!-- MODAL NIP -->
+  <div id="modalNIP" class="fixed inset-0 hidden items-center justify-center z-50 blur-fondo">
+    <div class="bg-white rounded-2xl p-6 shadow-lg w-full max-w-sm">
+      <h2 class="text-xl font-bold mb-4">🔐 Ingresa tu NIP</h2>
+      <input id="nipInput" type="password" placeholder="NIP" class="w-full px-4 py-2 border rounded-xl mb-4" />
+      <button onclick="validarNIP()" class="w-full bg-blue-800 text-white py-2 rounded-xl hover:bg-blue-600">Ingresar</button>
+      <p id="nipError" class="text-red-600 text-sm mt-2 hidden">❌ NIP inválido.</p>
+    </div>
+  </div>
+
+  <!-- MODAL CAPTURA -->
+  <div id="modalCaptura" class="fixed inset-0 hidden items-center justify-center z-50 blur-fondo">
+    <div class="bg-white rounded-2xl p-6 shadow-lg w-[95%] max-w-4xl">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold">📋 Captura de Inventario / Pruebas</h2>
+        <button onclick="cerrarModalCaptura()" class="text-red-600 font-bold text-xl">×</button>
+      </div>
+
+      <div class="flex flex-wrap gap-4 items-center mb-4 relative">
+        <!-- Toggle -->
+        <div>
+          <label class="block font-semibold mb-1">Modo:</label>
+          <div class="flex items-center gap-3">
+            <span id="modoTexto" class="font-bold text-sm text-gray-800">Inventario</span>
+            <label class="inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="modoToggle" class="sr-only peer" onchange="actualizarModoCaptura()" aria-label="Cambiar entre Inventario y Pruebas facturadas" />
+              <div class="w-14 h-7 bg-gray-300 rounded-full shadow-inner peer-checked:bg-blue-600 relative transition duration-300">
+                <div class="w-6 h-6 bg-white rounded-full shadow absolute top-0.5 left-0.5 peer-checked:translate-x-7 transition-transform duration-300"></div>
+              </div>
+            </label>
+          </div>
+          <input type="hidden" id="modoCaptura" value="inventario">
+        </div>
+
+        <!-- Unidad -->
+        <div>
+          <label class="block font-semibold mb-1">Unidad asignada:</label>
+          <select id="unidadCaptura" class="px-4 py-2 border rounded-xl" title="Unidad asignada"></select>
+        </div>
+
+        <!-- Referencia -->
+        <div class="flex-1 relative">
+          <label class="block font-semibold mb-1">Referencia:</label>
+          <input id="inputReferencia" class="w-full px-4 py-2 border rounded-xl" oninput="buscarReferenciaCaptura()" placeholder="Ej. 368171 o MD-VE-C22" title="Referencia del producto" autocomplete="off" />
+          <div id="sugerenciasReferencia" class="absolute top-full mt-1 left-0 w-full bg-white border rounded-xl shadow hidden z-50"></div>
+        </div>
+
+        <!-- Lote -->
+        <div>
+          <label class="block font-semibold mb-1">Lote:</label>
+          <select id="inputLote" class="px-4 py-2 border rounded-xl" title="Selecciona lote">
+            <option value="">Selecciona lote</option>
+          </select>
+        </div>
+
+        <!-- Cantidad -->
+        <div>
+          <label class="block font-semibold mb-1">Cantidad:</label>
+          <input id="inputCantidad" type="number" step="0.01" placeholder="Cantidad" title="Cantidad a ingresar" class="px-4 py-2 border rounded-xl w-32" />
+        </div>
+
+        <!-- Agregar -->
+        <button onclick="agregarFilaCaptura()" class="bg-blue-800 text-white px-4 py-2 rounded-xl h-fit mt-6 hover:bg-blue-600">➕ Agregar</button>
+      </div>
+
+      <!-- Tabla -->
+      <div class="overflow-x-auto max-h-80 overflow-y-auto">
+        <table class="w-full text-sm text-left border" id="tablaCaptura">
+          <thead class="bg-teal-800 text-white">
+            <tr>
+              <th class="p-2">Referencia</th>
+              <th class="p-2">Lote</th>
+              <th class="p-2">Cantidad</th>
+              <th class="p-2">Tipo</th>
+              <th class="p-2">Eliminar</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white text-black"></tbody>
+        </table>
+      </div>
+
+      <!-- Botones -->
+      <div class="flex justify-between items-center mt-4">
+        <label class="flex items-center gap-2">
+          <input type="checkbox" onchange="toggleFilasCompletadas(this.checked)" /> Ocultar filas completadas
+        </label>
+        <button onclick="enviarCapturaBase()" class="bg-green-700 text-white px-4 py-2 rounded-xl hover:bg-green-600">📤 Enviar a Base de Datos</button>
+      </div>
+    </div>
+  </div>
+
   <script>
 const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo";
 const VALIDAR_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/validar_qr";
@@ -356,6 +468,7 @@ let modoExtraccionFraccionableActivo = false;
 let referenciaActual = null;
 let loteActual = null;
 let ultimoContenidoEscaneado = null;
+let datosCaptura = [], usuarioActivo = "", unidadesAsignadas = [], referenciasPorUnidad = [];
 
 
     const unidadesDestino = {
@@ -574,18 +687,14 @@ async function procesarQR(contenido) {
     return;
   }
 
-  // Si está activo el flujo de extracción fraccionada, procesar directamente
-  if (modoExtraccionFraccionableActivo) {
-    procesarCajaFraccionable(contenido);
-    return;
-  }
-
   if (qrsPendientes.some(q => q.timestamp === datos.timestamp)) {
     mostrarModal("📦 Ya escaneado localmente", "#0284c7");
     return;
   }
 
   mostrarModal("📤 Procesando QR...", "#0ea5e9");
+
+  let yaProcesado = false;
 
   try {
     const fraccionableRes = await fetch(
@@ -632,67 +741,69 @@ async function procesarQR(contenido) {
       } else {
         mostrarModal("❌ Error al registrar unidad", "#6b7280");
       }
+
+      yaProcesado = true;
       return;
     }
 
     const esFraccionable = entry?.fraccionable === true;
 
     if (esFraccionable && modo === "salida") {
-      ultimoContenidoEscaneado = contenido;
       abrirModalCantidadFraccionable(datos.referencia, datos.lote, contenido);
       return;
     }
 
     if (esFraccionable && modo === "entrada") {
-      solicitarCantidad(async cantidad => {
-        const payload = {
-          registros: [{
-            ...datos,
-            modo,
-            usuario,
-            unidad: unidadSeleccionada || null,
-            cantidad,
-            tipo: "fraccion"
-          }]
-        };
+      const payload = {
+        registros: [{
+          ...datos,
+          modo,
+          usuario,
+          unidad: unidadSeleccionada || null,
+          tipo: "fraccion"
+        }]
+      };
 
-        try {
-          const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_fraccionable", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-          });
-          const result = await res.json();
-          const r = result.resultados?.[0];
+      try {
+        const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_fraccionable", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        const r = result.resultados?.[0];
 
-          if (r?.status === "ok") {
-            qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null, cantidad });
-            actualizarTablaRegistros();
-            mostrarModal("✅ Producto fraccionado", "#22c55e");
-          } else if (r?.status === "repetido") {
-            mostrarModal("📦 El producto ya fue ingresado anteriormente", "#0d9488");
-          } else if (r?.status === "extraido_previo") {
-            mostrarModal(`⚠️ Ya extraído por ${r.usuario}`, "#facc15");
-          } else if (r?.mensaje) {
-            mostrarModal(`⚠️ ${r.mensaje}`, "#6b7280");
-          } else {
-            mostrarModal("❌ Error en el QR", "#6b7280");
-          }
-        } catch (err) {
-          console.error("❌ Error en fetch:", err);
-          mostrarModal("❌ Error de red o conexión", "#6b7280");
+        if (r?.status === "ok") {
+          qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
+          actualizarTablaRegistros();
+          mostrarModal("✅ Caja registrada", "#22c55e");
+        } else if (r?.status === "repetido") {
+          mostrarModal("📦 El producto ya fue ingresado anteriormente", "#0d9488");
+        } else if (r?.status === "extraido_previo") {
+          mostrarModal(`⚠️ Ya extraído por ${r.usuario}`, "#facc15");
+        } else if (r?.mensaje) {
+          mostrarModal(`⚠️ ${r.mensaje}`, "#6b7280");
+        } else {
+          mostrarModal("❌ Error en el QR", "#6b7280");
         }
-      });
+      } catch (err) {
+        console.error("❌ Error en fetch:", err);
+        mostrarModal("❌ Error de red o conexión", "#6b7280");
+      }
+
       return;
     }
 
-    // Si no fue procesado como fraccionable ni unidad
-    qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
-    actualizarTablaRegistros();
-    mostrarModal("✅ Producto agregado", "#22c55e");
   } catch (err) {
     console.error("❌ Error general en procesarQR:", err);
     mostrarModal("❌ Error general", "#6b7280");
+    return;
+  }
+
+  if (!yaProcesado) {
+    qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
+    actualizarTablaRegistros();
+    mostrarModal("✅ Producto agregado", "#22c55e");
   }
 }
 
@@ -1372,10 +1483,11 @@ async function validarPinYUnidad() {
         ? data.unidades
         : [];
 
-    if (!data || (esSalida && !unidadesLista.includes(unidad))) {
+    if (!data || !data.nombre || (esSalida && !unidadesLista.includes(unidad))) {
       document.getElementById("pinError").classList.remove("hidden");
       return;
     }
+
 
     console.log("[VALIDAR NIP] Respuesta Supabase:", data);
 
@@ -1387,9 +1499,11 @@ async function validarPinYUnidad() {
     document.getElementById("modalPinUnidad").classList.add("hidden");
 
     const nombreUnidad = unidadesDestino[unidad] || "Unidad desconocida";
-    document.getElementById("usuarioActivo").textContent = esSalida
-      ? `${usuario} → ${unidad} ${nombreUnidad}`
-      : usuario;
+    document.getElementById("usuarioActivo").textContent = modoSeleccionado === "entrada"
+      ? usuario
+      : modoSeleccionado === "salida"
+        ? `${usuario} → ${unidad} ${nombreUnidad}`
+        : "Selecciona un modo para iniciar";
 
     modo = modoSeleccionado;
 
@@ -1540,6 +1654,8 @@ function actualizarBotonModo(texto, claseColor, icono) {
       contenedor.classList.add("bg-gray-200", "text-black", "hover:bg-white/90");
       label.classList.add("bg-gray-400");
       label.textContent = "INACTIVO";
+      userLabel.textContent = "Selecciona un modo para iniciar";
+    
       break;
   }
 }
