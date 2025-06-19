@@ -189,6 +189,13 @@
     </div>
   </div>
 </div>
+<div id="modalCaducidad" class="fixed inset-0 hidden z-900 flex items-center justify-center bg-black bg-opacity-60">
+  <div class="bg-white bg-opacity-90 rounded-2xl shadow-xl w-[95%] max-w-5xl text-gray-800 relative max-h-[80vh] overflow-y-auto p-6">
+    <button onclick="cerrarModalCaducidad()" class="absolute top-3 right-4 text-red-700 text-xl font-bold hover:text-red-500">×</button>
+    <h2 class="text-xl font-bold mb-4">⚠️ Productos por caducar</h2>
+    <div id="contenidoCaducidad" class="text-sm mb-4"></div>
+  </div>
+</div>
 <!-- Modal para cambiar NIP -->
 <div id="modalCambioNIP" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
   <div class="bg-white text-gray-800 p-6 rounded-2xl shadow-xl w-full max-w-md space-y-4">
@@ -275,11 +282,11 @@
     <input type="text" id="inputQR" placeholder="Escanea el código QR" class="w-full p-3 mb-4 rounded-xl border text-center" autofocus />
     <div class="text-center mt-2 mb-4">
 
-<div class="text-center mt-2 mb-4">
-  <button id="btnAlertasCaducidad" onclick="mostrarAlertasCaducidad()" class="bg-yellow-500 bg-opacity-20 px-4 py-1 rounded-xl hover:bg-yellow-600 font-semibold shadow">
-    ⚠️ Ver productos próximos a caducar
-  </button>
-</div>
+  <div class="text-center mt-4">
+    <button id="btnAlertasCaducidad" class="bg-yellow-500 bg-opacity-20 px-4 py-1 rounded-xl hover:bg-yellow-600 font-semibold shadow">
+      ⚠️ Ver productos próximos a caducar
+    </button>
+  </div>
 
 <div id="tablaContenedora" class="hidden opacity-0 transition-opacity duration-300">
   <table class="min-w-full text-sm text-left" id="tablaRegistros">
@@ -407,14 +414,6 @@
   </table>
 </div>
 
-<div id="modalCaducidad" class="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-60 hidden">
-  <div class="bg-white bg-opacity-90 rounded-2xl shadow-xl w-[95%] max-w-5xl text-gray-800 relative max-h-[80vh] overflow-y-auto p-6">
-    <button onclick="cerrarModalCaducidad()" class="absolute top-3 right-4 text-red-700 text-xl font-bold hover:text-red-500">×</button>
-    <h2 class="text-xl font-bold mb-4">⚠️ Productos próximos a caducar</h2>
-    <div id="contenidoCaducidad" class="text-sm mb-4"></div>
-  </div>
-</div>
-
   <script>
 const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo";
 const VALIDAR_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/validar_qr";
@@ -503,111 +502,6 @@ function mostrarOpcionesAdmin() {
 function cerrarModalOpcionesAdmin() {
   document.getElementById("modalOpcionesAdmin").classList.add("hidden");
 }
-function cerrarModalCaducidad() {
-  document.getElementById("modalCaducidad").classList.add("hidden");
-}
-
-function calcularDiasRestantes(fecha) {
-  if (!fecha) return Infinity;
-
-  let fechaCad = null;
-
-  if (!isNaN(fecha)) {
-    const serial = parseInt(fecha, 10);
-    if (serial > 1000) {
-      fechaCad = new Date(1900, 0, serial - 2);
-    }
-  }
-
-  if (!fechaCad && /^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
-    const [anio, mes, dia] = fecha.split("-").map(Number);
-    fechaCad = new Date(anio, mes - 1, dia);
-  }
-
-  if (!fechaCad && /^\d{2}\/\d{2}\/\d{4}$/.test(fecha)) {
-    const [dia, mes, anio] = fecha.split("/").map(Number);
-    fechaCad = new Date(anio, mes - 1, dia);
-  }
-
-  if (!fechaCad) return Infinity;
-
-  const hoy = new Date();
-  hoy.setHours(0, 0, 0, 0);
-  const diff = fechaCad - hoy;
-  return Math.floor(diff / (1000 * 60 * 60 * 24));
-}
-
-function formatearCaducidad(fecha) {
-  let fechaCad = null;
-
-  if (!isNaN(fecha)) {
-    const serial = parseInt(fecha, 10);
-    if (serial > 1000) {
-      fechaCad = new Date(1900, 0, serial - 2);
-    }
-  } else if (/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
-    const [anio, mes, dia] = fecha.split("-").map(Number);
-    fechaCad = new Date(anio, mes - 1, dia);
-  } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(fecha)) {
-    const [dia, mes, anio] = fecha.split("/").map(Number);
-    fechaCad = new Date(anio, mes - 1, dia);
-  }
-
-  if (!fechaCad) return "-";
-
-  const dd = String(fechaCad.getDate()).padStart(2, "0");
-  const mm = String(fechaCad.getMonth() + 1).padStart(2, "0");
-  const yyyy = fechaCad.getFullYear();
-
-  return `${dd}/${mm}/${yyyy}`;
-}
-
-async function mostrarAlertasCaducidad() {
-  try {
-    const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos?select=referencia,nombre,fabricante,lote,caducidad,cantidad", {
-      headers: {
-        "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NjQyNzE2NiwiZXhwIjoyMDYyMDAzMTY2fQ.jTu9cMjOgTsvHgNaW5V1mZQM6VqSE55kASVijuCsGaE",
-        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NjQyNzE2NiwiZXhwIjoyMDYyMDAzMTY2fQ.jTu9cMjOgTsvHgNaW5V1mZQM6VqSE55kASVijuCsGaE"
-      }
-    });
-
-    const data = await res.json();
-
-    const proximos = data
-      .map(p => ({ ...p, diasRestantes: calcularDiasRestantes(p.caducidad) }))
-      .filter(p => p.diasRestantes <= 90)
-      .sort((a, b) => a.diasRestantes - b.diasRestantes);
-
-    const cont = document.getElementById("contenidoCaducidad");
-
-    if (!proximos.length) {
-      cont.innerHTML = "<p class='text-center text-green-700 font-bold'>✅ No hay productos próximos a caducar</p>";
-      document.getElementById("modalCaducidad").classList.remove("hidden");
-      return;
-    }
-
-    let html = "<table class='w-full text-sm text-left border'><thead class='bg-yellow-100'><tr><th class='p-2'>Referencia</th><th class='p-2'>Lote</th><th class='p-2'>Caducidad</th><th class='p-2'>Días restantes</th></tr></thead><tbody>";
-
-    proximos.forEach(p => {
-      html += `<tr>
-        <td class='p-2'>${p.referencia}</td>
-        <td class='p-2'>${p.lote}</td>
-        <td class='p-2'>${formatearCaducidad(p.caducidad)}</td>
-        <td class='p-2 text-center'>${p.diasRestantes}</td>
-      </tr>`;
-    });
-
-    html += "</tbody></table>";
-    cont.innerHTML = html;
-    document.getElementById("modalCaducidad").classList.remove("hidden");
-
-  } catch (err) {
-    console.error("Error cargando productos urgentes:", err);
-    document.getElementById("contenidoCaducidad").innerHTML = "<p class='text-red-600'>Error al cargar datos</p>";
-    document.getElementById("modalCaducidad").classList.remove("hidden");
-  }
-}
-
 
 function eliminarFila(boton) {
   const fila = boton.closest("tr");
@@ -2845,5 +2739,133 @@ function agregarFila(ref, lote, estado) {
 
 </script>
 <div id="versionInfo" class="version-info">v2.4.0</div>
+  <script>
+    function cerrarModalCaducidad() {
+      document.getElementById("modalCaducidad").classList.add("hidden");
+    }
+
+    function calcularDiasRestantesCaducidad(fecha) {
+      if (!fecha) return Infinity;
+      let fechaCad = null;
+
+      if (!isNaN(fecha)) {
+        const serial = parseInt(fecha, 10);
+        if (serial > 1000) fechaCad = new Date(1900, 0, serial - 2);
+      }
+
+      if (!fechaCad && /^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+        const [anio, mes, dia] = fecha.split("-").map(Number);
+        fechaCad = new Date(anio, mes - 1, dia);
+      }
+
+      if (!fechaCad && /^\d{2}\/\d{2}\/\d{4}$/.test(fecha)) {
+        const [dia, mes, anio] = fecha.split("/").map(Number);
+        fechaCad = new Date(anio, mes - 1, dia);
+      }
+
+      if (!fechaCad) return Infinity;
+
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      const diff = fechaCad - hoy;
+      return Math.floor(diff / (1000 * 60 * 60 * 24));
+    }
+
+    function formatearCaducidad(fecha) {
+      let fechaCad = null;
+      if (!isNaN(fecha)) {
+        const serial = parseInt(fecha, 10);
+        if (serial > 1000) fechaCad = new Date(1900, 0, serial - 2);
+      } else if (/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+        const [anio, mes, dia] = fecha.split("-").map(Number);
+        fechaCad = new Date(anio, mes - 1, dia);
+      } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(fecha)) {
+        const [dia, mes, anio] = fecha.split("/").map(Number);
+        fechaCad = new Date(anio, mes - 1, dia);
+      }
+      if (!fechaCad) return "-";
+
+      const dd = String(fechaCad.getDate()).padStart(2, "0");
+      const mm = String(fechaCad.getMonth() + 1).padStart(2, "0");
+      const yyyy = fechaCad.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    }
+
+async function mostrarAlertasCaducidad() {
+  console.log("▶ Iniciando mostrarAlertasCaducidad()");
+
+  try {
+    const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos?select=referencia,nombre,fabricante,lote,caducidad,cantidad", {
+      headers: {
+        "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NjQyNzE2NiwiZXhwIjoyMDYyMDAzMTY2fQ.jTu9cMjOgTsvHgNaW5V1mZQM6VqSE55kASVijuCsGaE",
+        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NjQyNzE2NiwiZXhwIjoyMDYyMDAzMTY2fQ.jTu9cMjOgTsvHgNaW5V1mZQM6VqSE55kASVijuCsGaE"
+      }
+    });
+
+    console.log("✅ Fetch ejecutado");
+
+    const data = await res.json();
+
+    console.log("✅ Respuesta recibida:", data);
+
+    if (!Array.isArray(data)) {
+      console.error("❌ ERROR: La respuesta no es un array. Respuesta completa:", data);
+      return;
+    }
+
+    const proximos = data
+      .map(p => ({ ...p, diasRestantes: calcularDiasRestantesCaducidad(p.caducidad) }))
+      .filter(p => p.diasRestantes <= 30)
+      .sort((a, b) => a.diasRestantes - b.diasRestantes);
+
+    console.log("🔎 Productos próximos a caducar:", proximos);
+
+    const cont = document.getElementById("contenidoCaducidad");
+
+    if (!proximos.length) {
+      cont.innerHTML = "<p class='text-center text-green-700 font-bold'>✅ No hay productos próximos a caducar</p>";
+      console.log("🟢 No hay productos próximos a caducar");
+      document.getElementById("modalCaducidad").classList.remove("hidden");
+      return;
+    }
+
+    let html = "<table class='w-full text-sm text-left border'><thead class='bg-yellow-100'><tr><th class='p-2'>Referencia</th><th class='p-2'>Lote</th><th class='p-2'>Caducidad</th><th class='p-2'>Días restantes</th></tr></thead><tbody>";
+
+    proximos.forEach(p => {
+      html += `<tr>
+        <td class='p-2'>${p.referencia}</td>
+        <td class='p-2'>${p.lote}</td>
+        <td class='p-2'>${formatearCaducidad(p.caducidad)}</td>
+        <td class='p-2 text-center'>${p.diasRestantes}</td>
+      </tr>`;
+    });
+
+    html += "</tbody></table>";
+    cont.innerHTML = html;
+
+    console.log("🟢 Preparando para mostrar el modal");
+    document.getElementById("modalCaducidad").classList.remove("hidden");
+    console.log("✅ Modal abierto");
+
+  } catch (err) {
+    console.error("❌ Error cargando productos urgentes:", err);
+    document.getElementById("contenidoCaducidad").innerHTML = "<p class='text-red-600'>Error al cargar datos</p>";
+    document.getElementById("modalCaducidad").classList.remove("hidden");
+  }
+}
+    // Asignar el evento al botón una vez cargue todo
+    document.addEventListener("DOMContentLoaded", function() {
+      document.getElementById("btnAlertasCaducidad").addEventListener("click", mostrarAlertasCaducidad);
+    });
+document.addEventListener("keydown", function(e) {
+  if (e.key === "Escape") {
+    const modal = document.getElementById("modalCaducidad");
+    if (modal && !modal.classList.contains("hidden")) {
+      cerrarModalCaducidad();
+    }
+  }
+});
+
+  </script>
 </body>
 </html>
