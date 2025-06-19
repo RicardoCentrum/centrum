@@ -172,6 +172,12 @@
              class="w-full px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase" />
     </div>
 
+    <div id="remisionGroup" class="hidden">
+      <label for="inputRemision" class="block text-sm font-semibold mb-1">No. de remisión:</label>
+      <input id="inputRemision" type="text" placeholder="Ej: 465131"
+            class="w-full px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase" />
+    </div>
+
     <div id="pinError" class="text-sm text-red-600 hidden">❌ NIP o unidad no válidos.</div>
 
     <div class="flex flex-col gap-2 mt-4">
@@ -437,6 +443,8 @@ let referenciaActual = null;
 let loteActual = null;
 let ultimoContenidoEscaneado = null;
 let datosCaptura = [], usuarioActivo = "", unidadesAsignadas = [], referenciasPorUnidad = [];
+let remisionGlobal = null;
+let remisionActual = null; // nueva variable global
 
 
     const unidadesDestino = {
@@ -1318,41 +1326,53 @@ function ajustarMesLogico(timestamp) {
 
 let nipAdmin = null; // Nuevo
 function solicitarPinModo(tipo, boton) {
-  // 🔴 Cierra el modal anterior si existe
   const modalAnterior = boton.closest('.modal-modo');
   if (modalAnterior) modalAnterior.remove();
 
-  // 🔵 Continúa con lógica actual
   modoSeleccionado = tipo;
   unidadSeleccionada = null;
   document.getElementById("inputNIP").value = "";
   document.getElementById("inputUnidad").value = "";
+  document.getElementById("inputRemision").value = "";
   document.getElementById("pinError").classList.add("hidden");
 
-  // Mostrar campo de unidad solo si es salida
+  // Mostrar campos sólo en modo salida
   const unidadGroup = document.getElementById("unidadDestinoGroup");
-  unidadGroup.classList.toggle("hidden", tipo !== "salida");
+  const remisionGroup = document.getElementById("remisionGroup");
+  const esSalida = (tipo === "salida");
 
-  // Mostrar modal de NIP y unidad
+  unidadGroup.classList.toggle("hidden", !esSalida);
+  remisionGroup.classList.toggle("hidden", !esSalida);
+
   document.getElementById("modalPinUnidad").classList.remove("hidden");
   document.getElementById("inputNIP").focus();
-
 }
-  document.getElementById("inputNIP").addEventListener("keydown", function (e) {
+
+// 🔑 Manejador general de Enter para todos los campos:
+["inputNIP", "inputUnidad", "inputRemision"].forEach(id => {
+  document.getElementById(id).addEventListener("keydown", function (e) {
     if (e.key === "Enter") {
-      const unidadGroup = document.getElementById("unidadDestinoGroup");
-      if (!unidadGroup.classList.contains("hidden")) {
-        document.getElementById("inputUnidad").focus(); // Modo salida → ir al campo unidad
+      if (id === "inputNIP") {
+        const unidadGroup = document.getElementById("unidadDestinoGroup");
+        if (!unidadGroup.classList.contains("hidden")) {
+          document.getElementById("inputUnidad").focus();
+        } else {
+          validarPinYUnidad();
+        }
+      } else if (id === "inputUnidad") {
+        const remisionGroup = document.getElementById("remisionGroup");
+        if (!remisionGroup.classList.contains("hidden")) {
+          document.getElementById("inputRemision").focus();
+        } else {
+          validarPinYUnidad();
+        }
       } else {
-        validarPinYUnidad(); // Modo entrada → confirmar directamente
+        validarPinYUnidad();
       }
     }
   });
-  document.getElementById("inputUnidad").addEventListener("keydown", function (e) {
-    if (e.key === "Enter") {
-      validarPinYUnidad(); // Ya estamos en campo unidad → confirmar
-    }
-  });
+});
+
 function cerrarModalPin() {
   document.getElementById("modalPinUnidad").classList.add("hidden");
 }
@@ -1362,6 +1382,18 @@ async function validarPinYUnidad() {
   nipAdmin = nip;
   const unidad = document.getElementById("inputUnidad").value.trim().toUpperCase();
   const esSalida = modoSeleccionado === "salida";
+
+  // Validar remisión obligatoria en modo salida
+  let remision = null;
+  if (esSalida) {
+    remision = document.getElementById("inputRemision").value.trim();
+    if (!remision) {
+      document.getElementById("pinError").textContent = "❌ Debes ingresar el código de remisión.";
+      document.getElementById("pinError").classList.remove("hidden");
+      return;
+    }
+  }
+  remisionActual = remision;
 
   try {
     const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/validar_nip", {
@@ -1378,12 +1410,10 @@ async function validarPinYUnidad() {
         : [];
 
     if (!data || !data.nombre || (esSalida && !unidadesLista.includes(unidad))) {
+      document.getElementById("pinError").textContent = "❌ Verifica NIP o unidad.";
       document.getElementById("pinError").classList.remove("hidden");
       return;
     }
-
-
-    console.log("[VALIDAR NIP] Respuesta Supabase:", data);
 
     usuario = data.nombre;
     esAdmin = data.es_admin;
@@ -1393,15 +1423,20 @@ async function validarPinYUnidad() {
     document.getElementById("modalPinUnidad").classList.add("hidden");
 
     const nombreUnidad = unidadesDestino[unidad] || "Unidad desconocida";
-    document.getElementById("usuarioActivo").textContent = modoSeleccionado === "entrada"
-      ? usuario
-      : modoSeleccionado === "salida"
-        ? `${usuario} → ${unidad} ${nombreUnidad}`
-        : "Selecciona un modo para iniciar";
+
+    if (modoSeleccionado === "entrada") {
+      document.getElementById("usuarioActivo").textContent = usuario;
+    } else if (modoSeleccionado === "salida") {
+      document.getElementById("usuarioActivo").innerHTML = `
+        ${usuario} → ${unidad} ${nombreUnidad}<br>
+        No. de Remisión: <strong>${remisionActual}</strong>
+      `;
+    } else {
+      document.getElementById("usuarioActivo").textContent = "Selecciona un modo para iniciar";
+    }
 
     modo = modoSeleccionado;
 
-    // Aplicar estilos y actualización visual coherente
     const texto = modo;
     const color = modo === "entrada" ? "bg-green-700"
                 : modo === "salida" ? "bg-red-700"
@@ -1416,6 +1451,7 @@ async function validarPinYUnidad() {
     document.getElementById("inputQR").focus();
 
   } catch (e) {
+    document.getElementById("pinError").textContent = "❌ Error de conexión.";
     document.getElementById("pinError").classList.remove("hidden");
   }
 }
@@ -2395,30 +2431,33 @@ function enviarSupabase() {
     return;
   }
 
-  const registros = [...qrsPendientes];
+  // Agregar remisionActual a cada registro antes de enviar
+  const registros = qrsPendientes.map(r => ({
+    ...r,
+    remision: remisionActual || null
+  }));
 
-  console.log("Enviando a registrar_qr_fraccionable:", JSON.stringify({ registros }));
-  console.log("QRS pendientes al actualizar:", qrsPendientes);
+  // 🚩 Debug para verificar que lleva bien la remisión
+  console.log("✅ Registros a enviar (con remisión):", registros);
 
-  fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_fraccionable", {
+  fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ registros })  // 👈 esto es lo importante
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ registros })
   })
     .then(res => res.json())
     .then(data => {
       console.log("Respuesta Supabase:", data);
       mostrarModal("📦 Productos enviados correctamente", "#22c55e");
       qrsPendientes = [];
-      actualizarTablaRegistros();  // Asegúrate de tener esta función definida
+      actualizarTablaRegistros();
     })
     .catch(err => {
       console.error("Error al enviar a Supabase:", err);
       mostrarModal("❌ Fallo en el envío", "#b91c1c");
     });
 }
+
 
 function agregarFila(ref, lote, estado) {
     const tabla = document.getElementById("tablaRegistros");
@@ -2616,6 +2655,40 @@ function agregarFila(ref, lote, estado) {
 
       tabla.innerHTML = "";
       datosCaptura = [];
+        window.addEventListener("DOMContentLoaded", () => {
+          const datosGuardados = localStorage.getItem("capturaPendiente");
+          if (datosGuardados) {
+            try {
+              datosCaptura = JSON.parse(datosGuardados);
+              const tbody = document.querySelector("#tablaCaptura tbody");
+              const ocultar = document.getElementById("checkboxFilas")?.checked;
+
+              datosCaptura.forEach(({ referencia, nombre, cantidad, tipo }) => {
+                const fila = document.createElement("tr");
+                if (!isNaN(cantidad) && cantidad > 0) fila.classList.add("completada");
+                fila.innerHTML = `
+                  <td class='p-2'>${referencia}</td>
+                  <td class='p-2'>${nombre || ""}</td>
+                  <td class='p-2'>
+                    <input type="number" step="0.01" min="0" value="${cantidad}" 
+                          class="w-24 px-2 py-1 border rounded-lg text-right"
+                          onchange="marcarComoCompletada(this)" />
+                  </td>
+                  <td class='p-2 text-center'>
+                    <button onclick='this.closest("tr").remove(); actualizarDatosCaptura()' class='text-red-600'>✖</button>
+                  </td>
+                `;
+                tbody.appendChild(fila);
+                if (fila.classList.contains("completada") && ocultar) fila.style.display = "none";
+              });
+
+              document.getElementById("contenedorTabla").classList.remove("hidden");
+            } catch (e) {
+              console.warn("❌ Error cargando datos del localStorage:", e);
+              datosCaptura = [];
+            }
+          }
+        });
 
       referencias.forEach(r => {
         const fila = document.createElement("tr");
@@ -2682,6 +2755,7 @@ function agregarFila(ref, lote, estado) {
 
     function toggleFilasCompletadas(ocultar) {
       document.querySelectorAll("#tablaCaptura tbody tr.completada").forEach(f => f.style.display = ocultar ? "none" : "");
+      localStorage.setItem("capturaPendiente", JSON.stringify(datosCaptura));
     }
 
     function marcarComoCompletada(input) {
@@ -2711,6 +2785,7 @@ function agregarFila(ref, lote, estado) {
       } else {
         datosCaptura.push({ referencia, nombre, cantidad, tipo });
       }
+      localStorage.setItem("capturaPendiente", JSON.stringify(datosCaptura));
     }
      async function enviarCapturaBase() {
       if (!datosCaptura.length) return alert("No hay datos que enviar.");
@@ -2728,6 +2803,8 @@ function agregarFila(ref, lote, estado) {
           alert("✅ Datos enviados correctamente.");
           datosCaptura = [];
           document.querySelector("#tablaCaptura tbody").innerHTML = "";
+          localStorage.removeItem("capturaPendiente");
+
         } else {
           alert("❌ Error al enviar: " + (resultado.error || "desconocido"));
         }
