@@ -239,6 +239,26 @@
     📝 Capturar Inventario
   </button>
 </div>
+<div class="text-center mt-4">
+  <button onclick="abrirModalReporteMensual()" class="bg-gradient-to-r from-blue-900 to-teal-900 text-white px-5 py-3 rounded-2xl shadow-lg hover:opacity-90 transition">
+    📊 Generar Reporte Mensual
+  </button>
+</div>
+ <!-- MODAL REPORTE MENSUAL -->
+<div id="modalReporteMensual" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 hidden">
+  <div class="bg-white text-gray-800 rounded-2xl p-6 shadow-2xl w-[90%] max-w-md relative">
+    <button onclick="cerrarModalReporteMensual()" class="absolute top-3 right-4 text-red-600 text-2xl font-bold hover:text-red-800">×</button>
+    <h2 class="text-xl font-bold text-center mb-6">📊 Generar reporte mensual</h2>
+    <div class="mb-6">
+      <label for="inputMes" class="block text-sm font-semibold mb-2">Selecciona el mes:</label>
+      <input type="month" id="inputMes" class="w-full px-4 py-3 border rounded-xl shadow focus:outline-none focus:ring-2 focus:ring-blue-800 text-lg">
+    </div>
+    <div class="flex justify-end gap-3">
+      <button onclick="cerrarModalReporteMensual()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 shadow">Cancelar</button>
+      <button onclick="generarReporteMensual()" class="px-4 py-2 bg-gradient-to-r from-blue-900 to-teal-900 text-white rounded-xl shadow-lg hover:opacity-90">Generar Excel</button>
+    </div>
+  </div>
+</div>
     <div class="mt-4">
       <input type="text" id="refBusqueda" placeholder="Buscar por referencia..." class="w-full p-3 mb-4 rounded-xl border text-center" oninput="buscarReferencia(this.value)" />
       <div id="resultadoBusqueda" class="text-sm text-gray-800"></div>
@@ -2821,7 +2841,7 @@ function agregarFila(ref, lote, estado) {
       document.getElementById("modalCaducidad").classList.add("hidden");
     }
 
-    function calcularDiasRestantesCaducidad(fecha) {
+    function calcularDiasRestantes(fecha) {
       if (!fecha) return Infinity;
       let fechaCad = null;
 
@@ -2891,7 +2911,7 @@ async function mostrarAlertasCaducidad() {
     }
 
     const proximos = data
-      .map(p => ({ ...p, diasRestantes: calcularDiasRestantesCaducidad(p.caducidad) }))
+      .map(p => ({ ...p, diasRestantes: calcularDiasRestantes(p.caducidad) }))
       .filter(p => p.diasRestantes <= 30)
       .sort((a, b) => a.diasRestantes - b.diasRestantes);
 
@@ -2942,6 +2962,165 @@ document.addEventListener("keydown", function(e) {
     }
   }
 });
+
+function abrirModalReporteMensual() {
+  document.getElementById("modalReporteMensual").classList.remove("hidden");
+}
+function cerrarModalReporteMensual() {
+  document.getElementById("modalReporteMensual").classList.add("hidden");
+}
+
+async function generarReporteMensual() {
+  const mesSeleccionado = document.getElementById("inputMes").value;
+  if (!mesSeleccionado) {
+    mostrarModal("⚠️ Selecciona un mes válido", "#f59e0b");
+    return;
+  }
+  cerrarModalReporteMensual();
+  mostrarModal("⏳ Generando reporte...", "#0ea5e9");
+
+  const [anio, mes] = mesSeleccionado.split("-");
+  const mesNum = parseInt(mes);
+  const anioNum = parseInt(anio);
+  const mesAnterior = mesNum === 1 ? 12 : mesNum - 1;
+  const anioAnterior = mesNum === 1 ? anioNum - 1 : anioNum;
+
+  const colInventarioInicial = `25_${mesAnterior}_${anioAnterior}`;
+  const colInventarioCorte = `10_${mesNum}_${anioNum}`;
+  const colInventarioFinal = `25_${mesNum}_${anioNum}`;
+  const colPruebasFacturadas = `25_${mesNum}_${anioNum}`;
+
+  const proyectos = {
+    "CHIH IMSS B.S.": ["C03126","C03127","C03128","C03129","C03130","C03131","C03132","C03133","C03134","C03135"],
+    "CHIH IMSS_BIENESTAR LAB.": ["C03122","C03123","C03124"],
+    "CHIH SS LAB.": ["C03415","C03416","C03417","C03418","C03419","C03420","C03421","C03422","C03423","C03424",
+    "C03425","C03426","C03427","C03428","C03429","C03430","C03431","C03432","C03433","C03434","C03435","C03436",
+    "C03437","C03438","C03439","C03440","C03441","C03442","C03443","C03444","C03445","C03446","C03447","C03448",
+    "C03449","C03450","C03451"]
+  };
+
+  try {
+    const headers = { apikey: API_KEY, Authorization: `Bearer ${API_KEY}` };
+
+    const [historicos, timestamps, pruebasFacturadas] = await Promise.all([
+      fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/historicos?select=*", { headers }).then(r => r.json()),
+      fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/TimeStamps?select=referencia,unidad_destino,remision,fecha", { headers }).then(r => r.json()),
+      fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/pruebas_facturadas?select=*", { headers }).then(r => r.json())
+    ]);
+
+    const filas = [];
+
+    for (const h of historicos) {
+      const proyecto = Object.entries(proyectos).find(([_, arr]) => arr.includes(h.unidad_medica))?.[0] || "";
+      const cliente = h.unidad_medica;
+      const lineadenegocio = proyecto === "CHIH IMSS B.S." ? "BANCO SANGRE" : "LABORATORIO";
+
+      const inventarioInicial = parseFloat(h[colInventarioInicial] || 0);
+      const inventarioCorte = parseFloat(h[colInventarioCorte] || 0);
+      const inventarioFinal = parseFloat(h[colInventarioFinal] || 0);
+      const io = parseFloat(h.inventario_objetivo || 0);
+      const costoUnitario = parseFloat(h.costo || 0);
+      const productoSurtirInicial = io - inventarioInicial;
+      const productoSurtirCorte = io - inventarioCorte;
+      const consumoInv10 = inventarioInicial + 0 - inventarioCorte; // inicial + entregado inicial - corte (entregado inicial calculado abajo)
+
+      const tsInicial = timestamps.filter(t => t.unidad_destino === cliente && t.referencia === h.referencia &&
+        t.fecha >= new Date(`${anioAnterior}-${String(mesAnterior).padStart(2,"0")}-25`).getTime() &&
+        t.fecha <= new Date(`${anioNum}-${String(mesNum).padStart(2,"0")}-09`).getTime());
+      const tsCorte = timestamps.filter(t => t.unidad_destino === cliente && t.referencia === h.referencia &&
+        t.fecha >= new Date(`${anioNum}-${String(mesNum).padStart(2,"0")}-10`).getTime() &&
+        t.fecha <= new Date(`${anioNum}-${String(mesNum).padStart(2,"0")}-25`).getTime());
+
+      const entregadoInicial = tsInicial.length;
+      const remisionInicial = tsInicial.map(t => t.remision).filter(r => r).join(", ");
+      const entregadoCorte = tsCorte.length;
+      const remisionCorte = tsCorte.map(t => t.remision).filter(r => r).join(", ");
+
+      const productoConsumido = (inventarioInicial + entregadoInicial + entregadoCorte) - inventarioFinal;
+      const costoConsumido = productoConsumido * costoUnitario;
+      const pruebasConsumidas = productoConsumido * parseFloat(h.rendimiento || 0);
+      const pruebasFact = pruebasFacturadas.find(p => p.unidad_medica === cliente && p.referencia === h.referencia)?.[colPruebasFacturadas] || 0;
+
+      filas.push([
+        proyecto, cliente, lineadenegocio, h.fabricante, h.unidad_nombre, h.referencia, h.nombre, h.presentacion, h.rendimiento,
+        costoUnitario, io, io * costoUnitario, inventarioInicial, productoSurtirInicial, entregadoInicial, remisionInicial,
+        inventarioCorte, consumoInv10, "", productoSurtirCorte, entregadoCorte, remisionCorte, inventarioFinal, productoConsumido,
+        costoConsumido, pruebasConsumidas, pruebasFact
+      ]);
+    }
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([
+      ["Proyecto", "Cliente", "Lineadenegocio", "Proveedor", "Unidad Medica", "Clave de Producto", "Producto", "Unidad", 
+      "Rendimiento", "Costo Unitario", "IO", "Costo IO", "Inventario Inicial", "Producto a surtir inicial", "Entregado inicial",
+      "Remision inicial", "Inventario Corte", "Consumo INV 10", "Justificar si quieren que se pida", "Producto a surtir corte",
+      "Entregado corte", "Remision corte", "Inventario Final", "Producto consumido", "Costo consumido", "Pruebas consumidas",
+      "Pruebas facturadas"],
+      ...filas
+    ]);
+    XLSX.utils.book_append_sheet(wb, ws, "Reporte");
+
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbout], { type: "application/octet-stream" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Reporte_Mensual_${mesSeleccionado}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    mostrarModal("✅ Reporte descargado", "#16a34a");
+
+
+  } catch (err) {
+    console.error("Error:", err);
+    mostrarModal("❌ Error al generar reporte", "#dc2626");
+  }
+}
+// --- Funciones globales con debug activado ---
+
+window.abrirModalReporteMensual = function() {
+  console.log("👉 Se hizo click en el botón de generar reporte");
+  const modal = document.getElementById("modalReporteMensual");
+  if (modal) {
+    modal.classList.remove("hidden");
+    console.log("✅ Modal abierto correctamente");
+  } else {
+    console.error("❌ No se encontró el modalReporteMensual en el DOM");
+  }
+};
+
+window.cerrarModalReporteMensual = function() {
+  console.log("🔒 Cerrando modal de reporte");
+  document.getElementById("modalReporteMensual")?.classList.add("hidden");
+};
+
+window.generarReporteMensual = async function() {
+  console.log("🚀 Iniciando generación de reporte");
+  const mesSeleccionado = document.getElementById("inputMes")?.value;
+  if (!mesSeleccionado) {
+    console.warn("⚠️ No se ha seleccionado ningún mes");
+    mostrarModal("⚠️ Selecciona un mes válido", "#f59e0b");
+    return;
+  }
+
+  mostrarModal("⏳ Generando reporte...", "#0ea5e9");
+
+  try {
+    console.log("📅 Mes seleccionado:", mesSeleccionado);
+    // Aquí puedes continuar tu lógica de generación de Excel
+    // Para esta prueba de debug solo pondré:
+    setTimeout(() => {
+      console.log("✅ Simulación de reporte completada");
+      mostrarModal("✅ Reporte generado (simulado)", "#16a34a");
+    }, 2000);
+
+  } catch (err) {
+    console.error("❌ Error inesperado:", err);
+    mostrarModal("❌ Error al generar reporte", "#dc2626");
+  }
+};
 
   </script>
 </body>
