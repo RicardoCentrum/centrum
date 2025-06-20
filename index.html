@@ -2962,16 +2962,29 @@ document.addEventListener("keydown", function(e) {
     }
   }
 });
+// abrirModalReporteMensual();
+// --- Registro global de funciones con debug ---
+window.abrirModalReporteMensual = function() {
+  console.log("🟢 abrirModalReporteMensual ejecutado");
+  const modal = document.getElementById("modalReporteMensual");
+  if (modal) {
+    modal.classList.remove("hidden");
+    console.log("✅ Modal de reporte mensual abierto correctamente");
+  } else {
+    console.error("❌ No se encontró el modalReporteMensual");
+  }
+};
 
-function abrirModalReporteMensual() {
-  document.getElementById("modalReporteMensual").classList.remove("hidden");
-}
-function cerrarModalReporteMensual() {
-  document.getElementById("modalReporteMensual").classList.add("hidden");
-}
+window.cerrarModalReporteMensual = function() {
+  console.log("🔒 Cerrando modal de reporte");
+  document.getElementById("modalReporteMensual")?.classList.add("hidden");
+};
 
-async function generarReporteMensual() {
-  const mesSeleccionado = document.getElementById("inputMes").value;
+// --- Función principal de generación real ---
+window.generarReporteMensual = async function() {
+  console.log("🚀 Iniciando generación de reporte");
+
+  const mesSeleccionado = document.getElementById("inputMes")?.value;
   if (!mesSeleccionado) {
     mostrarModal("⚠️ Selecciona un mes válido", "#f59e0b");
     return;
@@ -3002,6 +3015,7 @@ async function generarReporteMensual() {
   try {
     const headers = { apikey: API_KEY, Authorization: `Bearer ${API_KEY}` };
 
+    // --- Consultas simultáneas ---
     const [historicos, timestamps, pruebasFacturadas] = await Promise.all([
       fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/historicos?select=*", { headers }).then(r => r.json()),
       fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/TimeStamps?select=referencia,unidad_destino,remision,fecha", { headers }).then(r => r.json()),
@@ -3022,20 +3036,31 @@ async function generarReporteMensual() {
       const costoUnitario = parseFloat(h.costo || 0);
       const productoSurtirInicial = io - inventarioInicial;
       const productoSurtirCorte = io - inventarioCorte;
-      const consumoInv10 = inventarioInicial + 0 - inventarioCorte; // inicial + entregado inicial - corte (entregado inicial calculado abajo)
 
-      const tsInicial = timestamps.filter(t => t.unidad_destino === cliente && t.referencia === h.referencia &&
-        t.fecha >= new Date(`${anioAnterior}-${String(mesAnterior).padStart(2,"0")}-25`).getTime() &&
-        t.fecha <= new Date(`${anioNum}-${String(mesNum).padStart(2,"0")}-09`).getTime());
-      const tsCorte = timestamps.filter(t => t.unidad_destino === cliente && t.referencia === h.referencia &&
-        t.fecha >= new Date(`${anioNum}-${String(mesNum).padStart(2,"0")}-10`).getTime() &&
-        t.fecha <= new Date(`${anioNum}-${String(mesNum).padStart(2,"0")}-25`).getTime());
+      const fecha25Anterior = new Date(`${anioAnterior}-${String(mesAnterior).padStart(2,"0")}-25`).getTime();
+      const fecha9Actual = new Date(`${anioNum}-${String(mesNum).padStart(2,"0")}-09`).getTime();
+      const fecha10Actual = new Date(`${anioNum}-${String(mesNum).padStart(2,"0")}-10`).getTime();
+      const fecha25Actual = new Date(`${anioNum}-${String(mesNum).padStart(2,"0")}-25`).getTime();
 
+      // Timestamps inicial
+      const tsInicial = timestamps.filter(t => 
+        t.unidad_destino === cliente &&
+        t.referencia === h.referencia &&
+        t.fecha >= fecha25Anterior && t.fecha <= fecha9Actual
+      );
       const entregadoInicial = tsInicial.length;
       const remisionInicial = tsInicial.map(t => t.remision).filter(r => r).join(", ");
+
+      // Timestamps corte
+      const tsCorte = timestamps.filter(t => 
+        t.unidad_destino === cliente &&
+        t.referencia === h.referencia &&
+        t.fecha >= fecha10Actual && t.fecha <= fecha25Actual
+      );
       const entregadoCorte = tsCorte.length;
       const remisionCorte = tsCorte.map(t => t.remision).filter(r => r).join(", ");
 
+      const consumoInv10 = inventarioInicial + entregadoInicial - inventarioCorte;
       const productoConsumido = (inventarioInicial + entregadoInicial + entregadoCorte) - inventarioFinal;
       const costoConsumido = productoConsumido * costoUnitario;
       const pruebasConsumidas = productoConsumido * parseFloat(h.rendimiento || 0);
@@ -3049,6 +3074,7 @@ async function generarReporteMensual() {
       ]);
     }
 
+    // Generación real del Excel
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet([
       ["Proyecto", "Cliente", "Lineadenegocio", "Proveedor", "Unidad Medica", "Clave de Producto", "Producto", "Unidad", 
@@ -3060,6 +3086,7 @@ async function generarReporteMensual() {
     ]);
     XLSX.utils.book_append_sheet(wb, ws, "Reporte");
 
+    // Descarga segura del archivo
     const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     const blob = new Blob([wbout], { type: "application/octet-stream" });
     const url = URL.createObjectURL(blob);
@@ -3070,57 +3097,15 @@ async function generarReporteMensual() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+
     mostrarModal("✅ Reporte descargado", "#16a34a");
-
-
-  } catch (err) {
-    console.error("Error:", err);
-    mostrarModal("❌ Error al generar reporte", "#dc2626");
   }
-}
-// --- Funciones globales con debug activado ---
-
-window.abrirModalReporteMensual = function() {
-  console.log("👉 Se hizo click en el botón de generar reporte");
-  const modal = document.getElementById("modalReporteMensual");
-  if (modal) {
-    modal.classList.remove("hidden");
-    console.log("✅ Modal abierto correctamente");
-  } else {
-    console.error("❌ No se encontró el modalReporteMensual en el DOM");
+  catch (err) {
+    console.error("❌ Error durante generación:", err);
+    mostrarModal("❌ Error al generar el reporte", "#dc2626");
   }
 };
 
-window.cerrarModalReporteMensual = function() {
-  console.log("🔒 Cerrando modal de reporte");
-  document.getElementById("modalReporteMensual")?.classList.add("hidden");
-};
-
-window.generarReporteMensual = async function() {
-  console.log("🚀 Iniciando generación de reporte");
-  const mesSeleccionado = document.getElementById("inputMes")?.value;
-  if (!mesSeleccionado) {
-    console.warn("⚠️ No se ha seleccionado ningún mes");
-    mostrarModal("⚠️ Selecciona un mes válido", "#f59e0b");
-    return;
-  }
-
-  mostrarModal("⏳ Generando reporte...", "#0ea5e9");
-
-  try {
-    console.log("📅 Mes seleccionado:", mesSeleccionado);
-    // Aquí puedes continuar tu lógica de generación de Excel
-    // Para esta prueba de debug solo pondré:
-    setTimeout(() => {
-      console.log("✅ Simulación de reporte completada");
-      mostrarModal("✅ Reporte generado (simulado)", "#16a34a");
-    }, 2000);
-
-  } catch (err) {
-    console.error("❌ Error inesperado:", err);
-    mostrarModal("❌ Error al generar reporte", "#dc2626");
-  }
-};
 
   </script>
 </body>
