@@ -3105,6 +3105,21 @@ window.generarReporteMensual = async function() {
     mostrarModal("❌ Error al generar el reporte", "#dc2626");
   }
 };
+window.addEventListener("DOMContentLoaded", () => {
+  const inputQR = document.getElementById("inputQR");
+
+  if (inputQR) {
+    inputQR.addEventListener("keyup", function(event) {
+      if (event.key === "Enter") {
+        const contenido = event.target.value.trim();
+        if (contenido) {
+          procesarQR(contenido);
+          event.target.value = "";
+        }
+      }
+    });
+  }
+});
 
 
   </script>
