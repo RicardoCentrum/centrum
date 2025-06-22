@@ -3,9 +3,9 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default"> <!-- Esta línea aún es aceptada -->
   <link rel="apple-touch-icon" href="medinova_ios.png">
   <title>Inventario QR - Centrum</title>
   <script src="https://cdn.tailwindcss.com">function agregarFila(ref, lote, estado) {
@@ -178,11 +178,22 @@
             class="w-full px-4 py-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase" />
     </div>
 
-    <div id="pinError" class="text-sm text-red-600 hidden">❌ NIP o unidad no válidos.</div>
+<div id="bloqueCargaRemision" class="hidden space-y-2">
+  <label class="block text-sm font-semibold mb-1 ">Cargar archivo remisión SAP:</label>
+  <input type="file" id="inputArchivoRemision" class="border p-2 w-full rounded-xl" aria-label="Cargar archivo remisión SAP">
+  <div class="flex justify-center">
+    <button id="btnSubirRemision" 
+      class="bg-teal-900 hover:bg-teal-800 text-white font-bold py-3 px-8 rounded-2xl shadow-2xl text-base">
+      📤 Cargar archivo SAP
+    </button>
+  </div>
+  <div id="resultadoCarga" class="text-center font-semibold text-sm"></div>
+</div>
 
+    <div id="pinError" class="text-sm text-red-600 hidden">❌ NIP o unidad no válidos.</div>
     <div class="flex flex-col gap-2 mt-4">
       <div class="flex justify-end gap-2">
-        <button onclick="cerrarModalPin()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-900">
+        <button onclick="cerrarModalPin()" class="px-4 py-2 bg-gray-500 text-white rounded-xl hover:bg-rose-900">
           Cancelar
         </button>
         <button onclick="validarPinYUnidad()" class="px-4 py-2 bg-teal-900 text-white rounded-xl hover:bg-teal-700">
@@ -286,25 +297,46 @@
 </button>
 <div id="modalOpcionesAdmin" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
   <div class="bg-white text-gray-800 p-6 rounded-xl shadow-xl w-full max-w-md space-y-4">
-    <h2 class="text-lg font-bold text-center">⚙️ Opciones de Usuario</h2>
-    <div class="space-y-2">
-   <!-- Cambiar NIP -->
-<button onclick="cerrarModalOpcionesAdmin(); mostrarCambioNIP()" class="w-full bg-blue-900 text-white rounded-xl shadow-xl px-4 py-2 rounded hover:bg-blue-700">
-  🔑 Cambiar NIP
-</button>
-<!-- Modificar unidades -->
-<button id="btnModificarUnidades" onclick="cerrarModalOpcionesAdmin(); mostrarModalAsignarUnidades()" class="w-full bg-green-900 rounded-xl shadow-xl text-white px-4 py-2 rounded hover:bg-green-800 hidden">
-  🏥 Modificar unidades
-</button>
-<button id="btnRestablecerNIP" onclick="restablecerNIPUsuario()" class="w-full bg-red-900 text-white rounded-xl shadow-xl px-4 py-2 rounded hover:bg-red-800 hidden">
-  🔁 Restablecer NIP de usuario
-</button>
+    <h2 class="text-lg font-bold text-center mb-4">⚙️ Opciones de Usuario</h2>
+
+    <div class="flex flex-col space-y-3">
+      
+      <!-- Botón Cambiar NIP -->
+      <button onclick="cerrarModalOpcionesAdmin(); mostrarCambioNIP()" 
+        class="w-full bg-blue-900 text-white rounded-xl shadow-lg px-4 py-3 text-base font-semibold hover:bg-blue-800">
+        🔑 Cambiar NIP
+      </button>
+
+      <!-- Botón Modificar Unidades (solo visible para admin) -->
+      <button id="btnModificarUnidades" onclick="cerrarModalOpcionesAdmin(); mostrarModalAsignarUnidades()" 
+        class="w-full bg-green-900 text-white rounded-xl shadow-lg px-4 py-3 text-base font-semibold hover:bg-green-800 hidden">
+        🏥 Modificar Unidades
+      </button>
+
+      <!-- Botón Restablecer NIP (solo visible para admin) -->
+      <button id="btnRestablecerNIP" onclick="restablecerNIPUsuario()" 
+        class="w-full bg-red-900 text-white rounded-xl shadow-lg px-4 py-3 text-base font-semibold hover:bg-red-800 hidden">
+        🔁 Restablecer NIP de Usuario
+      </button>
+
+      <!-- Botón Bloqueo de Remisiones (solo visible para admin) -->
+      <div id="seccionBloqueoRemision" style="display: none;">
+        <button id="btnBloqueoRemision" 
+          class="w-full bg-purple-900 text-white rounded-xl shadow-lg px-4 py-3 text-base font-semibold hover:bg-purple-800">
+          🔒 Cargar estado de bloqueo
+        </button>
+      </div>
+
     </div>
-    <div class="text-center mt-4">
-      <button onclick="cerrarModalOpcionesAdmin()" class="bg-gray-300 px-4 py-2 rounded-xl hover:bg-gray-400">Cerrar</button>
+
+    <div class="text-center mt-5">
+      <button onclick="cerrarModalOpcionesAdmin()" class="bg-gray-400 hover:bg-gray-500 text-white px-6 py-3 rounded-xl font-semibold">
+        Cerrar
+      </button>
     </div>
   </div>
 </div>
+
     <input type="text" id="inputQR" placeholder="Escanea el código QR" class="w-full p-3 mb-4 rounded-xl border text-center" autofocus />
     <div class="text-center mt-2 mb-4">
 
@@ -377,7 +409,7 @@
     <div class="flex items-center gap-2">
       <span id="modoTexto" class="font-bold text-sm text-emerald-900">🟢 Inventario</span>
       <label class="inline-flex items-center cursor-pointer">
-        <input type="checkbox" id="modoToggle" class="sr-only peer" onchange="actualizarModoCaptura()" />
+      <input type="checkbox" id="modoToggle" class="sr-only peer" onchange="actualizarModoCaptura()" title="Modo captura" />
         <div class="w-14 h-7 bg-emerald-900 rounded-full peer-checked:bg-rose-900 relative transition">
           <div class="w-6 h-6 bg-white rounded-full absolute top-0.5 left-0.5 peer-checked:translate-x-full transition-transform"></div>
         </div>
@@ -388,7 +420,7 @@
 
   <!-- Unidad -->
   <div>
-    <label class="block font-semibold mb-1">Unidad asignada:</label>
+    <label for="unidadCaptura" class="block font-semibold mb-1">Unidad asignada:</label>
     <select id="unidadCaptura" class="w-full px-4 py-2 border rounded-xl" onchange="mostrarReferenciasUnidad()"></select>
   </div>
   <!-- Referencia -->
@@ -465,7 +497,7 @@ let ultimoContenidoEscaneado = null;
 let datosCaptura = [], usuarioActivo = "", unidadesAsignadas = [], referenciasPorUnidad = [];
 let remisionGlobal = null;
 let remisionActual = null; // nueva variable global
-
+let remision = null;
 
     const unidadesDestino = {
   //"C03442": "C.S. GALEANA",
@@ -525,7 +557,7 @@ function mostrarOpcionesAdmin() {
   document.getElementById("modalOpcionesAdmin").classList.remove("hidden");
   document.getElementById("btnModificarUnidades").classList.toggle("hidden", !esAdmin);
   document.getElementById("btnRestablecerNIP").classList.toggle("hidden", !esAdmin);
-
+  document.getElementById("modalOpcionesAdmin").classList.remove("hidden"); cargarEstadoBloqueo();
 }
 function cerrarModalOpcionesAdmin() {
   document.getElementById("modalOpcionesAdmin").classList.add("hidden");
@@ -617,42 +649,51 @@ async function mostrarPrevisualizacionDesdeQR(contenido) {
 
 // Procesamiento principal
 async function procesarQR(contenido) {
-  const datos = extraerDatosQR(contenido);
-  console.log("✅ Se llamó a procesarQR con contenido:", contenido);
-  console.log("✅ Datos extraídos:", datos);
-
-  if (!datos || !datos.referencia || !datos.timestamp) {
-    mostrarModal("❌ QR incompleto o ilegible", "#6b7280");
-    return;
-  }
-
-  if (!usuario || !modo || modo === "inactivo") {
-    mostrarModal("⚠️ Selecciona un modo y un usuario", "#f59e0b");
-    return;
-  }
-
-  if (qrsPendientes.some(q => q.timestamp === datos.timestamp)) {
-    mostrarModal("📦 Ya escaneado localmente", "#0284c7");
-    return;
-  }
-
-  mostrarModal("📤 Procesando QR...", "#0ea5e9");
-
-  let yaProcesado = false;
-
   try {
+    const datos = extraerDatosQR(contenido);
+    console.log("✅ Se llamó a procesarQR con contenido:", contenido);
+    console.log("✅ Datos extraídos:", datos);
+
+    if (!datos || !datos.referencia || !datos.timestamp) {
+      mostrarModal("❌ QR incompleto o ilegible", "#6b7280");
+      return;
+    }
+
+    if (!usuario || !modo || modo === "inactivo") {
+      mostrarModal("⚠️ Selecciona un modo y un usuario", "#f59e0b");
+      return;
+    }
+
+    if (qrsPendientes.some(q => q.timestamp === datos.timestamp)) {
+      mostrarModal("📦 Ya escaneado localmente", "#0284c7");
+      return;
+    }
+
+    // 🔒 Validación de remisión SAP solo en modo salida
+    if (modo === "salida") {
+      const inputRemision = document.getElementById("inputNumeroRemision");
+      const numeroRemision = inputRemision ? inputRemision.value.trim() : "";
+
+      if (numeroRemision) {
+        const remisionValida = await validarContraRemision(datos.referencia, datos.lote, numeroRemision);
+        if (!remisionValida) return;
+      }
+    }
+
+    mostrarModal("📤 Procesando QR...", "#0ea5e9");
+
+    // 🔍 Verificar si es fraccionable o unidad de fraccionable
     const fraccionableRes = await fetch(
       `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/multiplicadores?select=fraccionable,referencia,referencia_unidad,multiplicador&or=(referencia.eq.${datos.referencia},referencia_unidad.eq.${datos.referencia})`,
       {
-        headers: {
-          "apikey": API_KEY,
-          "Authorization": `Bearer ${API_KEY}`
-        }
+        headers: { "apikey": API_KEY, "Authorization": `Bearer ${API_KEY}` }
       }
     );
+
     const fraccionableData = await fraccionableRes.json();
     const entry = fraccionableData[0];
 
+    // 🔧 Si es una unidad individual de un fraccionable
     if (entry?.referencia_unidad === datos.referencia) {
       const payload = {
         registros: [{
@@ -664,11 +705,13 @@ async function procesarQR(contenido) {
           tipo: "unidad"
         }]
       };
+
       const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_fraccionable", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
+
       const result = await res.json();
       const r = result.resultados?.[0];
 
@@ -685,18 +728,18 @@ async function procesarQR(contenido) {
       } else {
         mostrarModal("❌ Error al registrar unidad", "#6b7280");
       }
-
-      yaProcesado = true;
       return;
     }
 
     const esFraccionable = entry?.fraccionable === true;
 
+    // 🔧 Fraccionable en modo salida
     if (esFraccionable && modo === "salida") {
       abrirModalCantidadFraccionable(datos.referencia, datos.lote, contenido);
       return;
     }
 
+    // 🔧 Fraccionable en modo entrada
     if (esFraccionable && modo === "entrada") {
       const payload = {
         registros: [{
@@ -708,58 +751,57 @@ async function procesarQR(contenido) {
         }]
       };
 
-      try {
-        const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_fraccionable", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-        const result = await res.json();
-        const r = result.resultados?.[0];
+      const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_fraccionable", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
 
-        if (r?.status === "ok") {
-          qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
-          actualizarTablaRegistros();
-          mostrarModal("✅ Caja registrada", "#22c55e");
-        } else if (r?.status === "repetido") {
-          mostrarModal("📦 El producto ya fue ingresado anteriormente", "#0d9488");
-        } else if (r?.status === "extraido_previo") {
-          mostrarModal(`⚠️ Ya extraído por ${r.usuario}`, "#facc15");
-        } else if (r?.mensaje) {
-          mostrarModal(`⚠️ ${r.mensaje}`, "#6b7280");
-        } else {
-          mostrarModal("❌ Error en el QR", "#6b7280");
-        }
-      } catch (err) {
-        console.error("❌ Error en fetch:", err);
-        mostrarModal("❌ Error de red o conexión", "#6b7280");
+      const result = await res.json();
+      const r = result.resultados?.[0];
+
+      if (r?.status === "ok") {
+        qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
+        actualizarTablaRegistros();
+        mostrarModal("✅ Caja registrada", "#22c55e");
+      } else if (r?.status === "repetido") {
+        mostrarModal("📦 El producto ya fue ingresado anteriormente", "#0d9488");
+      } else if (r?.status === "extraido_previo") {
+        mostrarModal(`⚠️ Ya extraído por ${r.usuario}`, "#facc15");
+      } else if (r?.mensaje) {
+        mostrarModal(`⚠️ ${r.mensaje}`, "#6b7280");
+      } else {
+        mostrarModal("❌ Error en el QR", "#6b7280");
       }
-
       return;
     }
 
-  } catch (err) {
-    console.error("❌ Error general en procesarQR:", err);
-    mostrarModal("❌ Error general", "#6b7280");
-    return;
-  }
-
-  if (!yaProcesado) {
+    // 🔧 Producto normal (no fraccionable)
     qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
     actualizarTablaRegistros();
     mostrarModal("✅ Producto agregado", "#22c55e");
+
+  } catch (error) {
+    console.error("❌ Error global en procesarQR:", error);
+    mostrarModal("❌ Error inesperado", "#dc2626");
   }
 }
 
-// === Funciones auxiliares ===
-function prepararEventoCantidadFraccionable() {
-  const input = document.getElementById("inputCantidadFraccionable");
-  if (!input) return;
 
-  input.addEventListener("keyup", function(e) {
-    if (e.key === "Enter") confirmarCantidadFraccionable();
-  });
-}
+// === Funciones auxiliares ===
+  function prepararEventoCantidadFraccionable() {
+    const input = document.getElementById("inputCantidadFraccionable");
+    if (!input) return;
+
+    // Primero eliminamos cualquier listener previo (por seguridad)
+    input.replaceWith(input.cloneNode(true));
+
+    const nuevoInput = document.getElementById("inputCantidadFraccionable");
+    nuevoInput.addEventListener("keyup", function(e) {
+      if (e.key === "Enter") confirmarCantidadFraccionable();
+    });
+  }
+
 
 function iniciarExtraccionFraccionableFrontend(ref, lote, cantidad) {
   fraccionesEscaneadas = [];
@@ -767,6 +809,12 @@ function iniciarExtraccionFraccionableFrontend(ref, lote, cantidad) {
   referenciaActual = ref;
   loteActual = lote;
   mostrarModal("🔄 Escanea la primera caja...", "#6b7280");
+}
+function reenfocarInputFraccionable() {
+  const input = document.getElementById("inputEscaneoFraccionable");
+  if (input) {
+    setTimeout(() => input.focus(), 50);
+  }
 }
 
 async function procesarCajaFraccionable(contenidoQR) {
@@ -881,6 +929,40 @@ async function registrarExtraccionConjunta(fracciones, referencia, usuario, unid
   } else {
     mostrarModal(`⚠️ ${errores} de ${fracciones.length} cajas fallaron`, "#f59e0b");
   }
+}
+
+async function validarContraRemision(referencia, lote, numeroRemision) {
+  const res = await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/remisiones_pendientes?referencia=eq.${referencia}&lote=eq.${lote}&numero_remision=eq.${numeroRemision}`, {
+    headers: {
+      "apikey": API_KEY,
+      "Authorization": `Bearer ${API_KEY}`
+    }
+  });
+
+  const data = await res.json();
+
+  if (data.length === 0) {
+    mostrarModal("⚠️ Producto no pertenece a la remisión cargada", "#f97316");
+    return false;
+  }
+
+  const pendiente = data[0].cantidad_solicitada - data[0].cantidad_escaneada;
+  if (pendiente <= 0) {
+    mostrarModal("🚫 Cantidad ya completa para este producto", "#ef4444");
+    return false;
+  }
+
+  await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/remisiones_pendientes?id=eq.${data[0].id}`, {
+    method: "PATCH",
+    headers: {
+      "apikey": API_KEY,
+      "Authorization": `Bearer ${API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ cantidad_escaneada: data[0].cantidad_escaneada + 1 })
+  });
+
+  return true;
 }
 
 function abrirModalCantidadFraccionable(referencia, lote, contenidoQR) {
@@ -1356,17 +1438,20 @@ function solicitarPinModo(tipo, boton) {
   document.getElementById("inputRemision").value = "";
   document.getElementById("pinError").classList.add("hidden");
 
-  // Mostrar campos sólo en modo salida
   const unidadGroup = document.getElementById("unidadDestinoGroup");
   const remisionGroup = document.getElementById("remisionGroup");
+  const bloqueCargaRemision = document.getElementById("bloqueCargaRemision"); // NUEVO BLOQUE
+
   const esSalida = (tipo === "salida");
 
   unidadGroup.classList.toggle("hidden", !esSalida);
   remisionGroup.classList.toggle("hidden", !esSalida);
+  bloqueCargaRemision.classList.toggle("hidden", !esSalida);  // OCULTAMOS/ACTIVAMOS EL BLOQUE CARGA
 
   document.getElementById("modalPinUnidad").classList.remove("hidden");
   document.getElementById("inputNIP").focus();
 }
+
 
 // 🔑 Manejador general de Enter para todos los campos:
 ["inputNIP", "inputUnidad", "inputRemision"].forEach(id => {
@@ -1403,16 +1488,20 @@ async function validarPinYUnidad() {
   const unidad = document.getElementById("inputUnidad").value.trim().toUpperCase();
   const esSalida = modoSeleccionado === "salida";
 
-  // Validar remisión obligatoria en modo salida
+  // Validar remisión obligatoria si el bloqueo está activo:
   let remision = null;
   if (esSalida) {
     remision = document.getElementById("inputRemision").value.trim();
-    if (!remision) {
-      document.getElementById("pinError").textContent = "❌ Debes ingresar el código de remisión.";
+
+    const bloqueoActivo = await consultarEstadoBloqueo();
+
+    if (bloqueoActivo && !remision) {
+      document.getElementById("pinError").textContent = "❌ Debes cargar la remisión para continuar.";
       document.getElementById("pinError").classList.remove("hidden");
       return;
     }
   }
+
   remisionActual = remision;
 
   try {
@@ -1438,8 +1527,9 @@ async function validarPinYUnidad() {
     usuario = data.nombre;
     esAdmin = data.es_admin;
     window.usuarioEsAdmin = esAdmin;
-    unidadSeleccionada = esSalida ? unidad : null;
+    usuarioAdmin = esAdmin === true;  // Esta es la bandera global
 
+    unidadSeleccionada = esSalida ? unidad : null;
     document.getElementById("modalPinUnidad").classList.add("hidden");
 
     const nombreUnidad = unidadesDestino[unidad] || "Unidad desconocida";
@@ -1466,7 +1556,6 @@ async function validarPinYUnidad() {
                 : "🔒";
 
     actualizarBotonModo(texto.charAt(0).toUpperCase() + texto.slice(1), color, icono);
-
     notificar(`Modo ${modo.toUpperCase()} activado`, "#003f40");
     document.getElementById("inputQR").focus();
 
@@ -2454,7 +2543,8 @@ function actualizarTablaRegistros() {
     tabla.appendChild(fila);
   });
 }
-  
+
+
 function enviarSupabase() {
   if (!modo || modo === "inactivo") {
     mostrarModal("⚠️ Selecciona primero el modo", "#f59e0b");
@@ -3120,6 +3210,98 @@ window.generarReporteMensual = async function() {
     mostrarModal("❌ Error al generar el reporte", "#dc2626");
   }
 };
+document.getElementById("btnSubirRemision").addEventListener("click", async () => {
+  const archivo = document.getElementById("inputArchivoRemision")?.files[0];
+
+  const numeroRemision = document.getElementById("inputNumeroRemision")?.value.trim();
+  const unidadDestino = document.getElementById("inputUnidadDestino")?.value.trim();
+  const nip = document.getElementById("inputNIP")?.value.trim();
+
+  if (!archivo || !numeroRemision || !unidadDestino || !nip) {
+    alert("Completa todos los campos antes de subir el archivo.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", archivo);
+  formData.append("numero_remision", numeroRemision);
+  formData.append("unidad_destino", unidadDestino);
+  formData.append("usuario_carga", nip);
+
+  try {
+    const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/cargar_remision", {
+      method: "POST",
+      body: formData
+    });
+
+    if (res.ok) {
+      document.getElementById("contenedorModal").classList.add("bg-teal-100");
+      document.getElementById("resultadoCarga").textContent = `Remisión #${numeroRemision} cargada correctamente.`;
+    } else {
+      document.getElementById("contenedorModal").classList.add("bg-rose-100");
+      document.getElementById("resultadoCarga").textContent = "Error al cargar el archivo.";
+    }
+  } catch (e) {
+    document.getElementById("contenedorModal").classList.add("bg-rose-100");
+    document.getElementById("resultadoCarga").textContent = "Error en la comunicación.";
+  }
+});
+
+async function consultarEstadoBloqueo() {
+  const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/usuarios?nombre=eq.CONTROL_GLOBAL", {
+    headers: { "apikey": API_KEY }
+  });
+
+  const data = await res.json();
+
+  if (data.length === 0) {
+    console.warn("⚠️ No se encontró el usuario CONTROL_GLOBAL");
+    return false;
+  }
+
+  const emailControl = data[0].email || "";
+  const estado = emailControl.includes("bloqueo_remision:true");
+
+  return estado;
+}
+
+async function cargarEstadoBloqueo() {
+  const contenedor = document.getElementById("seccionBloqueoRemision");
+  const btn = document.getElementById("btnBloqueoRemision");
+
+  if (!usuarioAdmin) {
+    contenedor.style.display = "none";
+    return;
+  }
+
+  contenedor.style.display = "block";
+
+  const estadoActual = await consultarEstadoBloqueo();
+
+  btn.textContent = estadoActual 
+    ? "🔒 Bloqueo por remisión ACTIVADO" 
+    : "🔓 Bloqueo por remisión DESACTIVADO";
+
+  btn.onclick = async () => {
+    await cambiarEstadoBloqueo(!estadoActual);
+    await cargarEstadoBloqueo(); // Refresca visual después de cambiar
+  };
+}
+
+async function cambiarEstadoBloqueo(nuevoEstado) {
+  await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/usuarios?nombre=eq.CONTROL_GLOBAL", {
+    method: "PATCH",
+    headers: {
+      "apikey": API_KEY,
+      "Authorization": `Bearer ${API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      email: `bloqueo_remision:${nuevoEstado ? 'true' : 'false'}`
+    })
+  });
+}
+
 window.addEventListener("DOMContentLoaded", () => {
   const inputQR = document.getElementById("inputQR");
 
@@ -3150,8 +3332,6 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   }
 });
-
-
 
   </script>
 </body>
