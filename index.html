@@ -2413,33 +2413,48 @@ async function descargarReporteForecast() {
 function actualizarTablaRegistros() {
   const tabla = document.getElementById("tablaRegistros");
   const contenedor = document.getElementById("tablaContenedora");
-  if (!tabla || !contenedor) return;
 
-  // Limpia la tabla
-  tabla.querySelector("tbody").innerHTML = "";
-
-  if (qrsPendientes.length === 0) {
-    contenedor.classList.add("opacity-0");
-    setTimeout(() => contenedor.classList.add("hidden"), 500);
+  if (!tabla) {
+    console.warn("⚠️ No existe la tabla de registros aún en el DOM.");
     return;
   }
 
-  for (const qr of qrsPendientes) {
-    const fila = document.createElement("tr");
-    fila.innerHTML = `
-      <td class='p-1'>${qr.referencia}</td>
-      <td class='p-1'>${qr.lote}</td>
-      <td class='p-1'>${qr.cantidad ? `Fraccionado (${qr.cantidad})` : 'Unidad'}</td>
-      <td class='p-1 text-center'><button onclick='eliminarFila(this)' class='text-red-600'>✖</button></td>
-    `;
-    tabla.querySelector("tbody").appendChild(fila);
+  // Hacemos visible el contenedor si hay registros pendientes
+  if (qrsPendientes.length > 0) {
+    contenedor.classList.remove("hidden");
+    setTimeout(() => contenedor.classList.remove("opacity-0"), 10);
+  } else {
+    contenedor.classList.add("opacity-0");
+    setTimeout(() => contenedor.classList.add("hidden"), 500);
   }
 
-  contenedor.classList.remove("hidden");
-  setTimeout(() => contenedor.classList.remove("opacity-0"), 10);
+  // Limpiar contenido
+  tabla.innerHTML = `
+    <thead>
+      <tr>
+        <th class="p-1">Referencia</th>
+        <th class="p-1">Lote</th>
+        <th class="p-1">Estado</th>
+        <th class="p-1 text-center">Eliminar</th>
+      </tr>
+    </thead>
+  `;
+
+  // Agregar filas
+  qrsPendientes.forEach((qr, index) => {
+    const fila = document.createElement("tr");
+    fila.innerHTML = `
+      <td class="p-1">${qr.referencia}</td>
+      <td class="p-1">${qr.lote}</td>
+      <td class="p-1">${qr.modo}</td>
+      <td class="p-1 text-center">
+        <button onclick="eliminarFila(this)" class="bg-red-500 hover:bg-red-700 text-white px-2 rounded-xl">X</button>
+      </td>
+    `;
+    tabla.appendChild(fila);
+  });
 }
-
-
+  
 function enviarSupabase() {
   if (!modo || modo === "inactivo") {
     mostrarModal("⚠️ Selecciona primero el modo", "#f59e0b");
@@ -3109,17 +3124,33 @@ window.addEventListener("DOMContentLoaded", () => {
   const inputQR = document.getElementById("inputQR");
 
   if (inputQR) {
-    inputQR.addEventListener("keyup", function(event) {
+    inputQR.addEventListener("keyup", async function(event) {
       if (event.key === "Enter") {
         const contenido = event.target.value.trim();
+
         if (contenido) {
-          procesarQR(contenido);
-          event.target.value = "";
+          // División por coma o punto y coma (permite flexibilidad)
+          const codigos = contenido.split(/[,;]+/);
+
+          for (let codigo of codigos) {
+            const limpio = codigo.trim();
+            if (limpio) {
+              try {
+                await procesarQR(limpio);
+              } catch (err) {
+                console.error(`❌ Error al procesar QR múltiple: ${limpio}`, err);
+              }
+            }
+          }
+
+          inputQR.value = "";
+          inputQR.focus();
         }
       }
     });
   }
 });
+
 
 
   </script>
