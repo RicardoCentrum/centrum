@@ -8,7 +8,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default"> <!-- Esta línea aún es aceptada -->
   <link rel="apple-touch-icon" href="medinova_ios.png">
   <title>Inventario QR - Centrum</title>
-  <script src="https://cdn.tailwindcss.com">function agregarFila(ref, lote, estado) {
+  <script src="https://cdn.tailwindcss.com">
+  
+  function agregarFila(ref, lote, estado) {
     const tabla = document.getElementById("tablaRegistros");
     const contenedor = document.getElementById("tablaContenedora");
 
@@ -132,7 +134,47 @@
   </div>
 </div>
   <div id="mensajeQR"></div>
+ <!-- Ventana de moviemientos -->
+  <div id="modalMovimientos" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50 hidden">
+    <div class="bg-white rounded-xl p-6 w-[90%] max-w-4xl text-gray-800">
+      <h2 class="text-lg font-bold mb-4 text-center">📋 Movimientos del producto</h2>
+      <div class="flex flex-col md:flex-row items-center justify-between mb-4 gap-3">
+      <div>
+        <label for="cantidadMovimientos" class="text-sm font-semibold mr-2">Mostrar:</label>
+        <select id="cantidadMovimientos" class="px-2 py-1 border rounded-xl">
+          <option value="20">Últimos 20</option>
+          <option value="50" selected>Últimos 50</option>
+          <option value="100">Últimos 100</option>
+          <option value="todos">Todos</option>
+        </select>
+      </div>
 
+      <div class="flex items-center gap-2">
+        <label class="text-sm font-semibold" for="selectLote">Lote:</label>
+        <select id="selectLote" class="px-2 py-1 border rounded-xl text-sm" onchange="verMovimientos(filtroReferenciaGlobal)">
+          <option value="">Todos</option> <!-- default -->
+        </select>
+      </div>
+
+      <div class="flex gap-2 items-center">
+        <label class="text-sm font-semibold">Entre:</label>
+        <label for="fechaInicio" class="sr-only">Fecha de inicio</label>
+        <input id="fechaInicio" type="date" class="..." placeholder="Inicio" title="Fecha de inicio" />
+        <span class="text-sm">y</span>
+        <label for="fechaFin" class="sr-only">Fecha de fin</label>
+        <input id="fechaFin" type="date" class="..." placeholder="Fin" title="Fecha de fin" />    <button onclick="verMovimientos(filtroReferenciaGlobal)" class="bg-teal-900 text-white px-3 py-1 rounded-xl hover:bg-teal-800 text-sm">
+          🔍 Filtrar
+        </button>
+      </div>
+    </div>
+      <div id="movimientosContenido" class="max-h-64 overflow-y-auto text-sm"></div>
+      <div class="text-center mt-4">
+        <button onclick="document.getElementById('modalMovimientos').classList.add('hidden')" class="bg-red-800 text-white px-4 py-2 rounded-xl hover:bg-red-900">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
   <!-- Modal de cantidad -->
 <div id="modalCantidad" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center hidden z-50">
   <div class="bg-teal-900 p-6 rounded-xl shadow-lg w-80">
@@ -1216,8 +1258,7 @@ async function mostrarResultadosCoincidencias(ref, referenciasCache, cont) {
             <div class="text-sm text-gray-600">Fabricante: ${data.fabricante}</div>
           </div>
           <div class="flex items-center gap-2">
-            <button onclick="verMovimientos('${refReal}', '${data.lote}')" title="Ver movimientos"
-              class="text-2xl text-blue-600 hover:text-blue-800">📚</button>
+            <button onclick="verMovimientos('${refReal}')" title="Ver movimientos" class="text-2xl text-blue-600 hover:text-blue-800">📚</button>
             <button onclick="verForecast('${refReal}', '${data.nombre}', '${data.fabricante}')" title="Ver historial de consumo"
               class="text-2xl text-purple-600 hover:text-purple-800">📊</button>
           </div>
@@ -1257,91 +1298,6 @@ async function mostrarResultadosCoincidencias(ref, referenciasCache, cont) {
 // ✅ Al cargar la página, carga los productos
 window.addEventListener("DOMContentLoaded", cargarReferencias);
 
-function verMovimientos(referencia) {
-  filtroReferenciaGlobal = referencia;
-
-  const cantidad = document.getElementById("cantidadMovimientos")?.value || "50";
-  const fechaInicio = document.getElementById("fechaInicio")?.value;
-  const fechaFin = document.getElementById("fechaFin")?.value;
-  const lote = document.getElementById("selectLote")?.value;
-
-  let url = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/TimeStamps?referencia=eq.${encodeURIComponent(referencia)}&select=usuario,movimiento,fecha_str,lote,unidad_destino,fecha`;
-
-  const filtros = [];
-
-  if (fechaInicio) filtros.push(`fecha=gte.${new Date(fechaInicio).getTime()}`);
-  if (fechaFin) filtros.push(`fecha=lte.${new Date(fechaFin).getTime() + 86400000 - 1}`);
-  if (lote) filtros.push(`lote=eq.${encodeURIComponent(lote)}`);
-
-  if (filtros.length) url += `&${filtros.join("&")}`;
-  if (cantidad !== "todos") url += `&order=fecha.desc&limit=${cantidad}`;
-  else url += `&order=fecha.desc`;
-
-  fetch(url, {
-    headers: {
-      "apikey": API_KEY,
-      "Authorization": `Bearer ${API_KEY}`
-    }
-  })
-    .then(res => {
-      if (!res.ok) throw new Error("No se pudo obtener movimientos");
-      return res.json();
-    })
-    .then(data => {
-      console.log("🧾 Movimientos recibidos:", data);
-      const contenedor = document.getElementById("movimientosContenido");
-      const selectLote = document.getElementById("selectLote");
-
-      // Actualiza select de lote si es la primera vez o si ha cambiado la referencia
-      if (selectLote && referencia !== selectLote.dataset.referencia) {
-        const lotesUnicos = [...new Set(data.map(m => m.lote))].filter(Boolean);
-        selectLote.innerHTML = `<option value="">Todos</option>` + 
-          lotesUnicos.map(l => `<option value="${l}">${l}</option>`).join("");
-        selectLote.dataset.referencia = referencia;
-      }
-
-      if (!data.length) {
-            contenedor.innerHTML = "<p class='text-sm text-center text-gray-600'>No hay movimientos registrados.</p>";
-            document.getElementById("modalMovimientos").classList.remove("hidden"); // ← FALTABA ESTO AQUÍ
-            return;
-          }
-
-
-let html = `<table class="w-full text-sm text-left border mt-2 rounded-xl overflow-hidden">
-  <thead class="bg-teal-900 text-white text-center">
-    <tr>
-      <th class="p-2">Fecha</th>
-      <th class="p-2">Usuario</th>
-      <th class="p-2">Acción</th>
-      <th class="p-2">Lote</th>
-      <th class="p-2">Unidad Destino</th>
-    </tr>
-  </thead>
-  <tbody class="text-black text-center">`;      
-
-    data.forEach(mov => {
-      const unidadNombre = unidadesDestino[mov.unidad_destino] || mov.unidad_destino || "-";
-
-      html += `<tr>
-        <td class="p-2">${mov.fecha_str || "-"}</td>
-        <td class="p-2">${mov.usuario || "-"}</td>
-        <td class="p-2 capitalize">${mov.movimiento || "-"}</td>
-        <td class="p-2">${mov.lote || "-"}</td>
-        <td class="p-2">${unidadNombre}</td>
-      </tr>`;
-    });
-
-      html += "</tbody></table>";
-      contenedor.innerHTML = html;
-      document.getElementById("modalMovimientos").classList.remove("hidden");
-    })
-    .catch(err => {
-      console.error("Error al cargar movimientos:", err);
-      document.getElementById("movimientosContenido").innerHTML = "<p class='text-sm text-center text-red-600'>Error al obtener movimientos.</p>";
-      document.getElementById("modalMovimientos").classList.remove("hidden");
-    });
-}
-
 function ajustarMesLogico(timestamp) {
   const fecha = new Date(Number(timestamp));
   const mes = fecha.getMonth();
@@ -1367,49 +1323,6 @@ function ajustarMesLogico(timestamp) {
     tabla.appendChild(fila);
   }
 
-</script>
- <!-- Ventana de moviemientos -->
-  <div id="modalMovimientos" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50 hidden">
-    <div class="bg-white rounded-xl p-6 w-[90%] max-w-4xl text-gray-800">
-      <h2 class="text-lg font-bold mb-4 text-center">📋 Movimientos del producto</h2>
-      <div class="flex flex-col md:flex-row items-center justify-between mb-4 gap-3">
-      <div>
-        <label for="cantidadMovimientos" class="text-sm font-semibold mr-2">Mostrar:</label>
-        <select id="cantidadMovimientos" class="px-2 py-1 border rounded-xl">
-          <option value="20">Últimos 20</option>
-          <option value="50" selected>Últimos 50</option>
-          <option value="100">Últimos 100</option>
-          <option value="todos">Todos</option>
-        </select>
-      </div>
-
-      <div class="flex items-center gap-2">
-        <label class="text-sm font-semibold" for="selectLote">Lote:</label>
-        <select id="selectLote" class="px-2 py-1 border rounded-xl text-sm" onchange="verMovimientos(filtroReferenciaGlobal)">
-          <option value="">Todos</option> <!-- default -->
-        </select>
-      </div>
-
-      <div class="flex gap-2 items-center">
-        <label class="text-sm font-semibold">Entre:</label>
-        <label for="fechaInicio" class="sr-only">Fecha de inicio</label>
-        <input id="fechaInicio" type="date" class="..." placeholder="Inicio" title="Fecha de inicio" />
-        <span class="text-sm">y</span>
-        <label for="fechaFin" class="sr-only">Fecha de fin</label>
-        <input id="fechaFin" type="date" class="..." placeholder="Fin" title="Fecha de fin" />    <button onclick="verMovimientos(filtroReferenciaGlobal)" class="bg-teal-900 text-white px-3 py-1 rounded-xl hover:bg-teal-800 text-sm">
-          🔍 Filtrar
-        </button>
-      </div>
-    </div>
-      <div id="movimientosContenido" class="max-h-64 overflow-y-auto text-sm"></div>
-      <div class="text-center mt-4">
-        <button onclick="document.getElementById('modalMovimientos').classList.add('hidden')" class="bg-red-800 text-white px-4 py-2 rounded-xl hover:bg-red-900">
-          Cerrar
-        </button>
-      </div>
-    </div>
-  </div>
-<script>
 
   function mostrarMenuModo() {
   const contenedor = document.createElement("div");
@@ -1772,9 +1685,9 @@ function verForecast(referencia, nombre = "", fabricante = "") {
           </select>
         </div>
         <div class="flex gap-2">
-          <button onclick="exportarRegresionExcel()" class="bg-green-700 text-white px-3 py-1 rounded hover:bg-green-700 text-sm">📤 Excel</button>
-          <button onclick="exportarRegresionPDF()" class="bg-rose-800 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm">🖨️ PDF</button>
-          <button onclick="descargarReporteForecast()" class="bg-purple-700 text-white px-4 py-2 rounded-xl hover:bg-purple-800">📤 Descargar reporte global</button>
+          <button onclick="exportarRegresionExcel()" class="bg-emerald-900 text-white px-3 py-1 rounded hover:bg-emerald-800 text-sm">📤 Excel</button>
+          <button onclick="exportarRegresionPDF()" class="bg-rose-900 text-white px-3 py-1 rounded hover:bg-rose-800 text-sm">🖨️ PDF</button>
+          <button onclick="descargarReporteForecast()" class="bg-purple-900 text-white px-4 py-2 rounded-xl hover:bg-purple-800">📤 Reporte Global</button>
         </div>
       </div>
 
@@ -1847,7 +1760,10 @@ async function cargarDatosForecastEdge(ref) {
     document.getElementById("btnExportarExcel")?.classList.remove("opacity-50", "pointer-events-none");
     document.getElementById("btnExportarPDF")?.classList.remove("opacity-50", "pointer-events-none");
     document.getElementById("btnReporteGlobal")?.classList.remove("opacity-50", "pointer-events-none");
-
+    const optTotal = document.createElement("option");
+    optTotal.value = "TOTAL";
+    optTotal.textContent = "Total (Almacén CUU)";
+    select.appendChild(optTotal);
     todasUnidades.forEach(u => {
       const opt = document.createElement("option");
       opt.value = u;
@@ -1967,6 +1883,15 @@ function calcularR2(x, y, pendiente, intercepto) {
   const ssRes = y.reduce((sum, yi, i) => sum + Math.pow(yi - (pendiente * x[i] + intercepto), 2), 0);
   return 1 - (ssRes / ssTot);
 }
+
+async function obtenerInventarioObjetivo(ref, unidad) {
+  const res = await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/historicos?select=inventario_objetivo&referencia=eq.${ref}&unidad_medica=eq.${unidad}`, {
+    headers: { "apikey": API_KEY, "Authorization": `Bearer ${API_KEY}` }
+  });
+  const data = await res.json();
+  return data?.[0]?.inventario_objetivo || 0;
+}
+
 function graficarRegresionLineal(labelsHist, valoresHist) {
   const labelsRecortados = [...labelsHist];
   const valoresRecortados = [...valoresHist];
@@ -3108,6 +3033,9 @@ window.generarReporteMensual = async function() {
   const colInventarioFinal = `25_${mesNum}_${anioNum}`;
   const colPruebasFacturadas = `25_${mesNum}_${anioNum}`;
 
+  const colConsumoInicial = `10_${mesNum}_${anioNum}`;
+  const colConsumoCorte = `25_${mesNum}_${anioNum}`;
+
   const proyectos = {
     "CHIH IMSS B.S.": ["C03126","C03127","C03128","C03129","C03130","C03131","C03132","C03133","C03134","C03135"],
     "CHIH IMSS_BIENESTAR LAB.": ["C03122","C03123","C03124"],
@@ -3120,10 +3048,10 @@ window.generarReporteMensual = async function() {
   try {
     const headers = { apikey: API_KEY, Authorization: `Bearer ${API_KEY}` };
 
-    // --- Consultas simultáneas ---
-    const [historicos, timestamps, pruebasFacturadas] = await Promise.all([
+    // --- NUEVA llamada adicional para traer consumos_mensuales ---
+    const [historicos, consumosMensuales, pruebasFacturadas] = await Promise.all([
       fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/historicos?select=*", { headers }).then(r => r.json()),
-      fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/TimeStamps?select=referencia,unidad_destino,remision,fecha", { headers }).then(r => r.json()),
+      fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/consumos_mensuales?select=*", { headers }).then(r => r.json()),
       fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/pruebas_facturadas?select=*", { headers }).then(r => r.json())
     ]);
 
@@ -3142,28 +3070,17 @@ window.generarReporteMensual = async function() {
       const productoSurtirInicial = io - inventarioInicial;
       const productoSurtirCorte = io - inventarioCorte;
 
-      const fecha25Anterior = new Date(`${anioAnterior}-${String(mesAnterior).padStart(2,"0")}-25`).getTime();
-      const fecha9Actual = new Date(`${anioNum}-${String(mesNum).padStart(2,"0")}-09`).getTime();
-      const fecha10Actual = new Date(`${anioNum}-${String(mesNum).padStart(2,"0")}-10`).getTime();
-      const fecha25Actual = new Date(`${anioNum}-${String(mesNum).padStart(2,"0")}-25`).getTime();
-
-      // Timestamps inicial
-      const tsInicial = timestamps.filter(t => 
-        t.unidad_destino === cliente &&
-        t.referencia === h.referencia &&
-        t.fecha >= fecha25Anterior && t.fecha <= fecha9Actual
+      // NUEVO cálculo de entregadoInicial y entregadoCorte desde consumos_mensuales:
+      const consumoMatch = consumosMensuales.find(c => 
+        c.referencia === h.referencia && c.unidad_medica === cliente
       );
-      const entregadoInicial = tsInicial.length;
-      const remisionInicial = tsInicial.map(t => t.remision).filter(r => r).join(", ");
 
-      // Timestamps corte
-      const tsCorte = timestamps.filter(t => 
-        t.unidad_destino === cliente &&
-        t.referencia === h.referencia &&
-        t.fecha >= fecha10Actual && t.fecha <= fecha25Actual
-      );
-      const entregadoCorte = tsCorte.length;
-      const remisionCorte = tsCorte.map(t => t.remision).filter(r => r).join(", ");
+      const entregadoInicial = consumoMatch ? parseFloat(consumoMatch[colConsumoInicial] || 0) : 0;
+      const entregadoCorte = consumoMatch ? parseFloat(consumoMatch[colConsumoCorte] || 0) : 0;
+
+      // Las remisiones las dejamos vacías de momento
+      const remisionInicial = "";
+      const remisionCorte = "";
 
       const consumoInv10 = inventarioInicial + entregadoInicial - inventarioCorte;
       const productoConsumido = (inventarioInicial + entregadoInicial + entregadoCorte) - inventarioFinal;
@@ -3191,7 +3108,6 @@ window.generarReporteMensual = async function() {
     ]);
     XLSX.utils.book_append_sheet(wb, ws, "Reporte");
 
-    // Descarga segura del archivo
     const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     const blob = new Blob([wbout], { type: "application/octet-stream" });
     const url = URL.createObjectURL(blob);
@@ -3210,6 +3126,8 @@ window.generarReporteMensual = async function() {
     mostrarModal("❌ Error al generar el reporte", "#dc2626");
   }
 };
+
+
 document.getElementById("btnSubirRemision").addEventListener("click", async () => {
   const archivo = document.getElementById("inputArchivoRemision")?.files[0];
 
@@ -3332,6 +3250,93 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   }
 });
+ // Aquí va toda tu función verMovimientos()
+function verMovimientos(referencia) {
+  filtroReferenciaGlobal = referencia;
+
+  const modal = document.getElementById("modalMovimientos");
+  if (modal) {
+    modal.classList.remove("hidden");
+  } else {
+    console.warn("⚠️ No se encontró el modalMovimientos en el DOM");
+  }
+
+  const cantidad = document.getElementById("cantidadMovimientos")?.value || "50";
+  const fechaInicio = document.getElementById("fechaInicio")?.value;
+  const fechaFin = document.getElementById("fechaFin")?.value;
+  const loteSeleccionado = document.getElementById("selectLote")?.value;
+
+  let url = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/TimeStamps?referencia=eq.${encodeURIComponent(referencia)}&select=usuario,movimiento,fecha_str,lote,remision,unidad_destino,fecha`;
+
+  const filtros = [];
+
+  if (fechaInicio) filtros.push(`fecha=gte.${new Date(fechaInicio).getTime()}`);
+  if (fechaFin) filtros.push(`fecha=lte.${new Date(fechaFin).getTime() + 86400000 - 1}`);
+  if (loteSeleccionado) filtros.push(`lote=eq.${encodeURIComponent(loteSeleccionado)}`);
+
+  if (filtros.length) url += `&${filtros.join("&")}`;
+  if (cantidad !== "todos") url += `&order=fecha.desc&limit=${cantidad}`;
+  else url += `&order=fecha.desc`;
+
+  fetch(url, {
+    headers: { "apikey": API_KEY, "Authorization": `Bearer ${API_KEY}` }
+  })
+    .then(res => {
+      if (!res.ok) throw new Error("No se pudo obtener movimientos");
+      return res.json();
+    })
+    .then(data => {
+      console.log("🧾 Movimientos recibidos:", data);
+      const contenedor = document.getElementById("movimientosContenido");
+      const selectLote = document.getElementById("selectLote");
+
+      if (selectLote && referencia !== selectLote.dataset.referencia) {
+        const lotesUnicos = [...new Set(data.map(m => m.lote))].filter(Boolean);
+        selectLote.innerHTML = `<option value="">Todos</option>` + 
+          lotesUnicos.map(l => `<option value="${l}">${l}</option>`).join("");
+        selectLote.dataset.referencia = referencia;
+      }
+
+      if (!data.length) {
+        contenedor.innerHTML = "<p class='text-sm text-center text-gray-600'>No hay movimientos registrados.</p>";
+        return;
+      }
+
+      let html = `<table class="w-full text-sm text-left border mt-2 rounded-xl overflow-hidden">
+        <thead class="bg-teal-900 text-white text-center">
+          <tr>
+            <th class="p-2">Fecha</th>
+            <th class="p-2">Usuario</th>
+            <th class="p-2">Acción</th>
+            <th class="p-2">Lote</th>
+            <th class="p-2">Remisión</th>
+            <th class="p-2">Unidad Destino</th>
+          </tr>
+        </thead>
+        <tbody class="text-black text-center">`;      
+
+      data.forEach(mov => {
+        const unidadNombre = unidadesDestino[mov.unidad_destino] || mov.unidad_destino || "-";
+
+        html += `<tr>
+          <td class="p-2">${mov.fecha_str || "-"}</td>
+          <td class="p-2">${mov.usuario || "-"}</td>
+          <td class="p-2 capitalize">${mov.movimiento || "-"}</td>
+          <td class="p-2">${mov.lote || "-"}</td>
+          <td class="p-2">${mov.remision ?? "-"}</td>
+          <td class="p-2">${unidadNombre}</td>
+        </tr>`;
+      });
+
+      html += "</tbody></table>";
+      contenedor.innerHTML = html;
+    })
+    .catch(err => {
+      console.error("Error al cargar movimientos:", err);
+      const contenedor = document.getElementById("movimientosContenido");
+      contenedor.innerHTML = "<p class='text-sm text-center text-red-600'>Error al obtener movimientos.</p>";
+    });
+}
 
   </script>
 </body>
