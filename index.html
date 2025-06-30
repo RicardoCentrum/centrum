@@ -3316,7 +3316,7 @@ document.getElementById("btnSubirRemision").addEventListener("click", async () =
   formData.append("usuario_carga", nip);
 
   try {
-    const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/cargar_remision", {
+    const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/cargar_remision_sap", {
       method: "POST",
       body: formData
     });
