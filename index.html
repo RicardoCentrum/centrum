@@ -91,7 +91,7 @@
     }
   </style>
 </head>
-
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">function agregarFila(ref, lote, estado) {
     const tabla = document.getElementById("tablaRegistros");
     const contenedor = document.getElementById("tablaContenedora");
@@ -229,8 +229,9 @@
       📤 Cargar archivo SAP
     </button>
   </div>
-  <div id="resultadoCarga" class="text-center font-semibold text-sm"></div>
+  <div id="resultadoCargaArchivo" class="text-center font-semibold text-sm"></div>
 </div>
+
 
     <div id="pinError" class="text-sm text-red-600 hidden">❌ NIP o unidad no válidos.</div>
     <div class="flex flex-col gap-2 mt-4">
@@ -288,7 +289,7 @@
       </button>  -->    
           </div>
 <div class="flex justify-center">
-  <button onclick="solicitarNIP()" class="bg-teal-800 text-white px-4 py-2 rounded-2xl shadow hover:bg-teal-600">
+  <button onclick="solicitarNIP()" class="bg-teal-900 text-white px-4 py-2 rounded-2xl shadow hover:bg-teal-800">
     📝 Capturar Inventario
   </button>
 </div>
@@ -304,7 +305,7 @@
     <h2 class="text-xl font-bold text-center mb-6">📊 Generar reporte mensual</h2>
     <div class="mb-6">
       <label for="inputMes" class="block text-sm font-semibold mb-2">Selecciona el mes:</label>
-      <input type="month" id="inputMes" class="w-full px-4 py-3 border rounded-xl shadow focus:outline-none focus:ring-2 focus:ring-blue-800 text-lg">
+      <input type="month" id="inputMes" class="w-full px-4 py-3 border rounded-xl shadow focus:outline-none focus:ring-2 focus:ring-teal-900 text-lg">
     </div>
     <div class="flex justify-end gap-3">
       <button onclick="cerrarModalReporteMensual()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 shadow">Cancelar</button>
@@ -381,6 +382,23 @@
 
     <input type="text" id="inputQR" placeholder="Escanea el código QR" class="w-full p-3 mb-4 rounded-xl border text-center" autofocus />
     <div class="text-center mt-2 mb-4">
+    <div id="tablaRemisionSAP" class="hidden mt-4">
+      <h2 class="font-bold text-sm mb-2">🧾 Avance remisión SAP:</h2>
+      <table class="w-full text-sm border rounded-xl bg-white">
+        <thead>
+          <tr class="bg-gray-200 text-left">
+            <th class="p-2">Referencia</th>
+            <th class="p-2">Descripción</th>
+            <th class="p-2 text-center">Escaneados</th>
+            <th class="p-2 text-center">Total</th>
+          </tr>
+        </thead>
+        <tbody id="bodyRemisionSAP"></tbody>
+      </table>
+    </div>
+    <div id="contenedorModal" class="hidden mt-4 p-4 rounded-xl text-center transition-all duration-300">
+  <div id="resultadoCarga" class="font-bold text-sm text-gray-800"></div>
+</div>
 
   <div class="text-center mt-4">
     <button id="btnAlertasCaducidad" class="bg-yellow-500 bg-opacity-20 px-4 py-1 rounded-xl hover:bg-yellow-600 font-semibold shadow">
@@ -421,6 +439,7 @@
     </div>
   </div>
 </div>
+
   <!-- MODAL NIP -->
 <div id="modalNIP" class="fixed inset-0 hidden z-50 flex items-center justify-center blur-fondo">
   <div class="bg-white text-black rounded-2xl p-6 shadow-lg w-full max-w-sm relative">
@@ -444,7 +463,7 @@
         <button onclick="cerrarModalCaptura()" class="text-red-600 font-bold text-xl">×</button>
       </div>
 
-<div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end mb-4 w-full">
+<div class="flex flex-wrap justify-between items-center mt-4 gap-4 w-full">
   <!-- Modo -->
   <div>
     <label class="block font-semibold mb-1">Modo:</label>
@@ -490,17 +509,60 @@
   </button>
   </div>
 </div>
-<div class="flex items-center justify-between mt-2 w-full">
-  <div class="flex items-center gap-2">
+<!-- Selección de mes y tipo -->
+<div class="flex flex-wrap md:flex-nowrap items-center justify-between mt-4 w-full gap-4">
+  
+  <!-- Ocultar completadas -->
+  <div class="flex items-center gap-2 flex-shrink-0">
     <input type="checkbox" onchange="toggleFilasCompletadas(this.checked)" id="checkboxFilas" />
     <label for="checkboxFilas" class="text-sm">Ocultar filas completadas</label>
   </div>
-  <button id="btnEnviarCaptura" onclick="enviarCapturaBase()" class="bg-emerald-900 text-white px-4 py-2 rounded-xl hover:bg-emerald-800">
-    📤 Enviar Inventario
-  </button>
+
+  <!-- Selector de mes y año -->
+  <div class="flex items-center gap-2 flex-wrap md:flex-nowrap flex-grow justify-start">
+    <div class="min-w-[120px]">
+      <label for="mesCaptura" class="text-sm font-semibold">Mes:</label>
+      <select id="mesCaptura" name="mesCaptura" title="Mes de captura" class="px-3 py-1 border rounded-xl text-sm w-full">
+        <!-- JS agregará opciones -->
+      </select>
+    </div>
+    <div class="min-w-[120px]">
+      <label for="anioCaptura" class="text-sm font-semibold">Año:</label>
+      <select id="anioCaptura" name="anioCaptura" title="Año de captura" class="px-3 py-1 border rounded-xl text-sm w-full">
+        <!-- JS agregará opciones -->
+      </select>
+    </div>
+  </div>
+  <!-- Carga archivo -->
+<div>
+  <label for="archivoCaptura" class="text-sm font-semibold text-center">📄 Precargar archivo:</label>
+  <input type="file" id="archivoCaptura" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" class="text-sm border rounded-xl px-3 py-1 mt-1" onchange="precargarArchivoCaptura()">
 </div>
 
-<div id="contenedorTabla" class="overflow-x-auto max-h-[75vh] overflow-y-auto hidden">
+<!-- Toggle de tipo -->
+<div class="flex items-center gap-2 flex-shrink-0">
+  <label for="toggleTipoCaptura" class="text-sm font-semibold">Tipo:</label>
+  <div class="flex items-center gap-2">
+    <label class="relative inline-flex items-center cursor-pointer">
+      <input type="checkbox" id="toggleTipoCaptura" class="sr-only" onchange="actualizarTextoTipoCaptura()">
+      <div id="fondoToggleTipo" class="w-14 h-7 bg-gray-300 rounded-full transition-colors duration-300"></div>
+      <div class="absolute left-0.5 top-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-300" id="circuloToggleTipo"></div>
+    </label>
+    <span id="textoTipoCaptura" class="text-sm font-semibold text-gray-700">Inicial</span>
+  </div>
+</div>
+
+  <!-- Botón enviar -->
+  <div class="flex-shrink-0">
+    <button id="btnEnviarCaptura" onclick="enviarCapturaBase()" class="bg-emerald-900 text-white px-4 py-2 rounded-xl hover:bg-emerald-800 whitespace-nowrap">
+      📤 Enviar 
+    </button>
+  </div>
+
+</div>
+
+<!-- Tabla -->
+<div id="contenedorTabla" class="overflow-x-auto max-h-[75vh] overflow-y-auto hidden mt-4">
   <table class="w-full text-sm text-left border" id="tablaCaptura">
     <thead id="tablaEncabezado" class="bg-emerald-900 text-white">
       <tr>
@@ -540,60 +602,20 @@ let datosCaptura = [], usuarioActivo = "", unidadesAsignadas = [], referenciasPo
 let remisionGlobal = null;
 let remisionActual = null; // nueva variable global
 let remision = null;
+let callbackSobrescribir = null;
+let remisionActiva = "";
+let avanceRemision = {};  // referencia → { nombre, total, escaneados }
 
     const unidadesDestino = {
-  //"C03442": "C.S. GALEANA",
-  //"C03441": "C.S. HIDALGO",
-  //"C03438": "C.S. NUEVO CASAS GRANDES",
-  //"C03443": "CAAPS ANAPRA",
-  //"C03439": "CESSA COLINAS",
-  //"C03440": "CESSA ZARAGOZA",
-  //"C03435": "H.C. NUEVO CASAS GRANDES",
-  //"C03436": "HIE JUAREZ",
-  //"C03420": "HOSPITAL DE LA MUJER CD JUAREZ",
-  //"C03419": "HOSPITAL GENERAL CD JUAREZ",
-  //"C03127": "HGZ 6",
-  //"C03131": "HGS 22",
-  //"C03135": "HGR 02",
-  //"C03133": "HGZ UMAA 35",
-  //"C03134": "HGR 66",
-  //"C03448": "C.S. GUACHOCHI",
-  //"C03447": "C.S. JIMENEZ",
-  //"C03446": "H. GPE Y CALVO",
-  //"C03132": "H.G.Z.M.F. 23",
-  //"C03122": "H.R.O. No. 26",
-  //"C03124": "H.R.O. No. 36",
-  //"C03445": "HOSPITAL CAMARGO",
-  //"C03421": "HOSPITAL DE JIMENEZ",
-  //"C03422": "HOSPITAL GINECOLOGIA PARRAL",
-  //"C03444": "HOSPITAL PARRAL",
-  "C03451": "CESSA ALDAMA",
-  "C03433": "CESSA MADERA",
-  "C03415": "HOSPITAL CENTRAL",
-  "C03424": "HG CUAUHTEMOC",
-  "C03416": "HGO CUAUHTEMOC",
-  "C03432": "CESSA TIERRA NUEVA",
-  "C03431": "CS CREEL",
-  "C03428": "CS TEMORIS",
-  "C03123": "HRO No. 18 SAN JUANITO",
-  "C03430": "C.S. DELICIAS",
-  "C03425": "H.C. OJINAGA",
-  "C03417": "H.R. DELICIAS",
-  "C03434": "C.S. SANTA ISABEL",
-  "C03429": "CAAPS NOGALES",
-  "C03427": "C.S. SAN FELIPE",
-  "C03426": "H.C. GOMEZ FARIAS",
-  "C03418": "HIE CHIHUAHUA",
-  "C03423": "H.G. DR. SALVADOR ZUBIRAN",
-  "C03128": "H.G.Z.M.F. 11",
-  "C03130": "H.G.Z.M.F. 16",
-  "C03129": "HGO No. 15",
-  "C03126": "HGR No. 1",
-  "66": "ALMACEN PARRAL",
-  "65": "ALMACEN JUAREZ",
-  "CUU": "ALMACEN CHIHUAHUA"
+  "C03442": "C.S. GALEANA", "C03441": "C.S. HIDALGO", "C03438": "C.S. NUEVO CASAS GRANDES", "C03443": "CAAPS ANAPRA", "C03439": "CESSA COLINAS", "C03440": "CESSA ZARAGOZA", "C03435": "H.C. NUEVO CASAS GRANDES", "C03436": "HIE JUAREZ",
+  "C03420": "HOSPITAL DE LA MUJER CD JUAREZ", "C03419": "HOSPITAL GENERAL CD JUAREZ", "C03127": "HGZ 6", "C03131": "HGS 22", "C03135": "HGR 02", "C03133": "HGZ UMAA 35", "C03134": "HGR 66", "C03448": "C.S. GUACHOCHI", "C03447": "C.S. JIMENEZ", "C03446": "H. GPE Y CALVO", "C03132": "H.G.Z.M.F. 23", "C03122": "H.R.O. No. 26", "C03124": "H.R.O. No. 36", "C03445": "HOSPITAL CAMARGO", "C03421": "HOSPITAL DE JIMENEZ", "C03422": "HOSPITAL GINECOLOGIA PARRAL", "C03444": "HOSPITAL PARRAL", "C03451": "CESSA ALDAMA", "C03433": "CESSA MADERA",
+  "C03415": "HOSPITAL CENTRAL", "C03424": "HG CUAUHTEMOC", "C03416": "HGO CUAUHTEMOC", "C03432": "CESSA TIERRA NUEVA", "C03431": "CS CREEL", "C03428": "CS TEMORIS", "C03123": "HRO No. 18 SAN JUANITO", "C03430": "C.S. DELICIAS", "C03425": "H.C. OJINAGA", "C03417": "H.R. DELICIAS", "C03434": "C.S. SANTA ISABEL", "C03429": "CAAPS NOGALES", "C03427": "C.S. SAN FELIPE", "C03426": "H.C. GOMEZ FARIAS", "C03418": "HIE CHIHUAHUA", "C03423": "H.G. DR. SALVADOR ZUBIRAN", "C03128": "H.G.Z.M.F. 11", "C03130": "H.G.Z.M.F. 16", "C03129": "HGO No. 15", "C03126": "HGR No. 1", "66": "ALMACEN PARRAL", "65": "ALMACEN JUAREZ", "CUU": "ALMACEN CHIHUAHUA"
 };
-
+    const unidadesFijas = {
+  "C03442": "CS Galeana", "C03441": "C.S. HIDALGO", "C03438": "CS Casas Grandes", "C03443": "CAAPS ANAPRA", "C03439": "CESSA Colinas", "C03440": "CESSA Zaragoza", "C03435": "HC Casas Grandes", "C03436": "HIE Cd. Juarez",
+  "C03420": "hospital de la mujer", "C03419": "hg cd. juarez", "C03127": "HGZ 6", "C03131": "HGS 22", "C03135": "HGR 02", "C03133": "HGZ UMAA 35", "C03134": "HGR 66", "C03448": "CAAPS Guachochi", "C03447": "CS Jimenez", "C03446": "HC Guadalupe y Calvo", "C03132": "H.G.Z.M.F. 23", "C03122": "H.R.O. No. 26", "C03124": "H.R.O. No. 36", "C03445": "HG Camargo", "C03421": "hr jimenez", "C03422": "Ginecologia Parral", "C03444": "HG Parral", "C03451": "CESSA Aldama", "C03433": "CESSA Madera",
+  "C03415": "hospital central", "C03424": "HG Cuauhtemoc", "C03416": "Ginecologia Cuauhtemoc", "C03432": "CESSA Tierra Nueva", "C03431": "CS Creel", "C03428": "CS Temoris", "C03123": "HRO No. 18 SAN JUANITO", "C03430": "CS Delicias", "C03425": "HC Ojinaga", "C03417": "hr delicias", "C03434": "CS Sta. Isabel", "C03429": "CAAPS Nogales", "C03427": "CS San Felipe", "C03426": "HC Gomez Farias", "C03418": "hie chihuahua", "C03423": "HG Chihuahua", "C03128": "H.G.Z.M.F. 11", "C03130": "H.G.Z.M.F. 16", "C03129": "HGO No. 15", "C03126": "HGR No. 1", "66": "ALMACEN PARRAL", "65": "ALMACEN JUAREZ", "CUU": "ALMACEN CHIHUAHUA"
+};
 function mostrarOpcionesAdmin() {
   const esAdmin = Boolean(window.usuarioEsAdmin); // debe haberse asignado después de validar NIP
   document.getElementById("modalOpcionesAdmin").classList.remove("hidden");
@@ -2644,7 +2666,7 @@ function agregarFila(ref, lote, estado) {
 
       // Botón
       const btn = document.getElementById("btnEnviarCaptura");
-      btn.textContent = toggle.checked ? "📤 Enviar Pruebas Facturadas" : "📤 Enviar Inventario";
+      btn.textContent = toggle.checked ? "📤 Enviar" : "📤 Enviar";
       btn.classList.remove("bg-emerald-900", "hover:bg-emerald-800", "bg-rose-900", "hover:bg-rose-800");
       if (toggle.checked) {
         btn.classList.add("bg-rose-900", "hover:bg-rose-800");
@@ -2679,6 +2701,57 @@ function agregarFila(ref, lote, estado) {
 
     function cerrarModalCaptura() {
       document.getElementById("modalCaptura").classList.add("hidden");
+    }
+
+    async function precargarArchivoCaptura() {
+      const input = document.getElementById("archivoCaptura");
+      const archivo = input.files[0];
+      if (!archivo) return;
+
+      try {
+        const datos = await archivo.arrayBuffer();
+        const workbook = XLSX.read(datos, { type: "array" });
+        const hoja = workbook.Sheets[workbook.SheetNames[0]];
+        const filas = XLSX.utils.sheet_to_json(hoja);
+
+        if (!filas.length) return alert("❌ El archivo está vacío.");
+
+        const unidad = document.getElementById("unidadCaptura").value;
+        const tabla = document.querySelector("#tablaCaptura tbody");
+        tabla.innerHTML = "";
+        datosCaptura = [];
+
+        filas.forEach(row => {
+          const referencia = row.referencia || row.Referencia || row["Número de artículo"];
+          const nombre = row.nombre || row.Nombre || row["Descripción del artículo"];
+          const cantidad = parseFloat(row.cantidad || row.Cantidad || row["Cantidad Inventario"]);
+
+          if (!referencia || isNaN(cantidad)) return;
+
+          const tr = document.createElement("tr");
+          tr.classList.add("completada");
+          tr.innerHTML = `
+            <td class="p-2">${referencia}</td>
+            <td class="p-2">${nombre || ""}</td>
+            <td class="p-2">
+              <input type="number" step="0.01" min="0" value="${cantidad}" class="w-24 px-2 py-1 border rounded-lg text-right" onchange="marcarComoCompletada(this)">
+            </td>
+            <td class="p-2 text-center">
+              <button onclick='this.closest("tr").remove(); actualizarDatosCaptura()' class='text-red-600'>✖</button>
+            </td>
+          `;
+          tabla.appendChild(tr);
+
+          datosCaptura.push({ referencia, nombre, cantidad, tipo: document.getElementById("modoCaptura").value });
+        });
+
+        document.getElementById("contenedorTabla").classList.remove("hidden");
+        localStorage.setItem("capturaPendiente", JSON.stringify(datosCaptura));
+        mostrarModal("✅ Archivo cargado correctamente", "#065f46");
+      } catch (err) {
+        console.error("❌ Error al leer archivo:", err);
+        mostrarModal("❌ Error al leer archivo", "#991b1b");
+      }
     }
 
     function mostrarReferenciasUnidad() {
@@ -2760,38 +2833,108 @@ function agregarFila(ref, lote, estado) {
       contenedorTabla.classList.toggle("hidden", referencias.length === 0);
     }
 
+    async function procesarArchivoPruebasFacturadas(archivo, modo) {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
 
+        const relaciones = await obtenerRelacionesSupabase(); // Debe devolver un array [{ referencia, nombre_facturacion }]
+        if (!relaciones.length) return mostrarModal("❌ No se pudieron cargar las relaciones.", "red");
+
+        const hojaActual = workbook.SheetNames[0];
+        const unidad = unidadesFijas[hojaActual];
+        if (!unidad) return mostrarModal("❌ Unidad no reconocida: " + hojaActual, "red");
+
+        const sheet = workbook.Sheets[hojaActual];
+        const datos = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+        const nombreColumna = datos[0][0]; // Asumimos que la fila 0 tiene encabezado y columna A es relevante
+        const filaInicial = 1; // Saltamos encabezado
+
+        let coincidencias = 0;
+        for (let i = filaInicial; i < datos.length; i++) {
+          const nombreExcel = (datos[i][0] || "").toString().trim().toUpperCase();
+          const cantidad = parseFloat(datos[i][1]);
+          if (!nombreExcel || isNaN(cantidad)) continue;
+
+          const rel = relaciones.find(r =>
+            (r.nombre_facturacion || "").toUpperCase().trim() === nombreExcel
+          );
+          if (!rel) continue;
+
+          // Buscar fila en tabla actual y actualizar
+          const fila = [...document.querySelectorAll("#tablaCaptura tbody tr")].find(f =>
+            f.children[0].textContent.trim() === rel.referencia
+          );
+          if (fila) {
+            const input = fila.querySelector("input[type='number']");
+            if (input) {
+              input.value = cantidad;
+              marcarComoCompletada(input);
+              coincidencias++;
+            }
+          }
+        }
+
+        mostrarModal(`📄 Archivo cargado: ${coincidencias} coincidencias aplicadas.`, "green");
+      };
+
+      reader.readAsArrayBuffer(archivo);
+    }
+
+    async function obtenerRelacionesSupabase() {
+      try {
+        const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/relaciones?select=referencia,nombre_facturacion", {
+          headers: {
+            apikey: "API_KEY",
+            Authorization: "Bearer API_KEY"
+          }
+        });
+        if (!res.ok) throw new Error("Respuesta no válida");
+        return await res.json();
+      } catch (e) {
+        console.error("Error al obtener relaciones:", e);
+        return [];
+      }
+    }
 
     function agregarFilaCaptura() {
       const ref = document.getElementById("inputReferencia").value.trim();
       const cantidad = parseFloat(document.getElementById("inputCantidad").value);
       const tipo = document.getElementById("modoCaptura").value;
-      if (!ref || isNaN(cantidad)) return alert("Faltan datos");
+      const unidad = document.getElementById("unidadCaptura").value;
+
+      if (!ref || isNaN(cantidad)) return alert("⚠️ Faltan datos");
+
+      // Verificación de asignación de referencia a la unidad
+      const coincide = referenciasPorUnidad.some(r =>
+        r.referencia === ref && normalizarTexto(r.unidad_medica) === normalizarTexto(unidad)
+      );
+      if (!coincide) return alert("❌ Esta referencia no está asignada a la unidad seleccionada.");
 
       const filas = document.querySelectorAll("#tablaCaptura tbody tr");
-
       let encontrada = false;
       filas.forEach(fila => {
         const refFila = fila.children[0].textContent.trim();
         if (refFila === ref) {
-          // Actualiza cantidad
           const inputCantidad = fila.querySelector("input");
           if (inputCantidad) {
             inputCantidad.value = cantidad;
-            marcarComoCompletada(inputCantidad);  // Marca y actualiza datosCaptura
+            marcarComoCompletada(inputCantidad);
             encontrada = true;
           }
         }
       });
 
       if (!encontrada) {
-        // Si no se encontró, alerta
-        alert("Esta referencia no está en la lista. Verifica que esté asignada a esta unidad.");
+        mostrarModal("❌ Esta referencia no está en la tabla de la unidad seleccionada.", "#b91c1c"); // rojo fuerte
       }
 
       document.getElementById("inputReferencia").value = "";
       document.getElementById("inputCantidad").value = "";
     }
+
 
     function cerrarModalNIP() {
       document.getElementById("modalNIP").classList.add("hidden");
@@ -2837,32 +2980,56 @@ function agregarFila(ref, lote, estado) {
       }
       localStorage.setItem("capturaPendiente", JSON.stringify(datosCaptura));
     }
-     async function enviarCapturaBase() {
+    async function enviarCapturaBase() {
       if (!datosCaptura.length) return alert("No hay datos que enviar.");
+
       const unidad = document.getElementById("unidadCaptura").value;
-      if (!unidad || !usuarioActivo) return alert("Faltan unidad o usuario");
+      const usuario = usuarioActivo;
+      const modo = document.getElementById("modoCaptura").value; // "inventario" o "pruebas_facturadas"
+      const mes = parseInt(document.getElementById("mesCaptura").value);
+      const anio = document.getElementById("anioCaptura").value;
+      const tipoCorte = document.getElementById("toggleTipoCaptura").checked ? "25" : "10";
+
+      if (!unidad || !usuario || !mes || !anio) {
+        alert("❌ Faltan datos necesarios (usuario, unidad, mes o año).");
+        return;
+      }
+
+      // Construir nombre de columna, ej. "10_6_2025"
+      const columna = `${tipoCorte}_${mes}_${anio}`;
+
       try {
-        console.log("Enviando datos de captura:", JSON.stringify({ unidad, usuario: usuarioActivo, registros: datosCaptura }));
+        const payload = {
+          unidad,
+          usuario,
+          registros: datosCaptura,
+          columna,
+          tabla: modo // "inventario" o "pruebas_facturadas"
+        };
+
+        console.log("📤 Enviando:", JSON.stringify(payload));
+
         const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/guardar_captura", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ unidad, usuario: usuarioActivo, registros: datosCaptura })
+          body: JSON.stringify(payload)
         });
+
         const resultado = await res.json();
         if (res.ok && resultado.status === "ok") {
           alert("✅ Datos enviados correctamente.");
           datosCaptura = [];
           document.querySelector("#tablaCaptura tbody").innerHTML = "";
           localStorage.removeItem("capturaPendiente");
-
         } else {
           alert("❌ Error al enviar: " + (resultado.error || "desconocido"));
         }
       } catch (err) {
+        console.error("❌ Error de conexión:", err);
         alert("❌ Error de conexión al enviar.");
-        console.error(err);
       }
     }
+
 
 </script>
 <div id="versionInfo" class="version-info">v2.4.0</div>
@@ -3128,17 +3295,19 @@ window.generarReporteMensual = async function() {
 };
 
 
+
+
+
 document.getElementById("btnSubirRemision").addEventListener("click", async () => {
   const archivo = document.getElementById("inputArchivoRemision")?.files[0];
-
-  const numeroRemision = document.getElementById("inputNumeroRemision")?.value.trim();
-  const unidadDestino = document.getElementById("inputUnidadDestino")?.value.trim();
+  const numeroRemision = document.getElementById("inputRemision")?.value.trim();
+  const unidadDestino = document.getElementById("inputUnidad")?.value.trim();
   const nip = document.getElementById("inputNIP")?.value.trim();
 
-  if (!archivo || !numeroRemision || !unidadDestino || !nip) {
-    alert("Completa todos los campos antes de subir el archivo.");
-    return;
-  }
+  if (!archivo) return alert("Selecciona un archivo .xlsx");
+  if (!numeroRemision) return alert("Escribe el número de remisión");
+  if (!unidadDestino) return alert("Especifica la unidad destino");
+  if (!nip) return alert("Ingresa tu NIP");
 
   const formData = new FormData();
   formData.append("file", archivo);
@@ -3152,18 +3321,32 @@ document.getElementById("btnSubirRemision").addEventListener("click", async () =
       body: formData
     });
 
+    const contenedor = document.getElementById("contenedorModal");
+    const resultado = document.getElementById("resultadoCarga");
+
+    const texto = await res.text();
+
+    contenedor.classList.remove("hidden", "bg-teal-100", "bg-rose-100");
+
     if (res.ok) {
-      document.getElementById("contenedorModal").classList.add("bg-teal-100");
-      document.getElementById("resultadoCarga").textContent = `Remisión #${numeroRemision} cargada correctamente.`;
+      contenedor.classList.add("bg-teal-100");
+      resultado.textContent = `✅ ${texto}`;
+      await cargarTablaRemisionSAP(numeroRemision); // muestra y sincroniza la tabla
     } else {
-      document.getElementById("contenedorModal").classList.add("bg-rose-100");
-      document.getElementById("resultadoCarga").textContent = "Error al cargar el archivo.";
+      contenedor.classList.add("bg-rose-100");
+      resultado.textContent = `❌ Error: ${texto}`;
     }
+
   } catch (e) {
-    document.getElementById("contenedorModal").classList.add("bg-rose-100");
-    document.getElementById("resultadoCarga").textContent = "Error en la comunicación.";
+    const contenedor = document.getElementById("contenedorModal");
+    contenedor.classList.remove("bg-teal-100");
+    contenedor.classList.add("bg-rose-100", "text-center");
+    contenedor.classList.remove("hidden");
+    document.getElementById("resultadoCarga").textContent = "❌ Error en la comunicación con el servidor.";
   }
 });
+
+
 
 async function consultarEstadoBloqueo() {
   const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/usuarios?nombre=eq.CONTROL_GLOBAL", {
@@ -3250,6 +3433,11 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   }
 });
+
+
+
+
+
  // Aquí va toda tu función verMovimientos()
 function verMovimientos(referencia) {
   filtroReferenciaGlobal = referencia;
@@ -3336,6 +3524,165 @@ function verMovimientos(referencia) {
       const contenedor = document.getElementById("movimientosContenido");
       contenedor.innerHTML = "<p class='text-sm text-center text-red-600'>Error al obtener movimientos.</p>";
     });
+}
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const mesSelect = document.getElementById("mesCaptura");
+    const anioSelect = document.getElementById("anioCaptura");
+
+    const meses = [
+      "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+      "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    ];
+
+    // Generar meses
+    meses.forEach((mes, i) => {
+      const opt = document.createElement("option");
+      opt.value = i + 1;
+      opt.textContent = mes;
+      mesSelect.appendChild(opt);
+    });
+
+    // Generar años desde 2023 hasta 2028
+    const añoActual = new Date().getFullYear();
+    for (let a = añoActual - 1; a <= añoActual + 3; a++) {
+      const opt = document.createElement("option");
+      opt.value = a;
+      opt.textContent = a;
+      anioSelect.appendChild(opt);
+    }
+
+    // Seleccionar el mes y año actual por defecto
+    mesSelect.value = new Date().getMonth() + 1;
+    anioSelect.value = añoActual;
+  });
+
+
+  function actualizarTextoTipoCaptura() {
+  const toggle = document.getElementById("toggleTipoCaptura");
+  const texto = document.getElementById("textoTipoCaptura");
+  const fondo = document.getElementById("fondoToggleTipo");
+  const circulo = document.getElementById("circuloToggleTipo");
+  const modo = document.getElementById("modoCaptura").value;
+
+  texto.textContent = toggle.checked ? "Corte" : "Inicial";
+
+  // Actualizar colores según modo
+  if (modo === "inventario") {
+    fondo.className = "w-14 h-7 rounded-full transition-colors duration-300 " + (toggle.checked ? "bg-emerald-900" : "bg-gray-300");
+  } else {
+    fondo.className = "w-14 h-7 rounded-full transition-colors duration-300 " + (toggle.checked ? "bg-rose-900" : "bg-gray-300");
+  }
+
+  // Mover el círculo
+  circulo.className = "absolute left-0.5 top-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-300" + (toggle.checked ? " translate-x-7" : "");
+}
+async function verificarExistenciaYConfirmarEnvio() {
+  const unidad = document.getElementById("unidadCaptura").value;
+  const mes = document.getElementById("mesCaptura").value;
+  const anio = document.getElementById("anioCaptura").value;
+  const tipo = document.getElementById("modoCaptura").value;
+  const tabla = tipo === "pruebas_facturadas" ? "pruebas_facturadas" : "historicos";
+  const columna = calcularColumnaFecha(mes, anio);
+
+  if (!unidad || !mes || !anio) return mostrarModal("❌ Faltan datos para verificar existencia", "red");
+
+  try {
+    const referencias = datosCaptura.map(d => `'${d.referencia}'`).join(",");
+    const res = await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/${tabla}?select=referencia,${columna}&unidad_medica=eq.${unidad}&referencia=in.(${referencias})`, {
+      headers: {
+        apikey: "API_KEY",
+        Authorization: "Bearer API_KEY"
+      }
+    });
+    const existentes = await res.json();
+
+    const hayCoincidencias = existentes.some(e => e[columna] !== null && e[columna] !== undefined);
+    if (hayCoincidencias) {
+      mostrarModalConfirmacionSobrescribir(() => {
+        enviarCapturaBase(); // Ejecuta si acepta sobrescribir
+      });
+    } else {
+      enviarCapturaBase(); // Si no hay conflicto, envía directamente
+    }
+  } catch (err) {
+    console.error("❌ Error verificando existencia:", err);
+    mostrarModal("❌ No se pudo verificar existencia", "red");
+  }
+}
+
+function mostrarModalConfirmacionSobrescribir(callback) {
+  callbackSobrescribir = callback;
+  document.getElementById("modalSobrescribir").classList.remove("hidden");
+}
+
+function aceptarSobrescritura() {
+  document.getElementById("modalSobrescribir").classList.add("hidden");
+  if (callbackSobrescribir) callbackSobrescribir();
+  callbackSobrescribir = null;
+}
+
+function cerrarModalSobrescribir() {
+  document.getElementById("modalSobrescribir").classList.add("hidden");
+  callbackSobrescribir = null;
+}
+async function cargarTablaRemisionSAP(numeroRemision) {
+  const res = await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/remisiones_pendientes?numero_remision=eq.${numeroRemision}`, {
+    headers: {
+      "apikey": API_KEY,
+      "Authorization": `Bearer ${API_KEY}`
+    }
+  });
+
+  const data = await res.json();
+  const cuerpo = document.getElementById("bodyRemisionSAP");
+  cuerpo.innerHTML = "";
+
+  data.forEach(item => {
+    const fila = document.createElement("tr");
+    fila.innerHTML = `
+      <td class="p-2">${item.referencia}</td>
+      <td class="p-2">${item.descripcion || ''}</td>
+      <td class="p-2 text-center">${item.cantidad_escaneada}</td>
+      <td class="p-2 text-center">${item.cantidad_solicitada}</td>
+    `;
+    cuerpo.appendChild(fila);
+  });
+
+  document.getElementById("tablaRemisionSAP").classList.remove("hidden");
+
+  // 🔄 Sincroniza avanceRemision para escaneos en tiempo real
+  avanceRemision = {};
+  data.forEach(item => {
+    avanceRemision[item.referencia] = {
+      nombre: item.descripcion || '',
+      escaneados: item.cantidad_escaneada,
+      total: item.cantidad_solicitada
+    };
+  });
+}
+
+
+function actualizarTablaRemisionSAP() {
+  const tbody = document.getElementById("bodyRemisionSAP");
+  tbody.innerHTML = "";
+
+  Object.entries(avanceRemision).forEach(([ref, info]) => {
+    const completado = info.escaneados >= info.total;
+    const fila = document.createElement("tr");
+    fila.className = completado ? "bg-green-100" : "";
+
+    fila.innerHTML = `
+      <td class="p-2 font-mono">${ref}</td>
+      <td class="p-2">${info.nombre}</td>
+      <td class="p-2 text-center">${info.escaneados}</td>
+      <td class="p-2 text-center">${info.total}</td>
+    `;
+
+    tbody.appendChild(fila);
+  });
+
+  document.getElementById("tablaRemisionSAP").classList.remove("hidden");
 }
 
   </script>
