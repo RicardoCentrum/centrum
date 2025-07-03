@@ -89,6 +89,16 @@
     .completada {
       background-color: #d1fae5;
     }
+     @font-face {
+    font-family: 'MagmaWave';
+    src: url('magmawave.otf') format('opentype');
+    font-weight: normal;
+    font-style: normal;
+  }
+
+  .fuente-magma {
+    font-family: 'MagmaWave', sans-serif;
+  }
   </style>
 </head>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -112,25 +122,21 @@
   }
 </script>
 
-<!-- LOGO PEQUEÑO DE CENTRUM ARRIBA A LA DERECHA -->
-<div class="absolute top-4 right-4 flex flex-col items-center text-center">
-  <h1 class="text-sm font-bold tracking-widest text-white">In Collab with:</h1>
-  <img src="centrum.png" alt="Logo Centrum" class="h-14 mt-1 md:h-12" />
+<!-- LOGO DE CENTRUM ARRIBA A LA DERECHA (solo visible en pantallas grandes) -->
+<div class="absolute top-4 right-4 flex-col items-center text-center hidden sm:flex">
+  <h1 class="text-xs font-bold tracking-widest text-white fuente-magma ">In Collab with:</h1>
+  <img src="centrum.png" alt="Logo Centrum" class="h-12 mt-1 md:h-10" />
 </div>
 
-<!-- VIDEO DE MEDINOVA EN CENTRO SUPERIOR, CON ENLACE A INSTAGRAM -->
+<!-- IMAGEN PRINCIPAL DE PORTADA EN CENTRO -->
 <div class="text-center mb-10">
   <a href="https://instagram.com/medinova.cuu" target="_blank" rel="noopener noreferrer">
-    <video autoplay loop muted playsinline class="mx-auto h-28 mb-2">
-      <source src="0001-0120.webm" type="video/webm" />
-      Tu navegador no soporta video HTML5.
-    </video>
+    <img src="logoportada.png" alt="Logo Medinova" class="mx-auto h-28 mb-2" />
   </a>
-  <h1 class="text-5xl font-bold tracking-widest text-white-100">R.I.C.A.R.D.O.</h1>
-  <p class="text-1x1 text-gray-100 font-medium max-w-2xl mx-auto">
+  <h1 class="text-5xl font-bold tracking-widest text-white-100 fuente-magma">R.I.C.A.R.D.O.</h1>
+  <p class="text-1x1 text-gray-100 font-medium max-w-2xl mx-auto fuente-segoe-ui text-center">
     <strong>R</strong>egistro <strong>I</strong>nteligente de <strong>C</strong>ontrol, <strong>A</strong>lmacenamiento y <strong>R</strong>astreo <strong>D</strong>igital de <strong>O</strong>peraciones
   </p>
-</div>
 
 <!-- Modal de selección de modo -->
 <div id="modalModo" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
