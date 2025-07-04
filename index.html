@@ -395,23 +395,21 @@
 
     <input type="text" id="inputQR" placeholder="Escanea el código QR" class="w-full p-3 mb-4 rounded-xl border text-center" autofocus />
     <div class="text-center mt-2 mb-4">
+
     <div id="tablaRemisionSAP" class="hidden mt-4">
       <h2 class="font-bold text-sm mb-2">🧾 Avance remisión SAP:</h2>
       <table class="w-full text-sm border rounded-xl bg-white">
         <thead>
-          <tr class="bg-gray-200 text-left">
+          <tr class="bg-gray-200 text-center">
             <th class="p-2">Referencia</th>
             <th class="p-2">Descripción</th>
+            <th class="p-2">Lote</th>
             <th class="p-2 text-center">Escaneados</th>
-            <th class="p-2 text-center">Total</th>
           </tr>
         </thead>
         <tbody id="bodyRemisionSAP"></tbody>
       </table>
     </div>
-    <div id="contenedorModal" class="hidden mt-4 p-4 rounded-xl text-center transition-all duration-300">
-  <div id="resultadoCarga" class="font-bold text-sm text-gray-800"></div>
-</div>
 
   <div class="text-center mt-4">
     <button id="btnAlertasCaducidad" class="bg-yellow-500 bg-opacity-20 px-4 py-1 rounded-xl hover:bg-yellow-600 font-semibold shadow">
@@ -617,7 +615,7 @@ let remisionActual = null; // nueva variable global
 let remision = null;
 let callbackSobrescribir = null;
 let remisionActiva = "";
-let avanceRemision = {};  // referencia → { nombre, total, escaneados }
+let avanceRemision = {}; // { '10309546||252450': { nombre, lote, escaneados, total } }
 
     const unidadesDestino = {
   "C03442": "C.S. GALEANA", "C03441": "C.S. HIDALGO", "C03438": "C.S. NUEVO CASAS GRANDES", "C03443": "CAAPS ANAPRA", "C03439": "CESSA COLINAS", "C03440": "CESSA ZARAGOZA", "C03435": "H.C. NUEVO CASAS GRANDES", "C03436": "HIE JUAREZ",
@@ -755,6 +753,7 @@ async function procesarQR(contenido) {
         const remisionValida = await validarContraRemision(datos.referencia, datos.lote, numeroRemision);
         if (!remisionValida) return;
       }
+      
     }
 
     mostrarModal("📤 Procesando QR...", "#0ea5e9");
@@ -857,6 +856,12 @@ async function procesarQR(contenido) {
     qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
     actualizarTablaRegistros();
     mostrarModal("✅ Producto agregado", "#22c55e");
+
+    const claveRemision = `${datos.referencia.replace("U", "")}||${datos.lote}`;
+    if (avanceRemision[claveRemision]) {
+      avanceRemision[claveRemision].escaneados++;
+      actualizarTablaRemisionSAP();
+    }
 
   } catch (error) {
     console.error("❌ Error global en procesarQR:", error);
@@ -3316,6 +3321,11 @@ document.getElementById("btnSubirRemision").addEventListener("click", async () =
   const numeroRemision = document.getElementById("inputRemision")?.value.trim();
   const unidadDestino = document.getElementById("inputUnidad")?.value.trim();
   const nip = document.getElementById("inputNIP")?.value.trim();
+  const resultado = document.getElementById("resultadoCargaArchivo");
+
+  // Limpia estado anterior
+  resultado.textContent = "";
+  resultado.classList.remove("text-green-600", "text-red-600");
 
   if (!archivo) return alert("Selecciona un archivo .xlsx");
   if (!numeroRemision) return alert("Escribe el número de remisión");
@@ -3334,30 +3344,24 @@ document.getElementById("btnSubirRemision").addEventListener("click", async () =
       body: formData
     });
 
-    const contenedor = document.getElementById("contenedorModal");
-    const resultado = document.getElementById("resultadoCarga");
-
     const texto = await res.text();
 
-    contenedor.classList.remove("hidden", "bg-teal-100", "bg-rose-100");
-
     if (res.ok) {
-      contenedor.classList.add("bg-teal-100");
+      resultado.classList.add("text-green-600");
       resultado.textContent = `✅ ${texto}`;
       await cargarTablaRemisionSAP(numeroRemision); // muestra y sincroniza la tabla
     } else {
-      contenedor.classList.add("bg-rose-100");
+      resultado.classList.add("text-red-600");
       resultado.textContent = `❌ Error: ${texto}`;
     }
 
   } catch (e) {
-    const contenedor = document.getElementById("contenedorModal");
-    contenedor.classList.remove("bg-teal-100");
-    contenedor.classList.add("bg-rose-100", "text-center");
-    contenedor.classList.remove("hidden");
-    document.getElementById("resultadoCarga").textContent = "❌ Error en la comunicación con el servidor.";
+    resultado.classList.add("text-red-600");
+    resultado.textContent = "❌ Error en la comunicación con el servidor.";
+    console.error("❌ Error:", e);
   }
 });
+
 
 
 
@@ -3639,6 +3643,7 @@ function cerrarModalSobrescribir() {
   document.getElementById("modalSobrescribir").classList.add("hidden");
   callbackSobrescribir = null;
 }
+
 async function cargarTablaRemisionSAP(numeroRemision) {
   const res = await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/remisiones_pendientes?numero_remision=eq.${numeroRemision}`, {
     headers: {
@@ -3651,45 +3656,45 @@ async function cargarTablaRemisionSAP(numeroRemision) {
   const cuerpo = document.getElementById("bodyRemisionSAP");
   cuerpo.innerHTML = "";
 
+  avanceRemision = {}; // 👈 REINICIA AVANCE ACTUAL
+
   data.forEach(item => {
+    const clave = `${item.referencia}||${item.lote}`;
+    avanceRemision[clave] = {
+      nombre: item.descripcion || '',
+      escaneados: item.cantidad_escaneada
+    };
+
     const fila = document.createElement("tr");
     fila.innerHTML = `
       <td class="p-2">${item.referencia}</td>
       <td class="p-2">${item.descripcion || ''}</td>
+      <td class="p-2">${item.lote || ''}</td>
       <td class="p-2 text-center">${item.cantidad_escaneada}</td>
-      <td class="p-2 text-center">${item.cantidad_solicitada}</td>
     `;
     cuerpo.appendChild(fila);
-  });
+});
+
 
   document.getElementById("tablaRemisionSAP").classList.remove("hidden");
-
-  // 🔄 Sincroniza avanceRemision para escaneos en tiempo real
-  avanceRemision = {};
-  data.forEach(item => {
-    avanceRemision[item.referencia] = {
-      nombre: item.descripcion || '',
-      escaneados: item.cantidad_escaneada,
-      total: item.cantidad_solicitada
-    };
-  });
 }
-
 
 function actualizarTablaRemisionSAP() {
   const tbody = document.getElementById("bodyRemisionSAP");
   tbody.innerHTML = "";
 
-  Object.entries(avanceRemision).forEach(([ref, info]) => {
-    const completado = info.escaneados >= info.total;
+  Object.entries(avanceRemision).forEach(([clave, info]) => {
+    const [referencia, lote] = clave.split("||");
     const fila = document.createElement("tr");
-    fila.className = completado ? "bg-green-100" : "";
+
+    const completado = info.escaneados > 0;
+    fila.className = completado ? "bg-emerald-200 text-emerald-800" : "";
 
     fila.innerHTML = `
-      <td class="p-2 font-mono">${ref}</td>
+      <td class="p-2">${referencia}</td>
       <td class="p-2">${info.nombre}</td>
+      <td class="p-2">${lote}</td>
       <td class="p-2 text-center">${info.escaneados}</td>
-      <td class="p-2 text-center">${info.total}</td>
     `;
 
     tbody.appendChild(fila);
