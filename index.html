@@ -397,7 +397,13 @@
     <div class="text-center mt-2 mb-4">
 
     <div id="tablaRemisionSAP" class="hidden mt-4">
-      <h2 class="font-bold text-sm mb-2">🧾 Avance remisión SAP:</h2>
+      <div class="flex justify-between items-center mb-2">
+        <h2 class="font-bold text-sm">🧾 Avance remisión SAP:</h2>
+        <button id="btnToggleFilasValidadas"
+                class="text-sm text-teal-600 hover:text-teal-900">
+          Ocultar validados
+        </button>
+      </div>
       <table class="w-full text-sm border rounded-xl bg-white">
         <thead>
           <tr class="bg-gray-200 text-center">
@@ -411,11 +417,31 @@
       </table>
     </div>
 
+
   <div class="text-center mt-4">
     <button id="btnAlertasCaducidad" class="bg-yellow-500 bg-opacity-20 px-4 py-1 rounded-xl hover:bg-yellow-600 font-semibold shadow">
       ⚠️ Ver productos próximos a caducar
     </button>
   </div>
+
+<div id="modalPINExceso" class="hidden fixed inset-0 bg-pink-300 bg-opacity-60 backdrop-blur-sm z-[9990] flex items-center justify-center">
+  <div class="bg-white border-2 border-pink-500 p-6 rounded-xl w-[360px] shadow-lg text-sm text-gray-800">
+    <div id="contenidoPINExceso" class="space-y-3"></div>
+
+    <div>
+      <label for="inputNIP" class="block text-sm font-semibold mb-1 text-pink-700">NIP de autorización:</label>
+      <input id="inputNIP" type="password" maxlength="4"
+             class="w-full px-4 py-2 border border-pink-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" />
+      <p id="pinError" class="text-red-600 text-xs mt-1 hidden">❌ PIN incorrecto</p>
+    </div>
+
+    <div class="flex justify-between gap-4 mt-4">
+      <button id="btnCancelarPIN" class="px-4 py-2 w-1/2 bg-pink-300 text-white rounded-xl hover:bg-pink-400">Cancelar</button>
+      <button id="btnConfirmarPin" class="px-4 py-2 w-1/2 bg-pink-600 text-white rounded-xl hover:bg-pink-700">Confirmar PIN</button>
+    </div>
+  </div>
+</div>
+
 
 <div id="tablaContenedora" class="hidden opacity-0 transition-opacity duration-300">
   <table class="min-w-full text-sm text-left" id="tablaRegistros">
@@ -587,6 +613,14 @@
   </table>
 </div>
 
+<button id="btnConfirmarPin"
+        class="mt-4 bg-red-700 hover:bg-red-800 text-white font-bold py-2 px-4 rounded-xl w-full">
+  Confirmar PIN de Autorización
+</button>
+
+
+
+
   <script>
 const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo";
 const VALIDAR_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/validar_qr";
@@ -602,7 +636,7 @@ let usuario = null;                 // Se debe asignar al seleccionar usuario
 let unidadSeleccionada = null;      // Se asigna desde la selección de unidad médica
 let modoSeleccionado = null;
 let esAdmin = false;
-let USUARIO_ACTUAL = null;          // Refleja al usuario activo, puede ser el mismo que `usuario`
+let nombre_usuario_validado = null;
 let UNIDAD_DESTINO = null;          // Se usa en modo salida para fraccionados
 let REF_GLOBAL = null;
 let modoExtraccionFraccionableActivo = false;
@@ -616,6 +650,7 @@ let remision = null;
 let callbackSobrescribir = null;
 let remisionActiva = "";
 let avanceRemision = {}; // { '10309546||252450': { nombre, lote, escaneados, total } }
+let ocultarValidados = false;
 
     const unidadesDestino = {
   "C03442": "C.S. GALEANA", "C03441": "C.S. HIDALGO", "C03438": "C.S. NUEVO CASAS GRANDES", "C03443": "CAAPS ANAPRA", "C03439": "CESSA COLINAS", "C03440": "CESSA ZARAGOZA", "C03435": "H.C. NUEVO CASAS GRANDES", "C03436": "HIE JUAREZ",
@@ -753,7 +788,6 @@ async function procesarQR(contenido) {
         const remisionValida = await validarContraRemision(datos.referencia, datos.lote, numeroRemision);
         if (!remisionValida) return;
       }
-      
     }
 
     mostrarModal("📤 Procesando QR...", "#0ea5e9");
@@ -768,6 +802,7 @@ async function procesarQR(contenido) {
 
     const fraccionableData = await fraccionableRes.json();
     const entry = fraccionableData[0];
+    const esFraccionable = entry?.fraccionable === true;
 
     // 🔧 Si es una unidad individual de un fraccionable
     if (entry?.referencia_unidad === datos.referencia) {
@@ -806,8 +841,6 @@ async function procesarQR(contenido) {
       }
       return;
     }
-
-    const esFraccionable = entry?.fraccionable === true;
 
     // 🔧 Fraccionable en modo salida
     if (esFraccionable && modo === "salida") {
@@ -853,6 +886,14 @@ async function procesarQR(contenido) {
     }
 
     // 🔧 Producto normal (no fraccionable)
+    if (modo === "salida") {
+      const permitido = await procesarExtraccionConValidacion(datos.referencia, unidadSeleccionada, 1);
+      if (!permitido) {
+        console.log("🚫 Registro cancelado por exceso de dotación o usuario");
+        return;
+      }
+    }
+
     qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
     actualizarTablaRegistros();
     mostrarModal("✅ Producto agregado", "#22c55e");
@@ -1079,7 +1120,24 @@ function abrirModalCantidadFraccionable(referencia, lote, contenidoQR) {
 
       <div class="flex justify-between mt-4">
         <button onclick="cerrarModalFraccionable()" class="bg-gray-300 hover:bg-gray-400 text-sm px-4 py-2 rounded-md">Cancelar</button>
-        <button onclick="confirmarCantidadFraccionable()" class="bg-green-600 hover:bg-green-700 text-white text-sm px-4 py-2 rounded-md">Aceptar</button>
+        <button onclick="(async () => {
+          const cantidad = parseInt(document.getElementById('inputCantidadFraccionable').value.trim());
+          if (!cantidad || cantidad <= 0) {
+            mostrarModal('⚠️ Ingresa una cantidad válida', '#f59e0b');
+            return;
+          }
+
+          const permitido = await procesarExtraccionConValidacion('${referencia}', '${unidadSeleccionada}', cantidad);
+          if (!permitido) {
+            mostrarModal('❌ Operación cancelada por exceso de dotación', '#b91c1c');
+            cerrarModalFraccionable();
+            return;
+          }
+
+          confirmarCantidadFraccionable();  // ← si pasa validación
+        })()"
+        class="bg-green-600 hover:bg-green-700 text-white text-sm px-4 py-2 rounded-md">Aceptar</button>
+
       </div>
 
       <div id="seccionFracciones" class="hidden mt-4 space-y-3">
@@ -1103,15 +1161,29 @@ function abrirModalCantidadFraccionable(referencia, lote, contenidoQR) {
 
   setTimeout(() => {
     const input = document.getElementById("inputCantidadFraccionable");
-    if (input) {
+    const btnAceptar = document.getElementById("btnConfirmarCantidadFraccionable");
+
+    if (input && btnAceptar) {
       input.focus();
       input.value = "";
       input.addEventListener("keyup", function (e) {
-        if (e.key === "Enter") confirmarCantidadFraccionable();
+        if (e.key === "Enter") btnAceptar.click();
       }, { once: true });
+
+      btnAceptar.onclick = async () => {
+        const cantidadSolicitada = parseInt(input.value);
+        if (!cantidadSolicitada || cantidadSolicitada < 1) return;
+
+        const permitido = await procesarExtraccionConValidacion(referencia, unidadSeleccionada, cantidadSolicitada);
+        if (!permitido) return;
+
+        cerrarModalFraccionable();
+        iniciarModoExtraccionFraccionable(referencia, lote, contenidoQR, cantidadSolicitada);
+      };
     }
   }, 100);
 }
+
 
 function actualizarModalFraccionable() {
   const modal = document.getElementById("modalFraccionable");
@@ -1243,6 +1315,245 @@ function confirmarCantidadFraccionable() {
   }
   }, 0); 
 } 
+
+
+
+//========================================================================================================
+
+
+// Esta función debe llamarse tras escanear un QR en modo salida y determinar cantidad
+async function procesarExtraccionConValidacion(ref, unidadDestino, cantidadSolicitada) {
+  console.log("🔍 Iniciando validación de dotación para:", { ref, unidadDestino, cantidadSolicitada });
+
+  const fecha = new Date();
+  const mes = fecha.getMonth() + 1;
+  const anio = fecha.getFullYear();
+  const mesAnterior = mes === 1 ? 12 : mes - 1;
+  const anioAnterior = mes === 1 ? anio - 1 : anio;
+
+  const colA = `25_${mesAnterior}_${anioAnterior}`;
+  const colB = `10_${mes}_${anio}`;
+
+  console.log("📅 Columnas a consultar:", colA, colB);
+
+  const urlConsumos = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/consumos_mensuales?select=*&referencia=eq.${ref}&unidad_medica=eq.${unidadDestino}`;
+  const resConsumos = await fetch(urlConsumos, {
+    headers: { apikey: API_KEY, Authorization: `Bearer ${API_KEY}` }
+  });
+  const registros = await resConsumos.json();
+  const consumos = registros?.[0] || {};
+
+  console.log("📦 Registro de consumos encontrado:", consumos);
+
+  const consumoActual = (parseInt(consumos[colA]) || 0) + (parseInt(consumos[colB]) || 0);
+  console.log("📈 Consumo actual calculado:", consumoActual);
+
+  const urlDotacion = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/dotaciones?select=*&referencia=eq.${ref}&unidad=eq.${unidadDestino}`;
+  const resDot = await fetch(urlDotacion, {
+    headers: { apikey: API_KEY, Authorization: `Bearer ${API_KEY}` }
+  });
+  const dotacionData = await resDot.json();
+
+  console.log("📋 Datos de dotación encontrados:", dotacionData);
+
+  const cantidadPermitida = parseInt(dotacionData?.[0]?.cantidad) || 0;
+
+  const escaneadosLocalmente = qrsPendientes.filter(q =>
+    q.referencia === ref && q.unidad === unidadDestino
+  ).length;
+
+  console.log("📊 Escaneados localmente:", escaneadosLocalmente);
+
+  const consumoProyectado = consumoActual + escaneadosLocalmente + cantidadSolicitada;
+
+  console.log("📊 Comparación:", {
+    cantidadPermitida,
+    consumoActual,
+    cantidadSolicitada,
+    consumoProyectado
+  });
+
+  if (consumoProyectado > cantidadPermitida) {
+    const modal = document.getElementById("modalPINExceso");
+    const contenido = document.getElementById("contenidoPINExceso");
+
+    contenido.innerHTML = `
+      <p class="text-red-800 font-semibold">⚠️ La cantidad solicitada excede la dotación autorizada:</p>
+      <ul class="list-disc ml-6 text-sm mt-2">
+        <li><strong>Referencia:</strong> ${ref}</li>
+        <li><strong>Unidad destino:</strong> ${unidadDestino}</li>
+        <li><strong>Dotación mensual:</strong> ${cantidadPermitida}</li>
+        <li><strong>Consumido actual:</strong> ${consumoActual}</li>
+        <li><strong>Solicitado ahora:</strong> ${cantidadSolicitada}</li>
+        <li class="text-red-700"><strong>Total proyectado:</strong> ${consumoProyectado} (excede)</li>
+      </ul>
+      <p class="mt-3 text-sm">🔐 Se requiere codigo especial de Silvia para continuar.</p>
+    `;
+
+      console.log("🚪 Mostrando modalPINExceso");
+    modal.classList.remove("hidden");
+    document.getElementById("inputNIP").value = "";
+    document.getElementById("pinError").classList.add("hidden");
+    document.getElementById("inputNIP").focus();
+
+    return new Promise((resolve) => {
+      const btnConfirmar = document.getElementById("btnConfirmarPin");
+      const btnCancelar = document.getElementById("btnCancelarPIN");
+
+      if (!btnConfirmar || !btnCancelar) {
+        console.error("❌ Botones del nuevo modal no encontrados.");
+        return resolve(false);
+      }
+
+      const confirmarListener = async () => {
+        const pinIngresado = document.getElementById("inputNIP").value.trim();
+        const valido = await verificarPin(usuario, pinIngresado);
+
+        if (valido) {
+          notificar("✔️ Autorización concedida. Puedes continuar.", "#16a34a");
+          limpiarListeners();
+          modal.classList.add("hidden");
+          resolve(true);
+        } else {
+          document.getElementById("pinError").textContent = "❌ PIN incorrecto. Solicita uno nuevo a Silvia.";
+          document.getElementById("pinError").classList.remove("hidden");
+          document.getElementById("inputNIP").value = "";
+          document.getElementById("inputNIP").focus();
+        }
+      };
+
+      const cancelarListener = () => {
+        limpiarListeners();
+        modal.classList.add("hidden");
+        resolve(false);
+      };
+
+      function limpiarListeners() {
+        btnConfirmar.removeEventListener("click", confirmarListener);
+        btnCancelar.removeEventListener("click", cancelarListener);
+      }
+
+      btnConfirmar.addEventListener("click", confirmarListener);
+      btnCancelar.addEventListener("click", cancelarListener);
+    });
+  }
+
+  console.log("✅ Validación superada. Se permite continuar.");
+  return true;
+}
+
+
+async function validarDotacionAntesDeExtraer(ref, unidadDestino, cantidadSolicitada, usuario) {
+  console.log("🔎 Validando dotación previa para:", { ref, unidadDestino, cantidadSolicitada });
+
+  const fecha = new Date();
+  const mes = fecha.getMonth() + 1;
+  const anio = fecha.getFullYear();
+  const mesAnterior = mes === 1 ? 12 : mes - 1;
+  const anioAnterior = mes === 1 ? anio - 1 : anio;
+
+  const colA = `25_${mesAnterior}_${anioAnterior}`;
+  const colB = `10_${mes}_${anio}`;
+
+  const urlConsumos = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/consumos_mensuales?select=*&referencia=eq.${ref}&unidad_medica=eq.${unidadDestino}`;
+  const resConsumos = await fetch(urlConsumos, {
+    headers: { apikey: API_KEY, Authorization: `Bearer ${API_KEY}` }
+  });
+  const registros = await resConsumos.json();
+  const consumos = registros?.[0] || {};
+
+  console.log("📦 Registro de consumos encontrado:", consumos);
+
+  const sumaConsumos = (parseInt(consumos[colA]) || 0) + (parseInt(consumos[colB]) || 0);
+
+  const urlDotacion = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/dotaciones?select=*&referencia=eq.${ref}&unidad=eq.${unidadDestino}`;
+  const resDot = await fetch(urlDotacion, {
+    headers: { apikey: API_KEY, Authorization: `Bearer ${API_KEY}` }
+  });
+  const dotacionData = await resDot.json();
+
+  console.log("📋 Datos de dotación encontrados:", dotacionData);
+
+  const cantidadPermitida = parseInt(dotacionData?.[0]?.cantidad) || 0;
+
+  console.log("📊 Comparación:", {
+    cantidadPermitida,
+    sumaConsumos,
+    cantidadSolicitada,
+    total: sumaConsumos + cantidadSolicitada
+  });
+
+  if (sumaConsumos + cantidadSolicitada > cantidadPermitida) {
+    const pin = await obtenerPin(usuario);
+    mostrarModal("🔐 Se requiere PIN especial de Silvia para continuar", "#f87171");
+    return false;
+  }
+
+  console.log("✅ Dotación dentro del límite permitido.");
+  return true;
+}
+
+
+async function solicitarPinSilviaSiNecesario(ref, unidadDestino, cantidadSolicitada) {
+  const autorizado = await solicitarPinSilviaSiNecesario(referencia, unidadDestino, cantidadSolicitada);
+  if (!autorizado) return;
+// continuar extracción normal
+
+  // Mostrar modal e instrucción
+  mostrarModal("🔐 Se requiere autorización especial. Silvia debe ingresar el PIN para continuar.", "#f87171");
+  document.getElementById("inputNIP").value = "";
+  document.getElementById("inputNIP").focus();
+
+  return new Promise((resolve) => {
+    // Asumimos que el modal tiene un botón "Confirmar PIN" con id="btnConfirmarPin"
+    const btn = document.getElementById("btnConfirmarPin");
+
+    const listener = async () => {
+      const pinIngresado = document.getElementById("inputNIP").value.trim();
+      const valido = await verificarPin(usuario, pinIngresado);
+
+      if (valido) {
+        notificar("✔️ PIN correcto. Autorización concedida.", "#16a34a");
+        btn.removeEventListener("click", listener);
+        document.getElementById("modalPinUnidad").classList.add("hidden");
+        resolve(true);
+      } else {
+        document.getElementById("pinError").textContent = "❌ PIN incorrecto. Solicita uno nuevo a Silvia.";
+        document.getElementById("pinError").classList.remove("hidden");
+        document.getElementById("inputNIP").value = "";
+        document.getElementById("inputNIP").focus();
+      }
+    };
+
+    btn.addEventListener("click", listener);
+  });
+}
+
+async function obtenerPin(usuario) {
+  const res = await fetch('https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/generar_pin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ usuario })
+  });
+
+  const data = await res.json();
+  return data.pin; // PIN de 6 caracteres
+}
+
+async function verificarPin(usuario, pin) {
+  const res = await fetch('https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/verificar_pin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ usuario, pin })
+  });
+
+  const data = await res.json();
+  return data.valido; // true si es válido
+}
+
+
+//==========================================================================================================
+
 
 
 // Nueva función independiente
@@ -1456,6 +1767,51 @@ async function validarPinYUnidad() {
   }
 
   remisionActual = remision;
+  if (esSalida && remision) {
+    try {
+      const resPendiente = await fetch(
+        `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/remisiones_pendientes?select=*`,
+        {
+          headers: {
+            apikey: API_KEY,
+            Authorization: `Bearer ${API_KEY}`
+          }
+        }
+      );
+
+      const todasRemisiones = await resPendiente.json();
+      console.log("📋 Remisiones encontradas:", todasRemisiones.map(r => r.numero_remision));
+
+      const remisionNormalizada = remision.trim();
+      const datosPendientes = todasRemisiones.filter(r =>
+        (r.numero_remision || "").replaceAll('"', '').trim() === remisionNormalizada
+      );
+
+      console.log("🔍 Remisión buscada:", remisionNormalizada);
+      console.log("📋 Datos encontrados para esa remisión:", datosPendientes);
+
+      if (datosPendientes.length > 0) {
+        avanceRemision = {};
+
+        for (const item of datosPendientes) {
+          const clave = `${item.referencia}||${item.lote}`;
+          avanceRemision[clave] = {
+            ...item,
+            escaneados: 0,
+            nombre: item.descripcion || ""
+          };
+        }
+
+        console.log("✅ avanceRemision cargado:", avanceRemision);
+
+        actualizarTablaRemisionSAP();
+        mostrarModal("📤 Remisión previa cargada automáticamente", "#0ea5e9");
+      }
+
+    } catch (err) {
+      console.error("❌ Error al cargar remisión previa:", err);
+    }
+  }
 
   try {
     const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/validar_nip", {
@@ -3685,14 +4041,15 @@ function actualizarTablaRemisionSAP() {
 
   Object.entries(avanceRemision).forEach(([clave, info]) => {
     const [referencia, lote] = clave.split("||");
-    const fila = document.createElement("tr");
 
-    const completado = info.escaneados > 0;
-    fila.className = completado ? "bg-emerald-200 text-emerald-800" : "";
+    if (ocultarValidados && info.escaneados > 0) return;
+
+    const fila = document.createElement("tr");
+    fila.className = info.escaneados > 0 ? "bg-emerald-200 text-emerald-800" : "";
 
     fila.innerHTML = `
       <td class="p-2">${referencia}</td>
-      <td class="p-2">${info.nombre}</td>
+      <td class="p-2">${info.nombre || ""}</td>
       <td class="p-2">${lote}</td>
       <td class="p-2 text-center">${info.escaneados}</td>
     `;
@@ -3702,6 +4059,14 @@ function actualizarTablaRemisionSAP() {
 
   document.getElementById("tablaRemisionSAP").classList.remove("hidden");
 }
+
+document.getElementById("btnToggleFilasValidadas").addEventListener("click", () => {
+  ocultarValidados = !ocultarValidados;
+  document.getElementById("btnToggleFilasValidadas").textContent = ocultarValidados
+    ? "Mostrar validados"
+    : "Ocultar validados";
+  actualizarTablaRemisionSAP();
+});
 
   </script>
 </body>
