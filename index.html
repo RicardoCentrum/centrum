@@ -391,12 +391,10 @@
       </button>
 
       <!-- Botón Bloqueo de Remisiones (solo visible para admin) -->
-      <div id="seccionBloqueoRemision" style="display: none;">
-        <button id="btnBloqueoRemision" 
-          class="w-full bg-purple-900 text-white rounded-xl shadow-lg px-4 py-3 text-base font-semibold hover:bg-purple-800">
-          🔒 Cargar estado de bloqueo
-        </button>
-      </div>
+      <button id="btnBloqueoRemision" onclick="cargarEstadoBloqueo()" 
+        class="w-full bg-purple-900 text-white rounded-xl shadow-lg px-4 py-3 text-base font-semibold hover:bg-purple-800 hidden">
+        🔒 Cargar estado de bloqueo
+      </button>
 
     </div>
 
@@ -444,8 +442,8 @@
     <div id="contenidoPINExceso" class="space-y-3"></div>
 
     <div>
-      <label for="inputNIP" class="block text-sm font-semibold mb-1 text-pink-700">NIP de autorización:</label>
-      <input id="inputNIP" type="password" maxlength="4"
+      <label for="nipdinamico" class="block text-sm font-semibold mb-1 text-pink-700">NIP de autorización:</label>
+      <input id="nipdinamico" type="password" maxlength="4"
              class="w-full px-4 py-2 border border-pink-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500" />
       <p id="pinError" class="text-red-600 text-xs mt-1 hidden">❌ PIN incorrecto</p>
     </div>
@@ -631,12 +629,6 @@
     <tbody class="bg-white text-black"></tbody>
   </table>
 </div>
-
-<button id="btnConfirmarPin"
-        class="mt-4 bg-red-700 hover:bg-red-800 text-white font-bold py-2 px-4 rounded-xl w-full">
-  Confirmar PIN de Autorización
-</button>
-
 
 
 
@@ -1340,8 +1332,7 @@ function confirmarCantidadFraccionable() {
 //========================================================================================================
 
 
-// Esta función debe llamarse tras escanear un QR en modo salida y determinar cantidad
-async function procesarExtraccionConValidacion(ref, unidadDestino, cantidadSolicitada) {
+async function procesarExtraccionConValidacion(ref, unidadDestino, cantidadSolicitada, usuario) {
   console.log("🔍 Iniciando validación de dotación para:", { ref, unidadDestino, cantidadSolicitada });
 
   const fecha = new Date();
@@ -1392,9 +1383,14 @@ async function procesarExtraccionConValidacion(ref, unidadDestino, cantidadSolic
     consumoProyectado
   });
 
+  // 🚨 Si excede dotación, activar validación por PIN
   if (consumoProyectado > cantidadPermitida) {
     const modal = document.getElementById("modalPINExceso");
     const contenido = document.getElementById("contenidoPINExceso");
+
+    // 📤 Generar PIN y enviar por correo a Silvia
+    const pinGenerado = await obtenerPin(usuario, ref, unidadDestino);
+    console.log("🔐 PIN generado y enviado:", pinGenerado);
 
     contenido.innerHTML = `
       <p class="text-red-800 font-semibold">⚠️ La cantidad solicitada excede la dotación autorizada:</p>
@@ -1406,38 +1402,38 @@ async function procesarExtraccionConValidacion(ref, unidadDestino, cantidadSolic
         <li><strong>Solicitado ahora:</strong> ${cantidadSolicitada}</li>
         <li class="text-red-700"><strong>Total proyectado:</strong> ${consumoProyectado} (excede)</li>
       </ul>
-      <p class="mt-3 text-sm">🔐 Se requiere codigo especial de Silvia para continuar.</p>
+      <p class="mt-3 text-sm">🔐 Se ha generado un PIN dinámico. Solicítalo a Silvia para continuar.</p>
     `;
 
-      console.log("🚪 Mostrando modalPINExceso");
+    console.log("🚪 Mostrando modalPINExceso");
     modal.classList.remove("hidden");
-    document.getElementById("inputNIP").value = "";
+    document.getElementById("nipdinamico").value = "";
     document.getElementById("pinError").classList.add("hidden");
-    document.getElementById("inputNIP").focus();
+    document.getElementById("nipdinamico").focus();
 
     return new Promise((resolve) => {
       const btnConfirmar = document.getElementById("btnConfirmarPin");
       const btnCancelar = document.getElementById("btnCancelarPIN");
 
       if (!btnConfirmar || !btnCancelar) {
-        console.error("❌ Botones del nuevo modal no encontrados.");
+        console.error("❌ Botones del modal no encontrados.");
         return resolve(false);
       }
 
       const confirmarListener = async () => {
-        const pinIngresado = document.getElementById("inputNIP").value.trim();
+        const pinIngresado = document.getElementById("nipdinamico").value.trim();
         const valido = await verificarPin(usuario, pinIngresado);
 
         if (valido) {
-          notificar("✔️ Autorización concedida. Puedes continuar.", "#16a34a");
+          notificar("✔️ PIN correcto. Puedes continuar.", "#16a34a");
           limpiarListeners();
           modal.classList.add("hidden");
           resolve(true);
         } else {
           document.getElementById("pinError").textContent = "❌ PIN incorrecto. Solicita uno nuevo a Silvia.";
           document.getElementById("pinError").classList.remove("hidden");
-          document.getElementById("inputNIP").value = "";
-          document.getElementById("inputNIP").focus();
+          document.getElementById("nipdinamico").value = "";
+          document.getElementById("nipdinamico").focus();
         }
       };
 
@@ -1520,15 +1516,15 @@ async function solicitarPinSilviaSiNecesario(ref, unidadDestino, cantidadSolicit
 
   // Mostrar modal e instrucción
   mostrarModal("🔐 Se requiere autorización especial. Silvia debe ingresar el PIN para continuar.", "#f87171");
-  document.getElementById("inputNIP").value = "";
-  document.getElementById("inputNIP").focus();
+  document.getElementById("nipdinamico").value = "";
+  document.getElementById("nipdinamico").focus();
 
   return new Promise((resolve) => {
     // Asumimos que el modal tiene un botón "Confirmar PIN" con id="btnConfirmarPin"
     const btn = document.getElementById("btnConfirmarPin");
 
     const listener = async () => {
-      const pinIngresado = document.getElementById("inputNIP").value.trim();
+      const pinIngresado = document.getElementById("nipdinamico").value.trim();
       const valido = await verificarPin(usuario, pinIngresado);
 
       if (valido) {
@@ -1539,8 +1535,8 @@ async function solicitarPinSilviaSiNecesario(ref, unidadDestino, cantidadSolicit
       } else {
         document.getElementById("pinError").textContent = "❌ PIN incorrecto. Solicita uno nuevo a Silvia.";
         document.getElementById("pinError").classList.remove("hidden");
-        document.getElementById("inputNIP").value = "";
-        document.getElementById("inputNIP").focus();
+        document.getElementById("nipdinamico").value = "";
+        document.getElementById("nipdinamico").focus();
       }
     };
 
@@ -1548,16 +1544,23 @@ async function solicitarPinSilviaSiNecesario(ref, unidadDestino, cantidadSolicit
   });
 }
 
-async function obtenerPin(usuario) {
-  const res = await fetch('https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/generar_pin', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ usuario })
+async function obtenerPin(usuario, referencia, unidad) {
+  const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/generar_pin", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ usuario, referencia, unidad }),
   });
 
+  if (!res.ok) {
+    console.error("❌ Error al obtener PIN:", await res.text());
+    return null;
+  }
+
   const data = await res.json();
+  console.log("🔐 PIN generado:", data.pin);
   return data.pin; // PIN de 6 caracteres
 }
+
 
 async function verificarPin(usuario, pin) {
   const res = await fetch('https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/verificar_pin', {
@@ -1568,6 +1571,12 @@ async function verificarPin(usuario, pin) {
 
   const data = await res.json();
   return data.valido; // true si es válido
+  const esValido = await verificarPin("ricardo", "ABC123");
+  if (esValido) {
+    notificar("✔️ PIN correcto. Puedes continuar.", "#16a34a");
+  } else {
+    mostrarModal("❌ PIN incorrecto. Solicita uno nuevo a Silvia.", "#f87171");
+  }
 }
 
 
