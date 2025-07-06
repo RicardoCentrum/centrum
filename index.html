@@ -207,9 +207,24 @@
 </div>
 
 <div id="modalAviso" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
-  bg-gray-800 text-white text-center px-8 py-5 text-xl rounded-2xl shadow-lg z-50 hidden max-w-lg">
+  bg-red-800 text-white text-center px-8 py-5 text-xl rounded-2xl shadow-lg z-50 hidden max-w-lg">
 </div>
 <div id="overlayColor" class="fixed inset-0 z-40 hidden transition-opacity"></div>
+<div id="modalInventario" class="hidden fixed inset-0 bg-red-900 bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50">
+  <div class="bg-red-900 border rounded-2xl border-red-500 text-white font-bold p-6 max-w-md text-center">
+   <h2 class="text-xl font-bold mb-4 text-center">⚠️ ¡CUIDADO!</h2>
+        <p class="mb-6 text-center leading-relaxed">
+          Al enviar los datos a Supabase esto<br>
+          <strong class="block text-lg mt-1">REEMPLAZARÁ LA BASE DE DATOS ACTUAL</strong><br>
+          esta acción<br>
+          <strong class="block text-lg">NO SE PUEDE DESHACER</strong>
+        </p>
+        <div class="flex justify-center gap-4">
+      <button onclick="document.getElementById('modalInventario').classList.add('hidden')" class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded-2xl">Cancelar</button>
+      <button onclick="enviarModoInventario()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-2xl">Aceptar</button>
+    </div>
+  </div>
+</div>
 <!-- Modal principal para ingresar NIP y unidad -->
 <div id="modalPinUnidad" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
   <div class="bg-white text-gray-800 p-6 rounded-2xl shadow-xl w-full max-w-md space-y-4">
@@ -335,7 +350,7 @@
     <span id="usuarioActivo" class="text-lg font-extrabold ml-2">Selecciona un modo para iniciar</span>
   </div>
   <div class="mt-2">
-    <span id="modoLabel" class="inline-block font-bold px-3 py-1 rounded-xl text-white bg-gray-400 text-sm">
+    <span id="modoLabel" class="inline-block font-bold px-3 py-1 rounded-2xl text-white bg-gray-400 text-sm">
       INACTIVO
     </span>
   </div>
@@ -476,6 +491,10 @@
     </div>
   </div>
 </div>
+
+<button onclick="confirmarModoInventario()" class="bg-red-800 hover:bg-red-900 rounded-2xl text-white font-bold py-2 px-4 rounded hidden">
+  INVENTARIO
+</button>
 
   <!-- MODAL NIP -->
 <div id="modalNIP" class="fixed inset-0 hidden z-50 flex items-center justify-center blur-fondo">
@@ -1855,6 +1874,13 @@ async function validarPinYUnidad() {
     }
 
     modo = modoSeleccionado;
+    // Mostrar botón INVENTARIO solo en modo entrada
+    const btnInventario = document.querySelector('button[onclick="confirmarModoInventario()"]');
+    if (modo === "entrada" && btnInventario) {
+      btnInventario.classList.remove("hidden");
+    } else if (btnInventario) {
+      btnInventario.classList.add("hidden");
+    }
 
     const texto = modo;
     const color = modo === "entrada" ? "bg-green-700"
@@ -1872,6 +1898,26 @@ async function validarPinYUnidad() {
     document.getElementById("pinError").textContent = "❌ Error de conexión.";
     document.getElementById("pinError").classList.remove("hidden");
   }
+}
+
+async function enviarModoInventario() {
+  try {
+    const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/modo_inventario", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ usuario })  // envías solo el usuario
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Error en modo inventario");
+
+    mostrarModal("📦 Modo INVENTARIO completado correctamente", "#22c55e");
+  } catch (e) {
+    console.error("❌ Error en modo inventario:", e);
+    mostrarModal("❌ Error al ejecutar modo INVENTARIO", "#dc2626");
+  }
+
+  document.getElementById("modalInventario").classList.add("hidden");
 }
 
 function mostrarCambioNIP() {
@@ -4067,6 +4113,9 @@ document.getElementById("btnToggleFilasValidadas").addEventListener("click", () 
     : "Ocultar validados";
   actualizarTablaRemisionSAP();
 });
+function confirmarModoInventario() {
+  document.getElementById("modalInventario").classList.remove("hidden");
+}
 
   </script>
 </body>
