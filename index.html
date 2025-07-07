@@ -89,7 +89,7 @@
     .completada {
       background-color: #d1fae5;
     }
-     @font-face {
+     /* @font-face {
     font-family: 'MagmaWave';
     src: url('MagmawaveCaps-Bold.woff2') format('woff2');
     font-weight: normal;
@@ -98,7 +98,7 @@
 
   .fuente-magma {
     font-family: 'MagmaWave', sans-serif;
-  }
+  } */
   </style>
 </head>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -456,20 +456,31 @@
 
 <div id="modalPINExceso" class="hidden fixed inset-0 bg-pink-300 bg-opacity-60 backdrop-blur-sm z-[9990] flex items-center justify-center">
   <div class="bg-white border-2 border-pink-500 p-6 rounded-xl w-[360px] shadow-lg text-sm text-gray-800">
-    <div id="contenidoPINExceso" class="space-y-3"></div>
+    <form id="formPINExceso" autocomplete="off">
+      <div id="contenidoPINExceso" class="space-y-3"></div>
 
-    <div>
-      <label for="nipdinamico" class="block text-sm font-semibold mb-1 text-pink-700">NIP de autorización:</label>
-      <input id="nipdinamico" type="text" maxlength="6" minlength="6"
-        class="w-full border border-pink-800 rounded-2xl px-4 py-2 text-center font-mono text-xl tracking-widest"
-        placeholder="######" inputmode="numeric" pattern="[0-9A-Fa-f]{6}" />
-      <p id="pinError" class="text-red-600 text-xs mt-1 hidden">❌ PIN incorrecto</p>
-    </div>
+      <div>
+        <label for="nipdinamico" class="block text-sm font-semibold mb-1 text-pink-700">NIP de autorización:</label>
+        <input
+          id="nipdinamico"
+          name="pin_temporal"
+          type="text"
+          maxlength="6"
+          minlength="6"
+          inputmode="numeric"
+          pattern="[0-9A-Fa-f]{6}"
+          autocomplete="off"
+          class="w-full border border-pink-800 rounded-2xl px-4 py-2 text-center font-mono text-xl tracking-widest"
+          placeholder="######"
+        />
+        <p id="pinError" class="text-red-600 text-xs mt-1 hidden">❌ PIN incorrecto</p>
+      </div>
 
-    <div class="flex justify-between gap-4 mt-4">
-      <button id="btnCancelarPIN" class="px-4 py-2 w-1/2 bg-pink-300 text-white rounded-xl hover:bg-pink-400">Cancelar</button>
-      <button id="btnConfirmarPin" class="px-4 py-2 w-1/2 bg-pink-600 text-white rounded-xl hover:bg-pink-700">Confirmar PIN</button>
-    </div>
+      <div class="flex justify-between gap-4 mt-4">
+        <button type="button" id="btnCancelarPIN" class="px-4 py-2 w-1/2 bg-pink-300 text-white rounded-xl hover:bg-pink-400">Cancelar</button>
+        <button type="submit" id="btnConfirmarPin" class="px-4 py-2 w-1/2 bg-pink-600 text-white rounded-xl hover:bg-pink-700">Confirmar PIN</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -682,7 +693,6 @@ let avanceRemision = {}; // { '10309546||252450': { nombre, lote, escaneados, to
 let ocultarValidados = false;
 let intervaloPin = null;
 let intervaloCuentaRegresiva = null;
-
     const unidadesDestino = {
   "C03442": "C.S. GALEANA", "C03441": "C.S. HIDALGO", "C03438": "C.S. NUEVO CASAS GRANDES", "C03443": "CAAPS ANAPRA", "C03439": "CESSA COLINAS", "C03440": "CESSA ZARAGOZA", "C03435": "H.C. NUEVO CASAS GRANDES", "C03436": "HIE JUAREZ",
   "C03420": "HOSPITAL DE LA MUJER CD JUAREZ", "C03419": "HOSPITAL GENERAL CD JUAREZ", "C03127": "HGZ 6", "C03131": "HGS 22", "C03135": "HGR 02", "C03133": "HGZ UMAA 35", "C03134": "HGR 66", "C03448": "C.S. GUACHOCHI", "C03447": "C.S. JIMENEZ", "C03446": "H. GPE Y CALVO", "C03132": "H.G.Z.M.F. 23", "C03122": "H.R.O. No. 26", "C03124": "H.R.O. No. 36", "C03445": "HOSPITAL CAMARGO", "C03421": "HOSPITAL DE JIMENEZ", "C03422": "HOSPITAL GINECOLOGIA PARRAL", "C03444": "HOSPITAL PARRAL", "C03451": "CESSA ALDAMA", "C03433": "CESSA MADERA",
@@ -693,94 +703,9 @@ let intervaloCuentaRegresiva = null;
   "C03420": "hospital de la mujer", "C03419": "hg cd. juarez", "C03127": "HGZ 6", "C03131": "HGS 22", "C03135": "HGR 02", "C03133": "HGZ UMAA 35", "C03134": "HGR 66", "C03448": "CAAPS Guachochi", "C03447": "CS Jimenez", "C03446": "HC Guadalupe y Calvo", "C03132": "H.G.Z.M.F. 23", "C03122": "H.R.O. No. 26", "C03124": "H.R.O. No. 36", "C03445": "HG Camargo", "C03421": "hr jimenez", "C03422": "Ginecologia Parral", "C03444": "HG Parral", "C03451": "CESSA Aldama", "C03433": "CESSA Madera",
   "C03415": "hospital central", "C03424": "HG Cuauhtemoc", "C03416": "Ginecologia Cuauhtemoc", "C03432": "CESSA Tierra Nueva", "C03431": "CS Creel", "C03428": "CS Temoris", "C03123": "HRO No. 18 SAN JUANITO", "C03430": "CS Delicias", "C03425": "HC Ojinaga", "C03417": "hr delicias", "C03434": "CS Sta. Isabel", "C03429": "CAAPS Nogales", "C03427": "CS San Felipe", "C03426": "HC Gomez Farias", "C03418": "hie chihuahua", "C03423": "HG Chihuahua", "C03128": "H.G.Z.M.F. 11", "C03130": "H.G.Z.M.F. 16", "C03129": "HGO No. 15", "C03126": "HGR No. 1", "66": "ALMACEN PARRAL", "65": "ALMACEN JUAREZ", "CUU": "ALMACEN CHIHUAHUA"
 };
+  const INTERVALO_MINUTOS = 10; // Puedes cambiar a 5, 15, etc.
+  const listaAdmins = ["Silvia", "Luis", "Aida", "Ricardo", "Alex", "Adrian"];
 
-function abrirModalPinDinamico() {
-  document.getElementById("modalPinDinamico").classList.remove("hidden");
-  actualizarPinYContador(); // Primera carga
-  intervaloCuentaRegresiva = setInterval(actualizarPinYContador, 1000); // Actualiza cada segundo
-}
-
-function cerrarModalPinDinamico() {
-  document.getElementById("modalPinDinamico").classList.add("hidden");
-  clearInterval(intervaloCuentaRegresiva);
-}
-
-async function actualizarPinYContador() {
-  const pin = await generarPinDinamico();
-
-  // Mostrar el PIN (si el elemento existe)
-  const elValor = document.getElementById("valorPinDinamicoSolo");
-  if (elValor) elValor.textContent = pin;
-
-  // Actualizar temporizador restante
-  const ahora = new Date();
-  const bloqueCompleto = 10;
-  const minutosRestantes = bloqueCompleto - (ahora.getUTCMinutes() % bloqueCompleto) - 1;
-  const segundosRestantes = 59 - ahora.getUTCSeconds();
-  const mm = minutosRestantes.toString().padStart(2, "0");
-  const ss = segundosRestantes.toString().padStart(2, "0");
-
-  const elContador = document.getElementById("contadorPin");
-  if (elContador) elContador.textContent = `${mm}:${ss}`;
-}
-
-
-async function sha256(text) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(text);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-async function generarPinDinamico() {
-  const usuario = "Silvia"; // puedes parametrizarlo si gustas
-  const clave = "medinova-secreto-2025";
-
-  const ahora = new Date();
-  const yyyy = ahora.getUTCFullYear();
-  const mm = String(ahora.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(ahora.getUTCDate()).padStart(2, "0");
-
-  // 🔢 Bloque de 10 minutos: 0-9 = 0, 10-19 = 1, etc.
-  const hora = String(ahora.getUTCHours()).padStart(2, "0");
-  const bloque = Math.floor(ahora.getUTCMinutes() / 10); // 0–5
-  const base = `${usuario.toLowerCase()}::${yyyy}-${mm}-${dd}-${hora}-${bloque}::${clave}`;
-
-  const hash = await sha256(base);
-  return hash.substring(0, 6).toUpperCase(); // Ej: "5F3A8D"
-}
-
-async function mostrarOpcionesAdmin() {
-  document.getElementById("modalOpcionesAdmin").classList.remove("hidden");
-
-  if (usuarioAdmin) {
-    document.getElementById("btnModificarUnidades")?.classList.remove("hidden");
-    document.getElementById("btnRestablecerNIP")?.classList.remove("hidden");
-    document.getElementById("btnBloqueoRemision")?.classList.remove("hidden");
-    document.getElementById("btnVerPinDinamico")?.classList.remove("hidden");
-
-    await mostrarPinDinamicoAdmin(); // Recomendado con await
-  }
-}
-
-function cerrarModalOpcionesAdmin() {
-  document.getElementById("modalOpcionesAdmin").classList.add("hidden");
-}
-
-function eliminarFila(boton) {
-  const fila = boton.closest("tr");
-  fila.remove();
-
-  const tabla = document.getElementById("tablaRegistros");
-  const contenedor = document.getElementById("tablaContenedora");
-
-  // Oculta el contenedor si ya no hay filas
-  if (tabla.querySelectorAll("tr").length === 0) {
-    contenedor.classList.add("opacity-0");
-    setTimeout(() => contenedor.classList.add("hidden"), 500);
-  }
-}
 async function validarPinYUnidad() {
   const nip = document.getElementById("inputNIP").value.trim();
   nipAdmin = nip;
@@ -870,8 +795,15 @@ async function validarPinYUnidad() {
 
     usuario = data.nombre;
     esAdmin = data.es_admin;
-    window.usuarioEsAdmin = esAdmin;
-    usuarioAdmin = esAdmin === true;  // Esta es la bandera global
+    usuarioAdmin = esAdmin === true;
+    window.usuarioEsAdmin = usuarioAdmin;
+
+    if (usuarioAdmin) {
+      window.nombreAdmin = usuario; // ✅ Guardamos quién es el admin actual
+      console.log("✅ Admin detectado:", window.nombreAdmin);
+    } else {
+      window.nombreAdmin = null;
+    }
 
     unidadSeleccionada = esSalida ? unidad : null;
     document.getElementById("modalPinUnidad").classList.add("hidden");
@@ -915,6 +847,99 @@ async function validarPinYUnidad() {
     document.getElementById("pinError").classList.remove("hidden");
   }
 }
+function abrirModalPinDinamico() {
+  document.getElementById("modalPinDinamico").classList.remove("hidden");
+  actualizarPinYContador(); // Primera carga
+  intervaloCuentaRegresiva = setInterval(actualizarPinYContador, 1000); // Actualiza cada segundo
+}
+
+function cerrarModalPinDinamico() {
+  document.getElementById("modalPinDinamico").classList.add("hidden");
+  clearInterval(intervaloCuentaRegresiva);
+}
+
+async function sha256(text) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(text);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function generarPinDinamico(nombreAdmin) {
+  if (!nombreAdmin || typeof nombreAdmin !== "string") {
+    console.error("❌ No se proporcionó un nombreAdmin válido a generarPinDinamico");
+    return "------";
+  }
+
+  const clave = "medinova-secreto-2025";
+  const ahora = new Date();
+  const yyyy = ahora.getUTCFullYear();
+  const mm = String(ahora.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(ahora.getUTCDate()).padStart(2, "0");
+  const hora = String(ahora.getUTCHours()).padStart(2, "0");
+  const bloque = Math.floor(ahora.getUTCMinutes() / 10);
+
+  const base = `${nombreAdmin.toLowerCase()}::${yyyy}-${mm}-${dd}-${hora}-${bloque}::${clave}`;
+  const hash = await sha256(base);
+  return hash.substring(0, 6).toUpperCase();
+}
+
+
+async function actualizarPinYContador() {
+  if (!window.nombreAdmin) {
+    console.warn("⚠️ No hay admin logueado, no se puede generar PIN");
+    return;
+  }
+
+  const pin = await generarPinDinamico(window.nombreAdmin);
+  const elValor = document.getElementById("valorPinDinamicoSolo");
+  if (elValor) elValor.textContent = pin;
+
+  const ahora = new Date();
+  const minutos = ahora.getUTCMinutes();
+  const segundos = ahora.getUTCSeconds();
+  const minutosRestantes = INTERVALO_MINUTOS - (minutos % INTERVALO_MINUTOS) - 1;
+  const segundosRestantes = 59 - segundos;
+
+  const mm = minutosRestantes.toString().padStart(2, "0");
+  const ss = segundosRestantes.toString().padStart(2, "0");
+
+  const elContador = document.getElementById("contadorPin");
+  if (elContador) elContador.textContent = `${mm}:${ss}`;
+}
+
+async function mostrarOpcionesAdmin() {
+  document.getElementById("modalOpcionesAdmin").classList.remove("hidden");
+
+  if (usuarioAdmin) {
+    document.getElementById("btnModificarUnidades")?.classList.remove("hidden");
+    document.getElementById("btnRestablecerNIP")?.classList.remove("hidden");
+    document.getElementById("btnBloqueoRemision")?.classList.remove("hidden");
+    document.getElementById("btnVerPinDinamico")?.classList.remove("hidden");
+
+    await mostrarPinDinamicoAdmin(); // Recomendado con await
+  }
+}
+
+function cerrarModalOpcionesAdmin() {
+  document.getElementById("modalOpcionesAdmin").classList.add("hidden");
+}
+
+function eliminarFila(boton) {
+  const fila = boton.closest("tr");
+  fila.remove();
+
+  const tabla = document.getElementById("tablaRegistros");
+  const contenedor = document.getElementById("tablaContenedora");
+
+  // Oculta el contenedor si ya no hay filas
+  if (tabla.querySelectorAll("tr").length === 0) {
+    contenedor.classList.add("opacity-0");
+    setTimeout(() => contenedor.classList.add("hidden"), 500);
+  }
+}
+
 // Extraer datos de QR incluso si el lote está vacío
 function extraerDatosQR(qr) {
   const limpio = qr.replace(/\s+/g, '');
@@ -1064,6 +1089,8 @@ async function procesarQR(contenido) {
         mostrarModal(`⚠️ Ya extraído por ${r.usuario}`, "#facc15");
       } else if (r?.mensaje) {
         mostrarModal(`⚠️ ${r.mensaje}`, "#6b7280");
+      } else if (r.status === "error") {
+        mostrarModal(`❌ ${r.mensaje || "Este producto no ha sido ingresado en modo entrada"}`, "#b91c1c");
       } else {
         mostrarModal("❌ Error al registrar unidad", "#6b7280");
       }
@@ -1232,35 +1259,47 @@ async function registrarExtraccionConjunta(fracciones, referencia, usuario, unid
 
   for (const [i, f] of fracciones.entries()) {
     try {
+      const registro = {
+        referencia,
+        lote: f.lote,
+        timestamp: f.timestamp,
+        cantidad: f.usado,
+        usuario,
+        modo: "salida",
+        unidad
+      };
+
+      // 👉 Solo añadir si hay un PIN autorizado por alguien distinto al usuario
+      if (window.pinAutorizadoPor && window.pinAutorizadoPor !== usuario) {
+        registro.pin_autorizado_por = window.pinAutorizadoPor;
+      }
+
       const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_fraccionable", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          registros: [{
-            referencia,
-            lote: f.lote,
-            timestamp: f.timestamp,
-            cantidad: f.usado,
-            usuario,
-            modo: "salida",
-            unidad
-          }]
-        })
+        body: JSON.stringify({ registros: [registro] })
       });
 
       const result = await res.json();
       const r = result.resultados?.[0];
 
       if (r?.status === "ok") {
-        qrsPendientes.push({
+        const registroQR = {
           referencia,
           lote: f.lote,
           cantidad: f.usado,
           modo: "salida",
           usuario,
           unidad
-        });
+        };
+
+        if (registro.pin_autorizado_por) {
+          registroQR.pin_autorizado_por = registro.pin_autorizado_por;
+        }
+
+        qrsPendientes.push(registroQR);
         mostrarModal(`✅ Caja ${i + 1} procesada (${f.usado} piezas)`, "#22c55e");
+
       } else {
         errores++;
         mostrarModal(`⚠️ Caja ${i + 1} falló: ${r?.mensaje || "desconocido"}`, "#facc15");
@@ -1272,7 +1311,7 @@ async function registrarExtraccionConjunta(fracciones, referencia, usuario, unid
       mostrarModal(`❌ Error de red al registrar caja ${i + 1}`, "#dc2626");
     }
 
-    await new Promise(resolve => setTimeout(resolve, 200)); // Pausa leve para claridad visual
+    await new Promise(resolve => setTimeout(resolve, 200));
   }
 
   if (errores === 0) {
@@ -1281,6 +1320,7 @@ async function registrarExtraccionConjunta(fracciones, referencia, usuario, unid
     mostrarModal(`⚠️ ${errores} de ${fracciones.length} cajas fallaron`, "#f59e0b");
   }
 }
+
 
 async function validarContraRemision(referencia, lote, numeroRemision) {
   const res = await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/remisiones_pendientes?referencia=eq.${referencia}&lote=eq.${lote}&numero_remision=eq.${numeroRemision}`, {
@@ -1607,8 +1647,8 @@ async function procesarExtraccionConValidacion(ref, unidadDestino, cantidadSolic
 
     // 📤 Generar PIN y enviar por correo a Silvia
     console.log("🧪 usuario en generar PIN:", usuario);
-    const pinGenerado = await obtenerPin(usuario, ref, unidadDestino);
-    console.log("🔐 PIN generado y enviado:", pinGenerado);
+    const pinGenerado = await generarPinDinamico(); // Generado localmente
+    console.log("🔐 PIN dinámico actual:", pinGenerado);
 
     contenido.innerHTML = `
       <p class="text-red-800 font-semibold">⚠️ La cantidad solicitada excede la dotación autorizada:</p>
@@ -1632,63 +1672,59 @@ async function procesarExtraccionConValidacion(ref, unidadDestino, cantidadSolic
     return new Promise((resolve) => {
       const btnConfirmar = document.getElementById("btnConfirmarPin");
       const btnCancelar = document.getElementById("btnCancelarPIN");
+      const input = document.getElementById("nipdinamico");
 
-      if (!btnConfirmar || !btnCancelar) {
-        console.error("❌ Botones del modal no encontrados.");
+      if (!btnConfirmar || !btnCancelar || !input) {
+        console.error("❌ Elementos del modal no encontrados.");
         return resolve(false);
       }
 
+      input.focus();
+      input.select();
+
       const confirmarListener = async () => {
         try {
-          const input = document.getElementById("nipdinamico");
-
-          if (!input) {
-            console.error("❌ No se encontró el input con id 'nipdinamico'");
-            return;
-          }
-
           const pinIngresado = input.value.trim().toUpperCase();
           console.log("🔐 PIN ingresado:", pinIngresado);
 
-          // Selecciona el texto automáticamente al enfocar
-          input.focus();
-          input.select();
-
-          // Validación de formato
           if (pinIngresado.length !== 6 || !/^[0-9A-F]{6}$/.test(pinIngresado)) {
-            const msg = "⚠️ El PIN debe tener 6 caracteres hexadecimales.";
-            console.warn(msg);
-            document.getElementById("pinError").textContent = msg;
-            document.getElementById("pinError").classList.remove("hidden");
-            return;
-          }
+          const msg = "⚠️ El PIN debe tener 6 caracteres hexadecimales.";
+          console.warn(msg);
+          document.getElementById("pinError").textContent = msg;
+          document.getElementById("pinError").classList.remove("hidden");
+          return;
+        }
 
-          // Verifica que 'usuario' esté definido
-          if (!usuario) {
-            console.error("❌ 'usuario' no está definido al verificar PIN.");
-            document.getElementById("pinError").textContent = "❌ No se pudo validar el PIN. Usuario no definido.";
-            document.getElementById("pinError").classList.remove("hidden");
-            return;
-          }
+        if (!usuario) {
+          console.error("❌ 'usuario' no está definido al verificar PIN.");
+          document.getElementById("pinError").textContent = "❌ No se pudo validar el PIN. Usuario no definido.";
+          document.getElementById("pinError").classList.remove("hidden");
+          return;
+        }
 
-          console.log("🔍 Verificando PIN para usuario:", usuario);
+        console.log("🔍 Verificando PIN para usuario:", usuario);
+        const generadoPor = await detectarAdminDesdePIN(pinIngresado);
+        console.log("🕵️‍♀️ PIN generado por:", generadoPor);
 
-          const valido = await verificarPin(usuario, pinIngresado);
-          console.log("✅ Resultado de verificarPin:", valido);
+        const valido = !!generadoPor;
+        console.log("✅ Resultado de verificarPin:", valido);
 
-          if (valido) {
-            console.log("✔️ PIN correcto. Cerrando modal...");
-            notificar("✔️ PIN correcto. Puedes continuar.", "#16a34a");
-            limpiarListeners();
-            modal.classList.add("hidden");
-            resolve(true);
-          } else {
-            console.warn("❌ PIN incorrecto.");
-            document.getElementById("pinError").textContent = "❌ PIN incorrecto. Solicita uno nuevo a Silvia.";
-            document.getElementById("pinError").classList.remove("hidden");
-            input.value = "";
-            input.focus();
-          }
+        if (valido) {
+          mostrarModal("✔️ PIN correcto. Puedes continuar.", "#16a34a");
+          limpiarListeners();
+          modal.classList.add("hidden");
+          resolve(true);
+
+          // Guardamos para enviar luego a Supabase
+          window.pinAutorizadoPor = generadoPor;
+        } else {
+          console.warn("❌ PIN incorrecto.");
+          document.getElementById("pinError").textContent = "❌ PIN incorrecto. Solicita uno nuevo a Silvia.";
+          document.getElementById("pinError").classList.remove("hidden");
+          input.value = "";
+          input.focus();
+        }
+
         } catch (err) {
           console.error("❌ Error en confirmarListener:", err);
           document.getElementById("pinError").textContent = "❌ Ocurrió un error inesperado.";
@@ -1696,21 +1732,28 @@ async function procesarExtraccionConValidacion(ref, unidadDestino, cantidadSolic
         }
       };
 
-
       const cancelarListener = () => {
         limpiarListeners();
         modal.classList.add("hidden");
         resolve(false);
       };
 
+      const keyListener = (e) => {
+        if (e.key === "Enter") confirmarListener();
+        if (e.key === "Escape") cancelarListener();
+      };
+
       function limpiarListeners() {
         btnConfirmar.removeEventListener("click", confirmarListener);
         btnCancelar.removeEventListener("click", cancelarListener);
+        document.removeEventListener("keydown", keyListener);
       }
 
       btnConfirmar.addEventListener("click", confirmarListener);
       btnCancelar.addEventListener("click", cancelarListener);
+      document.addEventListener("keydown", keyListener);
     });
+
   }
 
   console.log("✅ Validación superada. Se permite continuar.");
@@ -1805,27 +1848,41 @@ async function solicitarPinSilviaSiNecesario(ref, unidadDestino, cantidadSolicit
   });
 }
 
-async function obtenerPin(usuario) {
-  const fecha = new Date();
-  const minutos = Math.floor(fecha.getUTCMinutes() / 10);
-  const base = `${usuario.toLowerCase()}-${fecha.getUTCFullYear()}${fecha.getUTCMonth() + 1}${fecha.getUTCDate()}-${fecha.getUTCHours()}-${minutos}-medinova2025`;
-  const hash = new TextEncoder().encode(base);
-  const digest = await crypto.subtle.digest("SHA-256", hash);
-  const hex = Array.from(new Uint8Array(digest)).map(b => b.toString(16)).join("");
-  return hex.substring(0, 6).toUpperCase();
+// async function obtenerPin(usuario) {
+//   const fecha = new Date();
+//   const minutos = Math.floor(fecha.getUTCMinutes() / 10);
+//   const base = `${usuario.toLowerCase()}-${fecha.getUTCFullYear()}${fecha.getUTCMonth() + 1}${fecha.getUTCDate()}-${fecha.getUTCHours()}-${minutos}-medinova2025`;
+//   const hash = new TextEncoder().encode(base);
+//   const digest = await crypto.subtle.digest("SHA-256", hash);
+//   const hex = Array.from(new Uint8Array(digest)).map(b => b.toString(16)).join("");
+//   return hex.substring(0, 6).toUpperCase();
+// }
+
+async function verificarPin(pinIngresado) {
+  const admins = ["Silvia", "Luis", "Aida", "Ricardo", "Alex", "Adrian"];
+  const ahora = new Date();
+  const clave = "medinova-secreto-2025";
+
+  for (const admin of admins) {
+    const yyyy = ahora.getUTCFullYear();
+    const mm = String(ahora.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(ahora.getUTCDate()).padStart(2, "0");
+    const hh = String(ahora.getUTCHours()).padStart(2, "0");
+    const bloque = Math.floor(ahora.getUTCMinutes() / 10);
+    const base = `${admin.toLowerCase()}::${yyyy}-${mm}-${dd}-${hh}-${bloque}::${clave}`;
+    const hash = await sha256(base);
+    const generado = hash.substring(0, 6).toUpperCase();
+
+    if (generado === pinIngresado) {
+      console.log("✅ PIN verificado. Generado por:", admin);
+      return { valido: true, generadoPor: admin };
+    }
+  }
+
+  console.warn("❌ PIN no coincide con ningún admin");
+  return { valido: false, generadoPor: null };
 }
 
-async function verificarPin(usuario, pin) {
-  const res = await fetch('https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/verificar_pin', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ usuario, pin })
-  });
-
-  const data = await res.json();
-  return data.valido; // true si es válido
-  
-}
 
 
 //==========================================================================================================
@@ -1854,6 +1911,28 @@ function buscarReferencia(valor) {
 
   mostrarResultadosCoincidencias(valor.toLowerCase(), referenciasCache, cont);
 }
+function normalizarFechaExcel(fechaOriginal) {
+  if (!fechaOriginal) return "S/C";
+
+  // Si es un número (fecha Excel)
+  if (typeof fechaOriginal === "number" || !isNaN(Number(fechaOriginal))) {
+    const valor = Number(fechaOriginal);
+    if (valor > 10000 && valor < 60000) { // valores válidos de Excel
+      const baseDate = new Date(Date.UTC(1899, 11, 30));
+      baseDate.setDate(baseDate.getDate() + valor);
+      return baseDate.toISOString().split("T")[0];
+    }
+  }
+
+  // Si ya es string tipo fecha
+  const fecha = new Date(fechaOriginal);
+  if (!isNaN(fecha.getTime())) {
+    return fecha.toISOString().split("T")[0];
+  }
+
+  return "S/C";
+}
+
 
 // ✅ Esta ya la tenías completa
 async function mostrarResultadosCoincidencias(ref, referenciasCache, cont) { 
@@ -1911,7 +1990,7 @@ async function mostrarResultadosCoincidencias(ref, referenciasCache, cont) {
             <tr>
               <td class="p-2">${l.lote}</td>
               <td class="p-2">${l.cantidad}</td>
-              <td class="p-2">${l.caducidad}</td>
+              <td class="p-2">${normalizarFechaExcel(l.caducidad)}</td>
               <td class="p-2" title="Días restantes">${icono}</td>
             </tr>`;
     });
@@ -2230,15 +2309,20 @@ function calcularRegresionLineal(x, y) {
 
   return { pendiente, intercepto };
 }
+
+
+
+
 function verForecast(referencia, nombre = "", fabricante = "") {
   const anterior = document.getElementById("modalForecast");
   if (anterior) anterior.remove();
 
- const modal = document.createElement("div");
+  const modal = document.createElement("div");
   modal.id = "modalForecast";
-  modal.className = "fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50 overflow-y-auto";
+  modal.className = "fixed inset-0 bg-black bg-opacity-60 z-50 overflow-auto flex items-center justify-center";
+
   modal.innerHTML = `
-    <div class="bg-white rounded-xl p-4 w-[95%] max-w-5xl text-gray-800 relative mt-6 mb-6">
+    <div class="bg-white rounded-xl p-4 w-[95%] max-w-5xl text-gray-800 relative mt-6 mb-6 max-h-[95vh] overflow-y-auto">
       <button onclick="document.getElementById('modalForecast').remove()" class="absolute top-2 right-2 text-red-800 hover:text-red-600 text-xl font-bold">×</button>
       <div id="anclaForecast" class="h-12 -mt-12"></div>
       <h2 class="text-lg font-bold mb-3 text-center">📊 Estadísticas del producto</h2>
@@ -2250,10 +2334,10 @@ function verForecast(referencia, nombre = "", fabricante = "") {
             <option value="TOTAL">Total (Almacén CUU)</option>
           </select>
         </div>
-        <div class="flex gap-2">
+        <div class="flex gap-2 flex-wrap justify-center">
           <button onclick="exportarRegresionExcel()" class="bg-emerald-900 text-white px-3 py-1 rounded hover:bg-emerald-800 text-sm">📤 Excel</button>
           <button onclick="exportarRegresionPDF()" class="bg-rose-900 text-white px-3 py-1 rounded hover:bg-rose-800 text-sm">🖨️ PDF</button>
-          <button onclick="descargarReporteForecast()" class="bg-purple-900 text-white px-4 py-2 rounded-xl hover:bg-purple-800">📤 Reporte Global</button>
+          <button onclick="descargarReporteForecast()" class="bg-purple-900 text-white px-4 py-2 rounded-xl hover:bg-purple-800 text-sm">📤 Reporte Global</button>
         </div>
       </div>
 
@@ -2262,19 +2346,21 @@ function verForecast(referencia, nombre = "", fabricante = "") {
         <canvas id="graficaForecast" class="w-full h-[260px] sm:h-[320px] max-w-full"></canvas>
       </div>
 
-<div id="alertaForecast" class="text-sm mt-4 p-2 items-center text-center w-full mx-auto md:w-1/2 bg-gray-100 text-gray-700 rounded-xl border border-gray-300 hidden"></div>
+      <div id="alertaForecast" class="text-sm mt-4 p-2 items-center text-center w-full mx-auto md:w-1/2 bg-gray-100 text-gray-700 rounded-xl border border-gray-300 hidden"></div>
 
       <!-- Gráfica de pronóstico + tabla -->
       <div class="flex flex-col md:flex-row gap-4 w-full">
         <div class="md:w-2/3">
-      <canvas id="graficaForecastLinea" class="w-full h-[180px] sm:h-[220px] max-w-full"></canvas>
+          <canvas id="graficaForecastLinea" class="w-full max-w-full"></canvas>
         </div>
         <div id="tablaForecast" class="text-sm md:w-1/3 max-h-[300px] overflow-y-auto"></div>
       </div>
-    </div>`;
+    </div>
+  `;
+
   document.body.appendChild(modal);
 
-  // Cerrar modal con tecla Esc
+  // Esc -> cerrar
   document.addEventListener("keydown", function handleEsc(e) {
     if (e.key === "Escape") {
       modal.remove();
@@ -2282,17 +2368,98 @@ function verForecast(referencia, nombre = "", fabricante = "") {
     }
   });
 
-  // Cerrar modal al hacer clic fuera
+  // Clic fuera del modal
   modal.addEventListener("click", (e) => {
-    if (e.target === modal) {
-      modal.remove();
-    }
+    if (e.target === modal) modal.remove();
   });
 
+
   cargarDatosForecastEdge(referencia).then(() => alCambiarUnidadForecast(referencia));
-} window.verForecast = verForecast;
+}window.verForecast = verForecast;
 let graficaForecastInstance = null;
 let graficaRegresionInstance = null;
+
+
+function crearGraficaForecastLinea(labels, datosHistoricos, datosPronostico) {
+  const canvas = document.getElementById("graficaForecastLinea");
+
+  // Ajustar alto del canvas según tamaño de pantalla
+  const isMobile = window.innerWidth < 768;
+  const alturaDeseada = isMobile ? 320 : 240;
+  canvas.height = alturaDeseada;
+
+  // Destruir gráfica anterior si existe
+  if (window.graficaForecastLineaObj) {
+    window.graficaForecastLineaObj.destroy();
+  }
+
+  // Crear nueva gráfica
+  const ctx = canvas.getContext("2d");
+  window.graficaForecastLineaObj = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Histórico",
+          data: datosHistoricos,
+          borderColor: "#2563eb", // azul
+          backgroundColor: "rgba(37, 99, 235, 0.2)",
+          tension: 0.3,
+          pointRadius: 2,
+          fill: false
+        },
+        {
+          label: "Pronóstico",
+          data: datosPronostico,
+          borderColor: "#16a34a", // verde
+          backgroundColor: "rgba(22, 163, 74, 0.2)",
+          tension: 0.3,
+          pointRadius: 2,
+          borderDash: [5, 5],
+          fill: false
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: "top",
+          labels: {
+            font: { size: isMobile ? 10 : 12 }
+          }
+        },
+        tooltip: {
+          mode: "index",
+          intersect: false
+        }
+      },
+      interaction: {
+        mode: "nearest",
+        axis: "x",
+        intersect: false
+      },
+      scales: {
+        x: {
+          ticks: {
+            maxRotation: 45,
+            minRotation: 30
+          }
+        },
+        y: {
+          beginAtZero: true,
+          ticks: {
+            precision: 0
+          }
+        }
+      }
+    }
+  });
+}
+
+
 async function cargarDatosForecastEdge(ref) {
   const select = document.getElementById("unidadForecast");
   const ctx = document.getElementById("graficaForecast").getContext("2d");
@@ -2304,6 +2471,8 @@ async function cargarDatosForecastEdge(ref) {
 
     if (consumoData.error) throw new Error(consumoData.error);
 
+    console.log("❓ DEBUG consumoData.consumo:", consumoData.consumo);
+
     const todasUnidades = Object.keys(consumoData.consumo).sort();
 
     if (!todasUnidades.length) {
@@ -2312,7 +2481,6 @@ async function cargarDatosForecastEdge(ref) {
       document.getElementById("alertaForecast").classList.remove("hidden");
       tabla.innerHTML = "";
 
-      
       document.getElementById("btnExportarExcel")?.classList.add("opacity-50", "pointer-events-none");
       document.getElementById("btnExportarPDF")?.classList.add("opacity-50", "pointer-events-none");
       document.getElementById("btnReporteGlobal")?.classList.add("opacity-50", "pointer-events-none");
@@ -2326,15 +2494,21 @@ async function cargarDatosForecastEdge(ref) {
     document.getElementById("btnExportarExcel")?.classList.remove("opacity-50", "pointer-events-none");
     document.getElementById("btnExportarPDF")?.classList.remove("opacity-50", "pointer-events-none");
     document.getElementById("btnReporteGlobal")?.classList.remove("opacity-50", "pointer-events-none");
+
     const optTotal = document.createElement("option");
     optTotal.value = "TOTAL";
     optTotal.textContent = "Total (Almacén CUU)";
     select.appendChild(optTotal);
+
     todasUnidades.forEach(u => {
-      const opt = document.createElement("option");
-      opt.value = u;
-      opt.textContent = u;
-      select.appendChild(opt);
+      const datosUnidad = consumoData.consumo[u];
+      const tieneDatos = Object.values(datosUnidad).some(v => v !== 0 && v !== null);
+      if (tieneDatos) {
+        const opt = document.createElement("option");
+        opt.value = u;
+        opt.textContent = u;
+        select.appendChild(opt);
+      }
     });
 
     select.onchange = () => {
@@ -2342,6 +2516,8 @@ async function cargarDatosForecastEdge(ref) {
       const datosUnidad = unidad === "TOTAL"
         ? combinarUnidades(consumoData.consumo)
         : consumoData.consumo[unidad] || {};
+
+      console.log("📊 DEBUG datosUnidad para gráfica:", unidad, datosUnidad);
 
       const confiabilidadUnidad = unidad === "TOTAL"
         ? combinarUnidades(confiabilidadConvertida(consumoData.confiabilidad))
@@ -2363,10 +2539,8 @@ async function cargarDatosForecastEdge(ref) {
       if (labels.length === 0) {
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
         tabla.innerHTML = "";
-
         alerta.textContent = "📂 Sin datos registrados para esta unidad.";
         alerta.classList.remove("hidden");
-
         return;
       }
 
@@ -2405,25 +2579,24 @@ async function cargarDatosForecastEdge(ref) {
         }
       });
 
-  // Rellenar tabla
-  tabla.innerHTML = `
-    <table class="w-full mt-2 border border-gray-300 text-xs text-center">
-      <thead class="bg-teal-900 text-white">
-        <tr><th>Mes</th><th>Unidades</th></tr>
-      </thead>
-      <tbody>
-        ${labels.map(m => `
-          <tr>
-            <td>${m}</td>
-            <td>${datosUnidad[m]}</td>
-          </tr>`).join("")}
-      </tbody>
-    </table>`;
+      // Rellenar tabla
+      tabla.innerHTML = `
+        <table class="w-full mt-2 border border-gray-300 text-xs text-center">
+          <thead class="bg-teal-900 text-white">
+            <tr><th>Mes</th><th>Unidades</th></tr>
+          </thead>
+          <tbody>
+            ${labels.map(m => `
+              <tr>
+                <td>${m}</td>
+                <td>${datosUnidad[m]}</td>
+              </tr>`).join("")}
+          </tbody>
+        </table>`;
 
-  graficarRegresionLineal(labels, valores);
-  document.getElementById("anclaForecast")?.scrollIntoView({ behavior: "smooth", block: "start" });
-
-};
+      graficarRegresionLineal(labels, valores);
+      document.getElementById("anclaForecast")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
 
     select.dispatchEvent(new Event("change"));
     document.getElementById("modalEstadisticas")?.classList.remove("hidden");
@@ -2434,7 +2607,6 @@ async function cargarDatosForecastEdge(ref) {
     document.getElementById("alertaForecast").textContent = "❌ Error al cargar forecast";
     document.getElementById("alertaForecast").classList.remove("hidden");
 
-
     document.getElementById("btnExportarExcel")?.classList.add("opacity-50", "pointer-events-none");
     document.getElementById("btnExportarPDF")?.classList.add("opacity-50", "pointer-events-none");
     document.getElementById("btnReporteGlobal")?.classList.add("opacity-50", "pointer-events-none");
@@ -2442,6 +2614,7 @@ async function cargarDatosForecastEdge(ref) {
     document.getElementById("modalEstadisticas")?.classList.remove("hidden");
   }
 }
+
 
 function calcularR2(x, y, pendiente, intercepto) {
   const yMedia = y.reduce((a, b) => a + b, 0) / y.length;
@@ -3047,14 +3220,21 @@ function enviarSupabase() {
     return;
   }
 
-  // Agregar remisionActual a cada registro antes de enviar
-  const registros = qrsPendientes.map(r => ({
-    ...r,
-    remision: remisionActual || null
-  }));
+  // Agregar remisionActual y pin_autorizado_por a cada registro antes de enviar
+  const registros = qrsPendientes.map(r => {
+    const base = {
+      ...r,
+      remision: remisionActual || null
+    };
 
-  // 🚩 Debug para verificar que lleva bien la remisión
-  console.log("✅ Registros a enviar (con remisión):", registros);
+    if (window.pinAutorizadoPor && window.pinAutorizadoPor !== r.usuario) {
+      base.pin_autorizado_por = window.pinAutorizadoPor;
+    }
+
+    return base;
+  });
+
+  console.log("✅ Registros a enviar:", registros);
 
   fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr", {
     method: "POST",
@@ -3067,12 +3247,14 @@ function enviarSupabase() {
       mostrarModal("📦 Productos enviados correctamente", "#22c55e");
       qrsPendientes = [];
       actualizarTablaRegistros();
+      window.pinAutorizadoPor = null;  // ✅ Limpiar después del envío
     })
     .catch(err => {
       console.error("Error al enviar a Supabase:", err);
       mostrarModal("❌ Fallo en el envío", "#b91c1c");
     });
 }
+
 
 
 function agregarFila(ref, lote, estado) {
@@ -3989,33 +4171,25 @@ async function mostrarPinDinamicoAdmin() {
   if (el) el.textContent = pin;
 }
 
- // Aquí va toda tu función verMovimientos()
 function verMovimientos(referencia) {
   filtroReferenciaGlobal = referencia;
 
   const modal = document.getElementById("modalMovimientos");
-  if (modal) {
-    modal.classList.remove("hidden");
-  } else {
-    console.warn("⚠️ No se encontró el modalMovimientos en el DOM");
-  }
+  if (modal) modal.classList.remove("hidden");
 
   const cantidad = document.getElementById("cantidadMovimientos")?.value || "50";
   const fechaInicio = document.getElementById("fechaInicio")?.value;
   const fechaFin = document.getElementById("fechaFin")?.value;
   const loteSeleccionado = document.getElementById("selectLote")?.value;
 
-  let url = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/TimeStamps?referencia=eq.${encodeURIComponent(referencia)}&select=usuario,movimiento,fecha_str,lote,remision,unidad_destino,fecha`;
+  let url = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/TimeStamps?referencia=eq.${encodeURIComponent(referencia)}&select=usuario,movimiento,fecha_str,lote,remision,unidad_destino,fecha,pin_autorizado_por,timestamp,ts_eliminado`;
 
   const filtros = [];
-
   if (fechaInicio) filtros.push(`fecha=gte.${new Date(fechaInicio).getTime()}`);
   if (fechaFin) filtros.push(`fecha=lte.${new Date(fechaFin).getTime() + 86400000 - 1}`);
   if (loteSeleccionado) filtros.push(`lote=eq.${encodeURIComponent(loteSeleccionado)}`);
-
   if (filtros.length) url += `&${filtros.join("&")}`;
-  if (cantidad !== "todos") url += `&order=fecha.desc&limit=${cantidad}`;
-  else url += `&order=fecha.desc`;
+  url += `&order=fecha.desc`;
 
   fetch(url, {
     headers: { "apikey": API_KEY, "Authorization": `Bearer ${API_KEY}` }
@@ -4025,13 +4199,12 @@ function verMovimientos(referencia) {
       return res.json();
     })
     .then(data => {
-      console.log("🧾 Movimientos recibidos:", data);
       const contenedor = document.getElementById("movimientosContenido");
       const selectLote = document.getElementById("selectLote");
 
       if (selectLote && referencia !== selectLote.dataset.referencia) {
         const lotesUnicos = [...new Set(data.map(m => m.lote))].filter(Boolean);
-        selectLote.innerHTML = `<option value="">Todos</option>` + 
+        selectLote.innerHTML = `<option value="">Todos</option>` +
           lotesUnicos.map(l => `<option value="${l}">${l}</option>`).join("");
         selectLote.dataset.referencia = referencia;
       }
@@ -4041,41 +4214,104 @@ function verMovimientos(referencia) {
         return;
       }
 
+      const grupos = {};
+      for (const m of data) {
+        const clave = `${m.remision || "-"}||${m.lote || "-"}||${m.unidad_destino || "-"}`;
+        if (!grupos[clave]) grupos[clave] = [];
+        grupos[clave].push(m);
+      }
+
       let html = `<table class="w-full text-sm text-left border mt-2 rounded-xl overflow-hidden">
         <thead class="bg-teal-900 text-white text-center">
           <tr>
+            <th class="p-2">📂</th>
             <th class="p-2">Fecha</th>
             <th class="p-2">Usuario</th>
-            <th class="p-2">Acción</th>
             <th class="p-2">Lote</th>
             <th class="p-2">Remisión</th>
             <th class="p-2">Unidad Destino</th>
+            <th class="p-2">Cantidad</th>
+            <th class="p-2 whitespace-normal w-32">Excedente<br>Autorizado por</th>
           </tr>
         </thead>
-        <tbody class="text-black text-center">`;      
+        <tbody class="text-black text-center">`;
 
-      data.forEach(mov => {
-        const unidadNombre = unidadesDestino[mov.unidad_destino] || mov.unidad_destino || "-";
+      let i = 0;
+      for (const [clave, movimientos] of Object.entries(grupos)) {
+        const [remision, lote, unidad] = clave.split("||");
+        const primero = movimientos[0];
+        const unidadNombre = unidadesDestino[unidad] || unidad || "-";
+        const autorizado = movimientos.find(m => m.pin_autorizado_por)?.pin_autorizado_por || " ";
+        const id = i++;
 
-        html += `<tr>
-          <td class="p-2">${mov.fecha_str || "-"}</td>
-          <td class="p-2">${mov.usuario || "-"}</td>
-          <td class="p-2 capitalize">${mov.movimiento || "-"}</td>
-          <td class="p-2">${mov.lote || "-"}</td>
-          <td class="p-2">${mov.remision ?? "-"}</td>
+        html += `<tr class="bg-gray-100">
+          <td class="p-2">
+            <button id="btnToggle-${id}" onclick="toggleSubtabla('${id}')" class="text-xs px-1.5 py-0.5 rounded-full border border-gray-400 hover:bg-gray-200">▶</button>
+          </td>
+          <td class="p-2">${primero.fecha_str || "-"}</td>
+          <td class="p-2">${primero.usuario || "-"}</td>
+          <td class="p-2">${lote}</td>
+          <td class="p-2">${remision}</td>
           <td class="p-2">${unidadNombre}</td>
+          <td class="p-2">${movimientos.length}</td>
+          <td class="p-2 text-red-800 font-bold">${autorizado}</td>
         </tr>`;
-      });
+
+        html += `<tr id="subtabla-${id}" class="hidden bg-white"><td colspan="8" class="p-0">
+          <table class="w-full text-xs text-center">
+            <thead class="bg-gray-200 text-gray-700">
+              <tr>
+                <th class="p-1">Fecha</th>
+                <th class="p-1">NS</th>
+                <th class="p-1">Movimiento</th>
+                <th class="p-1">¿Excedente?</th>
+              </tr>
+            </thead>
+            <tbody>`;
+        for (const m of movimientos) {
+          const nsBase = m.timestamp || m.ts_eliminado;
+          const ns = nsBase ? String(nsBase).slice(-8) : "-";
+          const excedente = m.pin_autorizado_por
+            ? `<span class="text-red-800 font-bold">Sí</span>`
+            : `<span class="text-gray-400 font-bold">No</span>`;
+
+          html += `<tr>
+            <td class="p-1">${m.fecha_str || "-"}</td>
+            <td class="p-1">${ns}</td>
+            <td class="p-1">${m.movimiento || "-"}</td>
+            <td class="p-1">${excedente}</td>
+          </tr>`;
+        }
+        html += `</tbody></table></td></tr>`;
+      }
 
       html += "</tbody></table>";
       contenedor.innerHTML = html;
     })
     .catch(err => {
       console.error("Error al cargar movimientos:", err);
-      const contenedor = document.getElementById("movimientosContenido");
-      contenedor.innerHTML = "<p class='text-sm text-center text-red-600'>Error al obtener movimientos.</p>";
+      document.getElementById("movimientosContenido").innerHTML =
+        "<p class='text-sm text-center text-red-600'>Error al obtener movimientos.</p>";
     });
 }
+
+
+
+function toggleSubtabla(id) {
+  const sub = document.getElementById("subtabla-" + id);
+  const btn = document.getElementById("btnToggle-" + id);
+
+  if (!sub || !btn) {
+    console.warn("🔍 No se encontró subtabla o botón para:", id);
+    return;
+  }
+
+  const visible = !sub.classList.contains("hidden");
+  sub.classList.toggle("hidden");
+  btn.textContent = visible ? "▶" : "▼";
+}
+
+
 
   document.addEventListener("DOMContentLoaded", () => {
     const mesSelect = document.getElementById("mesCaptura");
@@ -4252,10 +4488,46 @@ function confirmarModoInventario() {
 function iniciarActualizacionAutomaticaPIN() {
   if (intervaloPin) clearInterval(intervaloPin);
 
- // Actualiza cada segundo el PIN y su contador en pantalla
-  actualizarPinYContador(); // ejecuta inmediatamente
-  intervaloPin = setInterval(actualizarPinYContador, 1000); // luego cada segundo
+  // Ejecutar inmediatamente
+  actualizarPinYContador();
+
+  // Calcular cuánto falta para el siguiente múltiplo exacto del intervalo
+  const ahora = new Date();
+  const minutos = ahora.getUTCMinutes();
+  const segundos = ahora.getUTCSeconds();
+
+  const minutosHastaProximo = INTERVALO_MINUTOS - (minutos % INTERVALO_MINUTOS);
+  const msHastaProximo = (minutosHastaProximo * 60 - segundos) * 1000;
+
+  // ⏳ Primera actualización al siguiente punto exacto (ej. HH:10:00, HH:20:00...)
+  setTimeout(() => {
+    actualizarPinYContador();
+    intervaloPin = setInterval(actualizarPinYContador, INTERVALO_MINUTOS * 60000);
+  }, msHastaProximo);
 }
+
+async function detectarAdminDesdePIN(pinIngresado) {
+  const ahora = new Date();
+  const yyyy = ahora.getUTCFullYear();
+  const mm = String(ahora.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(ahora.getUTCDate()).padStart(2, "0");
+  const hh = String(ahora.getUTCHours()).padStart(2, "0");
+  const bloque = Math.floor(ahora.getUTCMinutes() / 10);
+  const clave = "medinova-secreto-2025";
+
+  for (const admin of listaAdmins) {
+    const base = `${admin.toLowerCase()}::${yyyy}-${mm}-${dd}-${hh}-${bloque}::${clave}`;
+    const hash = await sha256(base);
+    const pinGenerado = hash.substring(0, 6).toUpperCase();
+
+    if (pinIngresado === pinGenerado) {
+      return admin;
+    }
+  }
+
+  return null;
+}
+
 
   </script>
 </body>
