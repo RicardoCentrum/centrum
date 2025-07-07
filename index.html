@@ -463,36 +463,24 @@
     </button>
   </div>
 
-<div id="modalPINExceso" class="hidden fixed inset-0 bg-pink-300 bg-opacity-60 backdrop-blur-sm z-[9990] flex items-center justify-center">
+    <div id="modalPINExceso" class="hidden fixed inset-0 bg-pink-300 bg-opacity-60 backdrop-blur-sm z-[9990] flex items-center justify-center">
   <div class="bg-white border-2 border-pink-500 p-6 rounded-xl w-[360px] shadow-lg text-sm text-gray-800">
-    <form id="formPINExceso" autocomplete="off">
-      <div id="contenidoPINExceso" class="space-y-3"></div>
+    <div id="contenidoPINExceso" class="space-y-3"></div>
 
-      <div>
-        <label for="nipdinamico" class="block text-sm font-semibold mb-1 text-pink-700">NIP de autorización:</label>
-        <input
-          id="nipdinamico"
-          name="pin_temporal"
-          type="text"
-          maxlength="6"
-          minlength="6"
-          inputmode="numeric"
-          pattern="[0-9A-Fa-f]{6}"
-          autocomplete="off"
-          class="w-full border border-pink-800 rounded-2xl px-4 py-2 text-center font-mono text-xl tracking-widest"
-          placeholder="######"
-        />
-        <p id="pinError" class="text-red-600 text-xs mt-1 hidden">❌ PIN incorrecto</p>
-      </div>
+    <div>
+      <label for="nipdinamico" class="block text-sm font-semibold mb-1 text-pink-700">NIP de autorización:</label>
+      <input id="nipdinamico" type="text" maxlength="6" minlength="6"
+        class="w-full border border-pink-800 rounded-2xl px-4 py-2 text-center font-mono text-xl tracking-widest"
+        placeholder="######" inputmode="numeric" pattern="[0-9A-Fa-f]{6}" />
+      <p id="pinError" class="text-red-600 text-xs mt-1 hidden">❌ PIN incorrecto</p>
+    </div>
 
-      <div class="flex justify-between gap-4 mt-4">
-        <button type="button" id="btnCancelarPIN" class="px-4 py-2 w-1/2 bg-pink-300 text-white rounded-xl hover:bg-pink-400">Cancelar</button>
-        <button type="submit" id="btnConfirmarPin" class="px-4 py-2 w-1/2 bg-pink-600 text-white rounded-xl hover:bg-pink-700">Confirmar PIN</button>
-      </div>
-    </form>
+    <div class="flex justify-between gap-4 mt-4">
+      <button id="btnCancelarPIN" class="px-4 py-2 w-1/2 bg-pink-300 text-white rounded-xl hover:bg-pink-400">Cancelar</button>
+      <button id="btnConfirmarPin" class="px-4 py-2 w-1/2 bg-pink-600 text-white rounded-xl hover:bg-pink-700">Confirmar PIN</button>
+    </div>
   </div>
 </div>
-
 
 <div id="tablaContenedora" class="hidden opacity-0 transition-opacity duration-300">
   <table class="min-w-full text-sm text-left" id="tablaRegistros">
