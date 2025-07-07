@@ -6,8 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default"> <!-- Esta línea aún es aceptada -->
+  <meta name="theme-color" content="#001d25">
   <link rel="apple-touch-icon" href="medinova_ios.png">
-  <title>Inventario QR - Centrum</title>
+  <title>Medinova</title>
   <script src="https://cdn.tailwindcss.com">
   
   function agregarFila(ref, lote, estado) {
@@ -36,7 +37,17 @@
     body {
       background: url('bcg_centrum.png') no-repeat center center fixed;
       background-size: cover;
+      background-color: #001d25;
       font-family: 'Segoe UI', sans-serif;
+    }
+    @media (max-width: 767px){
+      body{
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-position: top center;
+        padding-top: env(safe-area-insert-top);
+        margin: 0;
+      }
     }
     .modal {
       position: fixed;
