@@ -110,6 +110,14 @@
   .fuente-magma {
     font-family: 'MagmaWave', sans-serif;
   } */
+
+  .modo-basurero {
+  background-image: url('blackhole.png');
+  background-size: cover;
+  background-position: center;
+  transition: background 2s ease-in-out;
+}
+
   </style>
 </head>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -465,33 +473,32 @@
 
 <div id="modalPINExceso" class="hidden fixed inset-0 bg-pink-300 bg-opacity-60 backdrop-blur-sm z-[9990] flex items-center justify-center">
   <div class="bg-white border-2 border-pink-500 p-6 rounded-xl w-[360px] shadow-lg text-sm text-gray-800">
-    <form id="formPINExceso" autocomplete="off">
-      <div id="contenidoPINExceso" class="space-y-3"></div>
+    <div id="contenidoPINExceso" class="space-y-3"></div>
 
-      <div>
-        <label for="nipdinamico" class="block text-sm font-semibold mb-1 text-pink-700">NIP de autorización:</label>
-        <input
-          id="nipdinamico"
-          name="pin_temporal"
-          type="text"
-          maxlength="6"
-          minlength="6"
-          inputmode="numeric"
-          pattern="[0-9A-Fa-f]{6}"
-          autocomplete="off"
-          class="w-full border border-pink-800 rounded-2xl px-4 py-2 text-center font-mono text-xl tracking-widest"
-          placeholder="######"
-        />
-        <p id="pinError" class="text-red-600 text-xs mt-1 hidden">❌ PIN incorrecto</p>
-      </div>
+    <div>
+      <label for="nipdinamico" class="block text-sm font-semibold mb-1 text-pink-700">NIP de autorización:</label>
+      <input
+        id="nipdinamico"
+        name="pin_temporal"
+        type="text"
+        inputmode="numeric"
+        pattern="[0-9A-Fa-f]{6}"
+        maxlength="6"
+        minlength="6"
+        autocomplete="off"
+        class="w-full border border-pink-800 rounded-2xl px-4 py-2 text-center font-mono text-xl tracking-widest"
+        placeholder="######"
+      />
+      <p id="pinError" class="text-red-600 text-xs mt-1 hidden">❌ PIN incorrecto</p>
+    </div>
 
-      <div class="flex justify-between gap-4 mt-4">
-        <button type="button" id="btnCancelarPIN" class="px-4 py-2 w-1/2 bg-pink-300 text-white rounded-xl hover:bg-pink-400">Cancelar</button>
-        <button type="submit" id="btnConfirmarPin" class="px-4 py-2 w-1/2 bg-pink-600 text-white rounded-xl hover:bg-pink-700">Confirmar PIN</button>
-      </div>
-    </form>
+    <div class="flex justify-between gap-4 mt-4">
+      <button id="btnCancelarPIN" class="px-4 py-2 w-1/2 bg-pink-300 text-white rounded-xl hover:bg-pink-400">Cancelar</button>
+      <button id="btnConfirmarPin" class="px-4 py-2 w-1/2 bg-pink-600 text-white rounded-xl hover:bg-pink-700">Confirmar PIN</button>
+    </div>
   </div>
 </div>
+
 
 
 <div id="tablaContenedora" class="hidden opacity-0 transition-opacity duration-300">
@@ -723,9 +730,32 @@ async function validarPinYUnidad() {
   nipAdmin = nip;
   const unidad = document.getElementById("inputUnidad").value.trim().toUpperCase();
   const esSalida = modoSeleccionado === "salida";
-
-  // Validar remisión obligatoria si el bloqueo está activo:
   let remision = null;
+  // Validar remisión obligatoria si el bloqueo está activo:
+  const remisionRaw = document.getElementById("inputRemision")?.value.trim().toLowerCase();
+  const unidadRaw = document.getElementById("inputUnidad")?.value.trim().toLowerCase();
+  const esBasurero = (modoSeleccionado === "salida" && unidadRaw === "eliminar" && remisionRaw === "etiqueta");
+
+  if (esBasurero) {
+    usuario = "Basurero";
+    unidadSeleccionada = "Eliminar";
+    modo = "salida";
+
+    document.getElementById("modalPinUnidad").classList.add("hidden");
+    document.getElementById("usuarioActivo").innerHTML = `
+      🕳️ <strong>MODO ELIMINACIÓN ACTIVADO</strong><br>
+       <strong>Eliminar</strong><br>
+       <strong>Etiqueta</strong>
+    `;
+
+    actualizarBotonModo("Salida", "bg-black", "🕳️");
+    // mostrarModal("🕳️ Modo ELIMINACIÓN activado", "#000000");
+
+    document.body.classList.add("modo-basurero");
+    document.getElementById("inputQR").focus();
+    return;
+  }
+
   if (esSalida) {
     remision = document.getElementById("inputRemision").value.trim();
 
@@ -1053,7 +1083,6 @@ async function procesarQR(contenido) {
     const datos = extraerDatosQR(contenido);
     console.log("🔍 Datos extraídos del QR:", datos);
 
-    // 🔒 Validaciones mínimas
     if (!datos || !datos.referencia || !datos.timestamp) {
       console.warn("⚠️ QR incompleto:", datos);
       mostrarModal("❌ QR incompleto o ilegible", "#6b7280");
@@ -1064,6 +1093,20 @@ async function procesarQR(contenido) {
       console.warn("⚠️ QR sin lote:", datos);
       mostrarModal("❌ QR sin lote", "#6b7280");
       return;
+    }
+
+    // 🚮 MODO BASURERO DE ETIQUETAS
+    // 🚮 MODO BASURERO DE ETIQUETAS
+    const remision = document.getElementById("inputRemision")?.value.trim().toLowerCase();
+    const unidad = unidadSeleccionada?.toLowerCase();
+    const esBasurero = modo === "salida" && unidad === "eliminar" && remision === "etiqueta";
+
+    if (esBasurero) {
+      document.body.classList.add("modo-basurero");
+      console.log("🕳️ Modo basurero activado. Eliminando etiqueta:", datos);
+
+      await procesarBasurero(datos);  // ✅ SOLO esto se ejecuta
+      return; // ✅ Detiene todo el flujo restante
     }
 
     if (datos.lote.includes('|')) {
@@ -1077,10 +1120,12 @@ async function procesarQR(contenido) {
       return;
     }
 
-    if (!unidadSeleccionada && modo !== "inventario") {
-      console.warn("⚠️ Unidad no seleccionada");
+    if (modo === "salida" && !unidadSeleccionada) {
+      console.warn("⚠️ Unidad médica no seleccionada en modo salida");
       mostrarModal("⚠️ Selecciona una unidad médica", "#f59e0b");
       return;
+    } else {
+      console.log(`✅ Unidad médica ${unidadSeleccionada || "N/A"} aceptada para modo ${modo}`);
     }
 
     if (qrsPendientes.some(q => q.timestamp === datos.timestamp)) {
@@ -1089,7 +1134,6 @@ async function procesarQR(contenido) {
       return;
     }
 
-    // 🔒 Validación de remisión SAP
     if (modo === "salida") {
       const inputRemision = document.getElementById("inputNumeroRemision");
       const numeroRemision = inputRemision ? inputRemision.value.trim() : "";
@@ -1104,7 +1148,7 @@ async function procesarQR(contenido) {
 
     mostrarModal("📤 Procesando QR...", "#0ea5e9");
 
-    // 🔍 Buscar en tabla de fraccionables
+    // 🔍 Verificar fraccionables
     const urlMultip = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/multiplicadores?select=fraccionable,referencia,referencia_unidad,multiplicador&or=(referencia.eq.${datos.referencia},referencia_unidad.eq.${datos.referencia})`;
     console.log("🔎 Consultando fraccionables:", urlMultip);
 
@@ -1121,186 +1165,108 @@ async function procesarQR(contenido) {
 
     console.log("📦 Datos fraccionable:", entry);
 
-    // 🔧 Unidad de fraccionable
+    // 🔧 Si es unidad de fraccionable
     if (entry?.referencia_unidad === datos.referencia) {
-      const payload = {
-        registros: [{
-          ...datos,
-          modo,
-          usuario,
-          unidad: unidadSeleccionada || null,
-          referenciaCaja: entry.referencia,
-          tipo: "unidad"
-        }]
+      const qrUnidad = {
+        ...datos,
+        modo,
+        usuario,
+        unidad: unidadSeleccionada || null,
+        referenciaCaja: entry.referencia,
+        tipo: "unidad"
       };
 
-      console.log("📤 Enviando unidad fraccionable:", payload);
-
-      const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_fraccionable", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      const result = await res.json();
-      console.log("📥 Respuesta unidad fraccionable:", result);
-
-      const r = result.resultados?.[0];
-
-      if (r?.status === "ok") {
-        qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada });
-        actualizarTablaRegistros();
-        mostrarModal("✅ Unidad procesada", "#22c55e");
-      } else if (r?.status === "repetido") {
-        mostrarModal("📦 El producto ya fue ingresado anteriormente", "#0d9488");
-      } else if (r?.status === "extraido_previo") {
-        mostrarModal(`⚠️ Ya extraído por ${r.usuario}`, "#facc15");
-      } else {
-        console.error("❌ Error en respuesta fraccionable:", r);
-        mostrarModal(r?.mensaje || "❌ Error al registrar unidad", "#6b7280");
-      }
+      console.log("📌 QR de unidad fraccionable agregado a tabla contenedora:", qrUnidad);
+      qrsPendientes.push(qrUnidad);
+      actualizarTablaRegistros();
+      mostrarModal("✅ Unidad escaneada", "#22c55e");
       return;
     }
 
-    // 🔧 Fraccionable en modo salida
+    // 🔧 Si es fraccionable completo (caja)
+    if (esFraccionable && modo === "entrada") {
+      const qrCaja = {
+        ...datos,
+        modo,
+        usuario,
+        unidad: unidadSeleccionada,
+        tipo: "fraccion"
+      };
+
+      console.log("📌 Caja fraccionable agregada a tabla contenedora:", qrCaja);
+      qrsPendientes.push(qrCaja);
+      actualizarTablaRegistros();
+      mostrarModal("✅ Caja escaneada", "#22c55e");
+      return;
+    }
+
     if (esFraccionable && modo === "salida") {
-      console.log("🔧 Fraccionable en modo salida. Mostrando modal.");
+      console.log("🟥 Fraccionable en modo salida: esperando cantidad...");
       abrirModalCantidadFraccionable(datos.referencia, datos.lote, contenido);
       return;
     }
 
-    // 🔧 Fraccionable en modo entrada
-    if (esFraccionable && modo === "entrada") {
-      const payload = {
-        registros: [{
-          ...datos,
-          modo,
-          usuario,
-          unidad: unidadSeleccionada,
-          tipo: "fraccion"
-        }]
-      };
-
-      console.log("📤 Enviando caja fraccionable:", payload);
-
-      const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_fraccionable", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      const result = await res.json();
-      console.log("📥 Respuesta caja fraccionable:", result);
-
-      const r = result.resultados?.[0];
-
-      if (r?.status === "ok") {
-        qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada });
-        actualizarTablaRegistros();
-        mostrarModal("✅ Caja registrada", "#22c55e");
-      } else if (r?.status === "repetido") {
-        mostrarModal("📦 El producto ya fue ingresado anteriormente", "#0d9488");
-      } else if (r?.status === "extraido_previo") {
-        mostrarModal(`⚠️ Ya extraído por ${r.usuario}`, "#facc15");
-      } else {
-        console.error("❌ Error en respuesta de caja:", r);
-        mostrarModal("❌ Error en el QR", "#6b7280");
-      }
-      return;
-    }
-
-    // 🔧 Producto normal
+    // 🔧 Producto normal (no fraccionable)
     if (modo === "salida") {
       const permitido = await procesarExtraccionConValidacion(datos.referencia, unidadSeleccionada, 1, usuario);
-      console.log("🔐 Validación de extracción:", permitido);
+      console.log("🔐 Validación extracción:", permitido);
       if (!permitido) return;
     }
 
-    // 🔍 Verificar si ya existe en productos
-    const consultaProducto = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos?referencia=eq.${datos.referencia}&lote=eq.${datos.lote}`;
-    console.log("🔎 Buscando en productos:", consultaProducto);
-
-    const existeProducto = await fetch(consultaProducto, {
-      headers: {
-        "apikey": API_KEY,
-        "Authorization": `Bearer ${API_KEY}`
-      }
-    });
-
-    const productosEncontrados = await existeProducto.json();
-    console.log("📊 Resultados en productos:", productosEncontrados);
-
-    if (productosEncontrados.length === 0) {
-      console.log("➕ Producto nuevo, buscando nombre/fabricante en historicos...");
-
-      const historicoRes = await fetch(
-        `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/historicos?select=nombre,fabricante&referencia=eq.${datos.referencia}`,
-        {
-          headers: {
-            "apikey": API_KEY,
-            "Authorization": `Bearer ${API_KEY}`
-          }
-        }
-      );
-
-      const historico = await historicoRes.json();
-      console.log("📚 Historico encontrado:", historico);
-
-      const nombre = historico?.[0]?.nombre || "SIN NOMBRE";
-      const fabricante = historico?.[0]?.fabricante || "SIN FABRICANTE";
-
-      let caducidadFinal = null;
-      if (datos.caducidad && !isNaN(datos.caducidad)) {
-        try {
-          const fechaExcel = new Date((Number(datos.caducidad) - 25569) * 86400 * 1000);
-          caducidadFinal = fechaExcel.toISOString().split("T")[0];
-        } catch (e) {
-          caducidadFinal = null;
-        }
-      } else {
-        caducidadFinal = datos.caducidad || null;
-      }
-
-      const nuevoProducto = {
-        referencia: datos.referencia,
-        lote: datos.lote,
-        nombre,
-        fabricante,
-        cantidad: 1,
-        caducidad: caducidadFinal
-      };
-
-      console.log("📤 Insertando nuevo producto:", nuevoProducto);
-
-      await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos", {
-        method: "POST",
+    // 🔍 Buscar nombre y fabricante para futura inserción
+    const historicoRes = await fetch(
+      `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/historicos?select=referencia,nombre,fabricante`,
+      {
         headers: {
           "apikey": API_KEY,
-          "Authorization": `Bearer ${API_KEY}`,
-          "Content-Type": "application/json",
-          "Prefer": "return=minimal"
-        },
-        body: JSON.stringify(nuevoProducto)
-      });
+          "Authorization": `Bearer ${API_KEY}`
+        }
+      }
+    );
+
+    const historico = await historicoRes.json();
+    const normalizar = str => str.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    const refLimpiada = normalizar(datos.referencia);
+    const match = historico.find(h => normalizar(h.referencia) === refLimpiada);
+
+    console.log("🔍 Coincidencia encontrada en historicos:", match);
+
+    const nombre = match?.nombre || "SIN NOMBRE";
+    const fabricante = match?.fabricante || "SIN FABRICANTE";
+
+    let caducidadFinal = null;
+    if (datos.caducidad && !isNaN(datos.caducidad)) {
+      try {
+        const fechaExcel = new Date((Number(datos.caducidad) - 25569) * 86400 * 1000);
+        caducidadFinal = fechaExcel.toISOString().split("T")[0];
+      } catch (e) {
+        console.warn("⚠️ Error al convertir caducidad:", datos.caducidad);
+      }
+    } else {
+      caducidadFinal = datos.caducidad || null;
     }
 
-    qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada });
+    const qrPendiente = {
+      ...datos,
+      modo,
+      usuario,
+      unidad: unidadSeleccionada,
+      nombre,
+      fabricante,
+      caducidad: caducidadFinal
+    };
+
+    console.log("📌 QR agregado a tabla contenedora:", qrPendiente);
+    qrsPendientes.push(qrPendiente);
     actualizarTablaRegistros();
-    mostrarModal("✅ Producto agregado", "#22c55e");
-
-    const claveRemision = `${datos.referencia.replace("U", "")}||${datos.lote}`;
-    if (avanceRemision[claveRemision]) {
-      avanceRemision[claveRemision].escaneados++;
-      actualizarTablaRemisionSAP();
-    }
-
-    console.log("📦 QR procesado con éxito:", datos);
+    mostrarModal("✅ Producto escaneado", "#22c55e");
 
   } catch (error) {
     console.error("❌ Error global en procesarQR:", error);
     mostrarModal("❌ Error inesperado", "#dc2626");
   }
 }
+
 
 
 // === Funciones auxiliares ===
@@ -3346,7 +3312,7 @@ function actualizarTablaRegistros() {
 }
 
 
-function enviarSupabase() {
+async function enviarSupabase() {
   if (!modo || modo === "inactivo") {
     mostrarModal("⚠️ Selecciona primero el modo", "#f59e0b");
     return;
@@ -3357,8 +3323,84 @@ function enviarSupabase() {
     return;
   }
 
-  // Agregar remisionActual y pin_autorizado_por a cada registro antes de enviar
-  const registros = qrsPendientes.map(r => {
+  mostrarModal("📤 Enviando datos...", "#0ea5e9");
+
+  const registros = [];
+
+  for (const r of qrsPendientes) {
+    const { referencia, lote, caducidad } = r;
+
+    console.log(`🔎 Verificando si existe ${referencia} / ${lote} en productos...`);
+    const consultaProducto = await fetch(
+      `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos?referencia=eq.${referencia}&lote=eq.${lote}`,
+      {
+        headers: {
+          "apikey": API_KEY,
+          "Authorization": `Bearer ${API_KEY}`
+        }
+      }
+    );
+
+    const productos = await consultaProducto.json();
+
+    if (productos.length === 0) {
+      console.log(`➕ Producto nuevo, insertando: ${referencia} / ${lote}`);
+
+      const historicoRes = await fetch(
+        `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/historicos?select=referencia,nombre,fabricante`,
+        {
+          headers: {
+            "apikey": API_KEY,
+            "Authorization": `Bearer ${API_KEY}`
+          }
+        }
+      );
+
+      const historico = await historicoRes.json();
+      const normalizar = s => s.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+      const refClean = normalizar(referencia);
+      const match = historico.find(h => normalizar(h.referencia) === refClean);
+
+      const nombre = match?.nombre || "SIN NOMBRE";
+      const fabricante = match?.fabricante || "SIN FABRICANTE";
+
+      let caducidadFinal = null;
+      if (caducidad && !isNaN(caducidad)) {
+        try {
+          const fechaExcel = new Date((Number(caducidad) - 25569) * 86400 * 1000);
+          caducidadFinal = fechaExcel.toISOString().split("T")[0];
+        } catch (e) {
+          console.warn("⚠️ Error al convertir caducidad:", caducidad);
+        }
+      } else {
+        caducidadFinal = caducidad || null;
+      }
+
+      const nuevo = {
+        referencia,
+        lote,
+        nombre,
+        fabricante,
+        cantidad: 1,
+        caducidad: caducidadFinal
+      };
+
+      console.log("📤 Insertando producto:", nuevo);
+
+      await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos", {
+        method: "POST",
+        headers: {
+          "apikey": API_KEY,
+          "Authorization": `Bearer ${API_KEY}`,
+          "Content-Type": "application/json",
+          "Prefer": "return=minimal"
+        },
+        body: JSON.stringify(nuevo)
+      });
+    } else {
+      console.log(`✅ Producto ya existe: ${referencia} / ${lote}`);
+    }
+
     const base = {
       ...r,
       remision: remisionActual || null
@@ -3368,8 +3410,8 @@ function enviarSupabase() {
       base.pin_autorizado_por = window.pinAutorizadoPor;
     }
 
-    return base;
-  });
+    registros.push(base);
+  }
 
   console.log("✅ Registros a enviar:", registros);
 
@@ -3380,19 +3422,17 @@ function enviarSupabase() {
   })
     .then(res => res.json())
     .then(data => {
-      console.log("Respuesta Supabase:", data);
+      console.log("📥 Respuesta Supabase:", data);
       mostrarModal("📦 Productos enviados correctamente", "#22c55e");
       qrsPendientes = [];
       actualizarTablaRegistros();
-      window.pinAutorizadoPor = null;  // ✅ Limpiar después del envío
+      window.pinAutorizadoPor = null;
     })
     .catch(err => {
-      console.error("Error al enviar a Supabase:", err);
+      console.error("❌ Error al enviar a Supabase:", err);
       mostrarModal("❌ Fallo en el envío", "#b91c1c");
     });
 }
-
-
 
 function agregarFila(ref, lote, estado) {
     const tabla = document.getElementById("tablaRegistros");
@@ -4664,7 +4704,41 @@ async function detectarAdminDesdePIN(pinIngresado) {
 
   return null;
 }
+async function procesarBasurero(qr) {
+  const datos = parsearQR(qr);
 
+  if (!datos || !datos.referencia || !datos.lote || !datos.timestamp) {
+    mostrarModal("❌ Código inválido para eliminar", "#6b7280");
+    return;
+  }
+
+  const payload = {
+    referencia: datos.referencia,
+    lote: datos.lote,
+    timestamp: datos.timestamp,
+    usuario: usuario || "Basurero"
+  };
+
+  try {
+    const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/eliminar_etiqueta_basurero", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    console.log("🧾 Respuesta de eliminar_etiqueta_basurero:", data);
+
+    if (data.status === "ok") {
+      mostrarModal("♻️ Etiqueta eliminada completamente", "#0f172a");
+    } else {
+      mostrarModal(`⚠️ Error al eliminar: ${data.message}`, "#facc15");
+    }
+  } catch (err) {
+    console.error("❌ Error al contactar Supabase:", err);
+    mostrarModal("❌ Error de red", "#dc2626");
+  }
+}
 
   </script>
 </body>
