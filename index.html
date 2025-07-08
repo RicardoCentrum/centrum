@@ -463,24 +463,36 @@
     </button>
   </div>
 
-    <div id="modalPINExceso" class="hidden fixed inset-0 bg-pink-300 bg-opacity-60 backdrop-blur-sm z-[9990] flex items-center justify-center">
+<div id="modalPINExceso" class="hidden fixed inset-0 bg-pink-300 bg-opacity-60 backdrop-blur-sm z-[9990] flex items-center justify-center">
   <div class="bg-white border-2 border-pink-500 p-6 rounded-xl w-[360px] shadow-lg text-sm text-gray-800">
-    <div id="contenidoPINExceso" class="space-y-3"></div>
+    <form id="formPINExceso" autocomplete="off">
+      <div id="contenidoPINExceso" class="space-y-3"></div>
 
-    <div>
-      <label for="nipdinamico" class="block text-sm font-semibold mb-1 text-pink-700">NIP de autorización:</label>
-      <input id="nipdinamico" type="text" maxlength="6" minlength="6"
-        class="w-full border border-pink-800 rounded-2xl px-4 py-2 text-center font-mono text-xl tracking-widest"
-        placeholder="######" inputmode="numeric" pattern="[0-9A-Fa-f]{6}" />
-      <p id="pinError" class="text-red-600 text-xs mt-1 hidden">❌ PIN incorrecto</p>
-    </div>
+      <div>
+        <label for="nipdinamico" class="block text-sm font-semibold mb-1 text-pink-700">NIP de autorización:</label>
+        <input
+          id="nipdinamico"
+          name="pin_temporal"
+          type="text"
+          maxlength="6"
+          minlength="6"
+          inputmode="numeric"
+          pattern="[0-9A-Fa-f]{6}"
+          autocomplete="off"
+          class="w-full border border-pink-800 rounded-2xl px-4 py-2 text-center font-mono text-xl tracking-widest"
+          placeholder="######"
+        />
+        <p id="pinError" class="text-red-600 text-xs mt-1 hidden">❌ PIN incorrecto</p>
+      </div>
 
-    <div class="flex justify-between gap-4 mt-4">
-      <button id="btnCancelarPIN" class="px-4 py-2 w-1/2 bg-pink-300 text-white rounded-xl hover:bg-pink-400">Cancelar</button>
-      <button id="btnConfirmarPin" class="px-4 py-2 w-1/2 bg-pink-600 text-white rounded-xl hover:bg-pink-700">Confirmar PIN</button>
-    </div>
+      <div class="flex justify-between gap-4 mt-4">
+        <button type="button" id="btnCancelarPIN" class="px-4 py-2 w-1/2 bg-pink-300 text-white rounded-xl hover:bg-pink-400">Cancelar</button>
+        <button type="submit" id="btnConfirmarPin" class="px-4 py-2 w-1/2 bg-pink-600 text-white rounded-xl hover:bg-pink-700">Confirmar PIN</button>
+      </div>
+    </form>
   </div>
 </div>
+
 
 <div id="tablaContenedora" class="hidden opacity-0 transition-opacity duration-300">
   <table class="min-w-full text-sm text-left" id="tablaRegistros">
@@ -942,15 +954,37 @@ function eliminarFila(boton) {
 
 // Extraer datos de QR incluso si el lote está vacío
 function extraerDatosQR(qr) {
-  const limpio = qr.replace(/\s+/g, '');
-  const match = limpio.match(/R:(.*?)\|L:(.*?)\|T:(.*)/);
-  if (!match) return null;
-  return {
-    referencia: match[1],
-    lote: match[2] || null,
-    timestamp: match[3]
-  };
+  const limpio = qr.trim().replace(/\s+/g, '');
+
+  // Formato tipo R:xxx|L:xxx|C:xxx|T:xxx
+  if (limpio.includes('|')) {
+    const partes = Object.fromEntries(
+      limpio.split('|').map(p => p.split(':')).filter(p => p.length === 2)
+    );
+    return {
+      referencia: partes["R"] || null,
+      lote: partes["L"] || null,
+      caducidad: partes["C"] || null,
+      timestamp: partes["T"] || null
+    };
+  }
+
+  // Formato móvil tipo R>xxx`L>xxx`C>xxx`T>xxx
+  if (limpio.includes('`') && limpio.includes('>')) {
+    const partes = Object.fromEntries(
+      limpio.split('`').map(p => p.split('>')).filter(p => p.length === 2)
+    );
+    return {
+      referencia: partes["R"] || null,
+      lote: partes["L"] || null,
+      caducidad: partes["C"] || null,
+      timestamp: partes["T"] || null
+    };
+  }
+
+  return null;
 }
+
 
 // Mostrar mensajes temporales
 let timeoutAviso = null;
@@ -1010,54 +1044,84 @@ async function mostrarPrevisualizacionDesdeQR(contenido) {
   }
 }
 
-// Procesamiento principal
+
+
 async function procesarQR(contenido) {
   try {
-    const datos = extraerDatosQR(contenido);
-    console.log("✅ Se llamó a procesarQR con contenido:", contenido);
-    console.log("✅ Datos extraídos:", datos);
+    console.log("📥 QR recibido:", contenido);
 
+    const datos = extraerDatosQR(contenido);
+    console.log("🔍 Datos extraídos del QR:", datos);
+
+    // 🔒 Validaciones mínimas
     if (!datos || !datos.referencia || !datos.timestamp) {
+      console.warn("⚠️ QR incompleto:", datos);
       mostrarModal("❌ QR incompleto o ilegible", "#6b7280");
       return;
     }
 
+    if (!datos.lote) {
+      console.warn("⚠️ QR sin lote:", datos);
+      mostrarModal("❌ QR sin lote", "#6b7280");
+      return;
+    }
+
+    if (datos.lote.includes('|')) {
+      console.warn("⚠️ Lote contaminado, limpiando:", datos.lote);
+      datos.lote = datos.lote.split('|')[0];
+    }
+
     if (!usuario || !modo || modo === "inactivo") {
+      console.warn("⚠️ Usuario o modo no definidos:", { usuario, modo });
       mostrarModal("⚠️ Selecciona un modo y un usuario", "#f59e0b");
       return;
     }
 
+    if (!unidadSeleccionada && modo !== "inventario") {
+      console.warn("⚠️ Unidad no seleccionada");
+      mostrarModal("⚠️ Selecciona una unidad médica", "#f59e0b");
+      return;
+    }
+
     if (qrsPendientes.some(q => q.timestamp === datos.timestamp)) {
+      console.warn("⚠️ QR ya escaneado localmente:", datos.timestamp);
       mostrarModal("📦 Ya escaneado localmente", "#0284c7");
       return;
     }
 
-    // 🔒 Validación de remisión SAP solo en modo salida
+    // 🔒 Validación de remisión SAP
     if (modo === "salida") {
       const inputRemision = document.getElementById("inputNumeroRemision");
       const numeroRemision = inputRemision ? inputRemision.value.trim() : "";
+      console.log("📄 Número de remisión ingresado:", numeroRemision);
 
       if (numeroRemision) {
         const remisionValida = await validarContraRemision(datos.referencia, datos.lote, numeroRemision);
+        console.log("✅ Remisión válida:", remisionValida);
         if (!remisionValida) return;
       }
     }
 
     mostrarModal("📤 Procesando QR...", "#0ea5e9");
 
-    // 🔍 Verificar si es fraccionable o unidad de fraccionable
-    const fraccionableRes = await fetch(
-      `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/multiplicadores?select=fraccionable,referencia,referencia_unidad,multiplicador&or=(referencia.eq.${datos.referencia},referencia_unidad.eq.${datos.referencia})`,
-      {
-        headers: { "apikey": API_KEY, "Authorization": `Bearer ${API_KEY}` }
+    // 🔍 Buscar en tabla de fraccionables
+    const urlMultip = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/multiplicadores?select=fraccionable,referencia,referencia_unidad,multiplicador&or=(referencia.eq.${datos.referencia},referencia_unidad.eq.${datos.referencia})`;
+    console.log("🔎 Consultando fraccionables:", urlMultip);
+
+    const fraccionableRes = await fetch(urlMultip, {
+      headers: {
+        "apikey": API_KEY,
+        "Authorization": `Bearer ${API_KEY}`
       }
-    );
+    });
 
     const fraccionableData = await fraccionableRes.json();
     const entry = fraccionableData[0];
     const esFraccionable = entry?.fraccionable === true;
 
-    // 🔧 Si es una unidad individual de un fraccionable
+    console.log("📦 Datos fraccionable:", entry);
+
+    // 🔧 Unidad de fraccionable
     if (entry?.referencia_unidad === datos.referencia) {
       const payload = {
         registros: [{
@@ -1070,6 +1134,8 @@ async function procesarQR(contenido) {
         }]
       };
 
+      console.log("📤 Enviando unidad fraccionable:", payload);
+
       const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_fraccionable", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1077,28 +1143,28 @@ async function procesarQR(contenido) {
       });
 
       const result = await res.json();
+      console.log("📥 Respuesta unidad fraccionable:", result);
+
       const r = result.resultados?.[0];
 
       if (r?.status === "ok") {
-        qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
+        qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada });
         actualizarTablaRegistros();
         mostrarModal("✅ Unidad procesada", "#22c55e");
       } else if (r?.status === "repetido") {
         mostrarModal("📦 El producto ya fue ingresado anteriormente", "#0d9488");
       } else if (r?.status === "extraido_previo") {
         mostrarModal(`⚠️ Ya extraído por ${r.usuario}`, "#facc15");
-      } else if (r?.mensaje) {
-        mostrarModal(`⚠️ ${r.mensaje}`, "#6b7280");
-      } else if (r.status === "error") {
-        mostrarModal(`❌ ${r.mensaje || "Este producto no ha sido ingresado en modo entrada"}`, "#b91c1c");
       } else {
-        mostrarModal("❌ Error al registrar unidad", "#6b7280");
+        console.error("❌ Error en respuesta fraccionable:", r);
+        mostrarModal(r?.mensaje || "❌ Error al registrar unidad", "#6b7280");
       }
       return;
     }
 
     // 🔧 Fraccionable en modo salida
     if (esFraccionable && modo === "salida") {
+      console.log("🔧 Fraccionable en modo salida. Mostrando modal.");
       abrirModalCantidadFraccionable(datos.referencia, datos.lote, contenido);
       return;
     }
@@ -1110,10 +1176,12 @@ async function procesarQR(contenido) {
           ...datos,
           modo,
           usuario,
-          unidad: unidadSeleccionada || null,
+          unidad: unidadSeleccionada,
           tipo: "fraccion"
         }]
       };
+
+      console.log("📤 Enviando caja fraccionable:", payload);
 
       const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_fraccionable", {
         method: "POST",
@@ -1122,34 +1190,101 @@ async function procesarQR(contenido) {
       });
 
       const result = await res.json();
+      console.log("📥 Respuesta caja fraccionable:", result);
+
       const r = result.resultados?.[0];
 
       if (r?.status === "ok") {
-        qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
+        qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada });
         actualizarTablaRegistros();
         mostrarModal("✅ Caja registrada", "#22c55e");
       } else if (r?.status === "repetido") {
         mostrarModal("📦 El producto ya fue ingresado anteriormente", "#0d9488");
       } else if (r?.status === "extraido_previo") {
         mostrarModal(`⚠️ Ya extraído por ${r.usuario}`, "#facc15");
-      } else if (r?.mensaje) {
-        mostrarModal(`⚠️ ${r.mensaje}`, "#6b7280");
       } else {
+        console.error("❌ Error en respuesta de caja:", r);
         mostrarModal("❌ Error en el QR", "#6b7280");
       }
       return;
     }
 
-    // 🔧 Producto normal (no fraccionable)
+    // 🔧 Producto normal
     if (modo === "salida") {
       const permitido = await procesarExtraccionConValidacion(datos.referencia, unidadSeleccionada, 1, usuario);
-      if (!permitido) {
-        console.log("🚫 Registro cancelado por exceso de dotación o usuario");
-        return;
-      }
+      console.log("🔐 Validación de extracción:", permitido);
+      if (!permitido) return;
     }
 
-    qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada || null });
+    // 🔍 Verificar si ya existe en productos
+    const consultaProducto = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos?referencia=eq.${datos.referencia}&lote=eq.${datos.lote}`;
+    console.log("🔎 Buscando en productos:", consultaProducto);
+
+    const existeProducto = await fetch(consultaProducto, {
+      headers: {
+        "apikey": API_KEY,
+        "Authorization": `Bearer ${API_KEY}`
+      }
+    });
+
+    const productosEncontrados = await existeProducto.json();
+    console.log("📊 Resultados en productos:", productosEncontrados);
+
+    if (productosEncontrados.length === 0) {
+      console.log("➕ Producto nuevo, buscando nombre/fabricante en historicos...");
+
+      const historicoRes = await fetch(
+        `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/historicos?select=nombre,fabricante&referencia=eq.${datos.referencia}`,
+        {
+          headers: {
+            "apikey": API_KEY,
+            "Authorization": `Bearer ${API_KEY}`
+          }
+        }
+      );
+
+      const historico = await historicoRes.json();
+      console.log("📚 Historico encontrado:", historico);
+
+      const nombre = historico?.[0]?.nombre || "SIN NOMBRE";
+      const fabricante = historico?.[0]?.fabricante || "SIN FABRICANTE";
+
+      let caducidadFinal = null;
+      if (datos.caducidad && !isNaN(datos.caducidad)) {
+        try {
+          const fechaExcel = new Date((Number(datos.caducidad) - 25569) * 86400 * 1000);
+          caducidadFinal = fechaExcel.toISOString().split("T")[0];
+        } catch (e) {
+          caducidadFinal = null;
+        }
+      } else {
+        caducidadFinal = datos.caducidad || null;
+      }
+
+      const nuevoProducto = {
+        referencia: datos.referencia,
+        lote: datos.lote,
+        nombre,
+        fabricante,
+        cantidad: 1,
+        caducidad: caducidadFinal
+      };
+
+      console.log("📤 Insertando nuevo producto:", nuevoProducto);
+
+      await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos", {
+        method: "POST",
+        headers: {
+          "apikey": API_KEY,
+          "Authorization": `Bearer ${API_KEY}`,
+          "Content-Type": "application/json",
+          "Prefer": "return=minimal"
+        },
+        body: JSON.stringify(nuevoProducto)
+      });
+    }
+
+    qrsPendientes.push({ ...datos, modo, usuario, unidad: unidadSeleccionada });
     actualizarTablaRegistros();
     mostrarModal("✅ Producto agregado", "#22c55e");
 
@@ -1158,6 +1293,8 @@ async function procesarQR(contenido) {
       avanceRemision[claveRemision].escaneados++;
       actualizarTablaRemisionSAP();
     }
+
+    console.log("📦 QR procesado con éxito:", datos);
 
   } catch (error) {
     console.error("❌ Error global en procesarQR:", error);
