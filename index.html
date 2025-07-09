@@ -724,6 +724,16 @@ let intervaloCuentaRegresiva = null;
 };
   const INTERVALO_MINUTOS = 10; // Puedes cambiar a 5, 15, etc.
   const listaAdmins = ["Silvia", "Luis", "Aida", "Ricardo", "Alex", "Adrian"];
+function enfocarInputQR() {
+  const input = document.getElementById("inputQR");
+  if (input) {
+    input.focus();
+    input.select(); // También selecciona el texto por si hay algo previo
+    console.log("🎯 Enfocado inputQR");
+  } else {
+    console.warn("⚠️ No se encontró el inputQR");
+  }
+}
 
 async function validarPinYUnidad() {
   const nip = document.getElementById("inputNIP").value.trim();
@@ -731,7 +741,7 @@ async function validarPinYUnidad() {
   const unidad = document.getElementById("inputUnidad").value.trim().toUpperCase();
   const esSalida = modoSeleccionado === "salida";
   let remision = null;
-  // Validar remisión obligatoria si el bloqueo está activo:
+
   const remisionRaw = document.getElementById("inputRemision")?.value.trim().toLowerCase();
   const unidadRaw = document.getElementById("inputUnidad")?.value.trim().toLowerCase();
   const esBasurero = (modoSeleccionado === "salida" && unidadRaw === "eliminar" && remisionRaw === "etiqueta");
@@ -749,16 +759,14 @@ async function validarPinYUnidad() {
     `;
 
     actualizarBotonModo("Salida", "bg-black", "🕳️");
-    // mostrarModal("🕳️ Modo ELIMINACIÓN activado", "#000000");
-
     document.body.classList.add("modo-basurero");
-    document.getElementById("inputQR").focus();
+
+    enfocarInputQR();
     return;
   }
 
   if (esSalida) {
     remision = document.getElementById("inputRemision").value.trim();
-
     const bloqueoActivo = await consultarEstadoBloqueo();
 
     if (bloqueoActivo && !remision) {
@@ -769,6 +777,7 @@ async function validarPinYUnidad() {
   }
 
   remisionActual = remision;
+
   if (esSalida && remision) {
     try {
       const resPendiente = await fetch(
@@ -805,7 +814,6 @@ async function validarPinYUnidad() {
         }
 
         console.log("✅ avanceRemision cargado:", avanceRemision);
-
         actualizarTablaRemisionSAP();
         mostrarModal("📤 Remisión previa cargada automáticamente", "#0ea5e9");
       }
@@ -841,7 +849,7 @@ async function validarPinYUnidad() {
     window.usuarioEsAdmin = usuarioAdmin;
 
     if (usuarioAdmin) {
-      window.nombreAdmin = usuario; // ✅ Guardamos quién es el admin actual
+      window.nombreAdmin = usuario;
       console.log("✅ Admin detectado:", window.nombreAdmin);
     } else {
       window.nombreAdmin = null;
@@ -864,7 +872,7 @@ async function validarPinYUnidad() {
     }
 
     modo = modoSeleccionado;
-    // Mostrar botón INVENTARIO solo en modo entrada
+
     const btnInventario = document.querySelector('button[onclick="confirmarModoInventario()"]');
     if (modo === "entrada" && btnInventario) {
       btnInventario.classList.remove("hidden");
@@ -882,13 +890,15 @@ async function validarPinYUnidad() {
 
     actualizarBotonModo(texto.charAt(0).toUpperCase() + texto.slice(1), color, icono);
     notificar(`Modo ${modo.toUpperCase()} activado`, "#003f40");
-    document.getElementById("inputQR").focus();
+
+    enfocarInputQR();  // ✅ Aquí forzamos el enfoque al lector de QR
 
   } catch (e) {
     document.getElementById("pinError").textContent = "❌ Error de conexión.";
     document.getElementById("pinError").classList.remove("hidden");
   }
 }
+
 function abrirModalPinDinamico() {
   document.getElementById("modalPinDinamico").classList.remove("hidden");
   actualizarPinYContador(); // Primera carga
@@ -1037,45 +1047,51 @@ function verificarCaducidadYMostrarModal(caducidadStr) {
   if (diff < 8) {
     console.warn("⚠️ Producto caduco o próximo a caducar");
 
-    // Modal persistente personalizado
-    const modal = document.createElement("div");
-    modal.style.position = "fixed";
-    modal.style.top = "0";
-    modal.style.left = "0";
-    modal.style.width = "100vw";
-    modal.style.height = "100vh";
-    modal.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
-    modal.style.display = "flex";
-    modal.style.justifyContent = "center";
-    modal.style.alignItems = "center";
-    modal.style.zIndex = "9999";
+    if (modo === "entrada") {
+      // Mostrar modal sin bloquear, con calaverita
+      setTimeout(() => {
+        mostrarModal("💀 Producto caduco o próximo a caducar", "#304000");
+      }, 600);
+    } else if (modo === "salida") {
+      // Modal persistente personalizado
+      const modal = document.createElement("div");
+      modal.style.position = "fixed";
+      modal.style.top = "0";
+      modal.style.left = "0";
+      modal.style.width = "100vw";
+      modal.style.height = "100vh";
+      modal.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
+      modal.style.display = "flex";
+      modal.style.justifyContent = "center";
+      modal.style.alignItems = "center";
+      modal.style.zIndex = "9999";
 
-    const contenido = document.createElement("div");
-    contenido.style.backgroundColor = "#304000";
-    contenido.style.padding = "2rem";
-    contenido.style.borderRadius = "13rem";
-    contenido.style.boxShadow = "0 0 20px #00000080";
-    contenido.style.textAlign = "center";
-    contenido.innerHTML = `
-      <div style="font-size: 3rem; margin-bottom: 1rem;">💀</div>
-      <div style="font-size: 1.5rem; font-weight: bold;">Producto caduco o próximo a caducar</div>
-      <div style="margin-top: 1rem;">
-        <button style="margin-top: 1.5rem; padding: 0.5rem 1.5rem; font-size: 1rem; border: none; background-color: #333; color: white; border-radius: 2rem; cursor: pointer;">
-          Entendido
-        </button>
-      </div>
-    `;
+      const contenido = document.createElement("div");
+      contenido.style.backgroundColor = "#304000";
+      contenido.style.padding = "2rem";
+      contenido.style.borderRadius = "13rem";
+      contenido.style.boxShadow = "0 0 20px #00000080";
+      contenido.style.textAlign = "center";
+      contenido.innerHTML = `
+        <div style="font-size: 3rem; margin-bottom: 1rem;">💀</div>
+        <div style="font-size: 1.5rem; font-weight: bold;">Producto caduco o próximo a caducar</div>
+        <div style="margin-top: 1rem;">
+          <button style="margin-top: 1.5rem; padding: 0.5rem 1.5rem; font-size: 1rem; border: none; background-color: #333; color: white; border-radius: 2rem; cursor: pointer;">
+            Entendido
+          </button>
+        </div>
+      `;
 
-    modal.appendChild(contenido);
-    document.body.appendChild(modal);
+      modal.appendChild(contenido);
+      document.body.appendChild(modal);
 
-    const botonCerrar = contenido.querySelector("button");
-    botonCerrar.addEventListener("click", () => {
-      modal.remove();
-    });
+      const botonCerrar = contenido.querySelector("button");
+      botonCerrar.addEventListener("click", () => {
+        modal.remove();
+      });
+    }
   }
 }
-
 
 
 // Mostrar mensajes temporales
@@ -1768,6 +1784,34 @@ async function procesarExtraccionConValidacion(ref, unidadDestino, cantidadSolic
 
   console.log("📅 Columnas a consultar:", colA, colB);
 
+  const claveRemision = `${ref}||${unidadDestino}||${remisionActual || "sin_remision"}`;
+
+  // Validar si ya está autorizada en memoria
+  if (window.autorizacionesExceso?.[claveRemision]) {
+    console.log("🔓 PIN ya validado anteriormente para esta remisión. Se permite continuar.");
+    return true;
+  }
+
+  // Validar si ya estaba autorizada en Supabase
+  if (remisionActual) {
+    const resCheck = await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/remisiones_pendientes?select=nip_verificado&numero_remision=eq.${remisionActual}`, {
+      headers: {
+        apikey: API_KEY,
+        Authorization: `Bearer ${API_KEY}`
+      }
+    });
+
+    const remisionInfo = await resCheck.json();
+    const algunaVerificada = remisionInfo?.some(r => r.nip_verificado === true);
+
+    if (algunaVerificada) {
+      console.log("🔓 PIN ya estaba verificado en Supabase para esta remisión:", remisionActual);
+      window.autorizacionesExceso = window.autorizacionesExceso || {};
+      window.autorizacionesExceso[claveRemision] = true;
+      return true;
+    }
+  }
+
   const urlConsumos = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/consumos_mensuales?select=*&referencia=eq.${ref}&unidad_medica=eq.${unidadDestino}`;
   const resConsumos = await fetch(urlConsumos, {
     headers: { apikey: API_KEY, Authorization: `Bearer ${API_KEY}` }
@@ -1805,14 +1849,12 @@ async function procesarExtraccionConValidacion(ref, unidadDestino, cantidadSolic
     consumoProyectado
   });
 
-  // 🚨 Si excede dotación, activar validación por PIN
   if (consumoProyectado > cantidadPermitida) {
     const modal = document.getElementById("modalPINExceso");
     const contenido = document.getElementById("contenidoPINExceso");
 
-    // 📤 Generar PIN y enviar por correo a Silvia
     console.log("🧪 usuario en generar PIN:", usuario);
-    const pinGenerado = await generarPinDinamico(); // Generado localmente
+    const pinGenerado = await generarPinDinamico();
     console.log("🔐 PIN dinámico actual:", pinGenerado);
 
     contenido.innerHTML = `
@@ -1850,45 +1892,65 @@ async function procesarExtraccionConValidacion(ref, unidadDestino, cantidadSolic
       const confirmarListener = async () => {
         try {
           const pinIngresado = input.value.trim().toUpperCase();
+          console.log("👤 Usuario actual:", usuario);
           console.log("🔐 PIN ingresado:", pinIngresado);
 
           if (pinIngresado.length !== 6 || !/^[0-9A-F]{6}$/.test(pinIngresado)) {
-          const msg = "⚠️ El PIN debe tener 6 caracteres hexadecimales.";
-          console.warn(msg);
-          document.getElementById("pinError").textContent = msg;
-          document.getElementById("pinError").classList.remove("hidden");
-          return;
-        }
+            const msg = "⚠️ El PIN debe tener 6 caracteres hexadecimales.";
+            console.warn(msg);
+            document.getElementById("pinError").textContent = msg;
+            document.getElementById("pinError").classList.remove("hidden");
+            return;
+          }
 
-        if (!usuario) {
-          console.error("❌ 'usuario' no está definido al verificar PIN.");
-          document.getElementById("pinError").textContent = "❌ No se pudo validar el PIN. Usuario no definido.";
-          document.getElementById("pinError").classList.remove("hidden");
-          return;
-        }
+          if (!usuario) {
+            console.error("❌ 'usuario' no está definido al verificar PIN.");
+            document.getElementById("pinError").textContent = "❌ No se pudo validar el PIN. Usuario no definido.";
+            document.getElementById("pinError").classList.remove("hidden");
+            return;
+          }
 
-        console.log("🔍 Verificando PIN para usuario:", usuario);
-        const generadoPor = await detectarAdminDesdePIN(pinIngresado);
-        console.log("🕵️‍♀️ PIN generado por:", generadoPor);
+          console.log("🔍 Verificando PIN para usuario:", usuario);
+          const generadoPor = await detectarAdminDesdePIN(pinIngresado);
+          console.log("🕵️‍♀️ PIN generado por:", generadoPor);
 
-        const valido = !!generadoPor;
-        console.log("✅ Resultado de verificarPin:", valido);
+          const valido = !!generadoPor;
+          console.log("✅ Resultado de verificarPin:", valido);
 
-        if (valido) {
-          mostrarModal("✔️ PIN correcto. Puedes continuar.", "#16a34a");
-          limpiarListeners();
-          modal.classList.add("hidden");
-          resolve(true);
+          if (valido) {
+            mostrarModal("✔️ PIN correcto. Puedes continuar.", "#16a34a");
+            limpiarListeners();
+            modal.classList.add("hidden");
 
-          // Guardamos para enviar luego a Supabase
-          window.pinAutorizadoPor = generadoPor;
-        } else {
-          console.warn("❌ PIN incorrecto.");
-          document.getElementById("pinError").textContent = "❌ PIN incorrecto. Solicita uno nuevo a Silvia.";
-          document.getElementById("pinError").classList.remove("hidden");
-          input.value = "";
-          input.focus();
-        }
+            // Marcar como autorizado en memoria
+            window.autorizacionesExceso = window.autorizacionesExceso || {};
+            window.autorizacionesExceso[claveRemision] = true;
+            console.log("✅ Autorización por PIN guardada para:", claveRemision);
+
+            // Actualizar Supabase si es una remisión válida
+            if (remisionActual) {
+              await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/remisiones_pendientes?numero_remision=eq.${remisionActual}`, {
+                method: "PATCH",
+                headers: {
+                  apikey: API_KEY,
+                  Authorization: `Bearer ${API_KEY}`,
+                  "Content-Type": "application/json",
+                  Prefer: "return=minimal"
+                },
+                body: JSON.stringify({ nip_verificado: true })
+              });
+              console.log("📥 Supabase actualizado: remisión marcada como verificada");
+            }
+
+            window.pinAutorizadoPor = generadoPor;
+            resolve(true);
+          } else {
+            console.warn("❌ PIN incorrecto.");
+            document.getElementById("pinError").textContent = "❌ PIN incorrecto. Solicita uno nuevo a Silvia.";
+            document.getElementById("pinError").classList.remove("hidden");
+            input.value = "";
+            input.focus();
+          }
 
         } catch (err) {
           console.error("❌ Error en confirmarListener:", err);
@@ -1918,13 +1980,11 @@ async function procesarExtraccionConValidacion(ref, unidadDestino, cantidadSolic
       btnCancelar.addEventListener("click", cancelarListener);
       document.addEventListener("keydown", keyListener);
     });
-
   }
 
   console.log("✅ Validación superada. Se permite continuar.");
   return true;
 }
-
 
 
 async function validarDotacionAntesDeExtraer(ref, unidadDestino, cantidadSolicitada, usuario) {
@@ -1984,7 +2044,7 @@ async function solicitarPinSilviaSiNecesario(ref, unidadDestino, cantidadSolicit
 // continuar extracción normal
 
   // Mostrar modal e instrucción
-  mostrarModal("🔐 Se requiere autorización especial. Silvia debe ingresar el PIN para continuar.", "#f87171");
+  mostrarModal("🔐 Se requiere autorización especial. un administrador debe proporcionarte un CODIGO para continuar.", "#f87171");
   document.getElementById("nipdinamico").value = "";
   document.getElementById("nipdinamico").focus();
 
@@ -2013,15 +2073,6 @@ async function solicitarPinSilviaSiNecesario(ref, unidadDestino, cantidadSolicit
   });
 }
 
-// async function obtenerPin(usuario) {
-//   const fecha = new Date();
-//   const minutos = Math.floor(fecha.getUTCMinutes() / 10);
-//   const base = `${usuario.toLowerCase()}-${fecha.getUTCFullYear()}${fecha.getUTCMonth() + 1}${fecha.getUTCDate()}-${fecha.getUTCHours()}-${minutos}-medinova2025`;
-//   const hash = new TextEncoder().encode(base);
-//   const digest = await crypto.subtle.digest("SHA-256", hash);
-//   const hex = Array.from(new Uint8Array(digest)).map(b => b.toString(16)).join("");
-//   return hex.substring(0, 6).toUpperCase();
-// }
 
 async function verificarPin(pinIngresado) {
   const admins = ["Silvia", "Luis", "Aida", "Ricardo", "Alex", "Adrian"];
