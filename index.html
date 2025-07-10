@@ -826,8 +826,7 @@ async function validarPinYUnidad() {
     `;
 
     actualizarBotonModo("Salida", "bg-black", "🕳️");
-    document.body.classList.add("modo-basurero");
-
+    (contenedorQR) contenedorQR.classList.add("hidden");
     enfocarInputQR();
     return;
   }
