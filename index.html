@@ -29,6 +29,15 @@
         background-position: top center;
         padding-top: env(safe-area-insert-top);
         margin: 0;
+          #modalQR {
+            width: 90vw;
+            height: 200px;
+            bottom: 20px;
+            right: 20px;
+          }
+          #qr-reader {
+            height: 140px;
+          }
       }
     }
     .modal {
@@ -139,13 +148,17 @@
   }
 </script>
 <!-- MODAL QR draggable -->
-<div id="modalQR" class="fixed bottom-4 right-4 bg-white border rounded-xl shadow-lg z-[9999] p-2 w-[340px] max-w-full hidden cursor-move">
-  <div class="relative" id="handleQR">
-    <button onclick="cerrarModalQR()" class="absolute top-0 right-0 text-red-600 font-bold text-lg p-1 hover:text-red-800">×</button>
+<!-- MODAL QR tipo PiP -->
+<div id="modalQR"
+     class="fixed bottom-4 right-4 bg-white border rounded-xl shadow-lg z-[9999] p-2 w-[320px] h-[240px] max-w-[90vw] max-h-[50vh] hidden cursor-move">
+  <div class="relative h-full" id="handleQR">
+    <button onclick="cerrarModalQR()"
+            class="absolute top-0 right-0 text-red-600 font-bold text-xl z-10 hover:text-red-800">×</button>
     <h2 class="text-center font-semibold text-sm mb-1 text-gray-800">Escanea un QR</h2>
-    <div id="qr-reader" class="w-full rounded-md overflow-hidden"></div>
+    <div id="qr-reader" class="w-full h-[180px] rounded-md overflow-hidden"></div>
   </div>
 </div>
+
 
 <!-- LOGO DE CENTRUM ARRIBA A LA DERECHA (solo visible en pantallas grandes) -->
 <div class="absolute top-4 right-4 flex-col items-center text-center hidden sm:flex">
@@ -5231,14 +5244,25 @@ function iniciarScannerQR() {
     scannerActivo = true;
     qrScanner = new Html5Qrcode("qr-reader");
 
+    let ultimaLectura = "";
+    let tiempoUltimaLectura = 0;
+
     qrScanner.start(
       { facingMode: "environment" },
-      { fps: 15, qrbox: 220 },
+      { fps: 10, qrbox: 220 },
       qrCodeMessage => {
+        const ahora = Date.now();
+        if (qrCodeMessage === ultimaLectura && ahora - tiempoUltimaLectura < 2000) {
+          // Ignora duplicados muy recientes
+          return;
+        }
+
+        ultimaLectura = qrCodeMessage;
+        tiempoUltimaLectura = ahora;
+
         console.log("✅ QR detectado:", qrCodeMessage);
         document.getElementById("inputQR").value = qrCodeMessage;
-        procesarQR(qrCodeMessage); // asegúrate que esta función existe
-        cerrarModalQR();
+        procesarQR(qrCodeMessage); // sigue ejecutando sin cerrar modal
       },
       errorMsg => {
         console.log("🔍 Esperando QR válido...", errorMsg);
@@ -5249,12 +5273,14 @@ function iniciarScannerQR() {
       scannerActivo = false;
       cerrarModalQR();
     });
+
   } catch (e) {
     console.error("❌ Excepción en iniciarScannerQR():", e);
     scannerActivo = false;
     cerrarModalQR();
   }
 }
+
 
 function detenerScannerQR() {
   console.log("🔧 detenerScannerQR() llamado");
