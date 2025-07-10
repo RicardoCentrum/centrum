@@ -119,7 +119,7 @@
     }
 
     #qr-reader {
-  border: 2px solid #0f766e;
+  border: 2px solid #01403b;
   border-radius: 12px;
   overflow: hidden;
 }
@@ -154,10 +154,17 @@
   <div class="relative h-full" id="handleQR">
     <button onclick="cerrarModalQR()"
             class="absolute top-0 right-0 text-red-600 font-bold text-xl z-10 hover:text-red-800">×</button>
+
+    <button onclick="toggleMinimizarQR()"
+            class="absolute bottom-1 left-2 text-xs bg-gray-200 px-2 py-1 rounded-full shadow text-gray-700 z-10 hover:bg-gray-300">
+      🗕
+    </button>
+
     <h2 class="text-center font-semibold text-sm mb-1 text-gray-800">Escanea un QR</h2>
     <div id="qr-reader" class="w-full h-[180px] rounded-md overflow-hidden"></div>
   </div>
 </div>
+
 
 
 <!-- LOGO DE CENTRUM ARRIBA A LA DERECHA (solo visible en pantallas grandes) -->
@@ -5253,8 +5260,7 @@ function iniciarScannerQR() {
       qrCodeMessage => {
         const ahora = Date.now();
         if (qrCodeMessage === ultimaLectura && ahora - tiempoUltimaLectura < 2000) {
-          // Ignora duplicados muy recientes
-          return;
+          return; // Ignora duplicados muy recientes
         }
 
         ultimaLectura = qrCodeMessage;
@@ -5262,12 +5268,23 @@ function iniciarScannerQR() {
 
         console.log("✅ QR detectado:", qrCodeMessage);
         document.getElementById("inputQR").value = qrCodeMessage;
-        procesarQR(qrCodeMessage); // sigue ejecutando sin cerrar modal
+        procesarQR(qrCodeMessage);
       },
       errorMsg => {
         console.log("🔍 Esperando QR válido...", errorMsg);
       }
-    ).catch(err => {
+    ).then(() => {
+      // ✅ Este bloque ocurre después de que el scanner inicia correctamente
+      setTimeout(() => {
+        const videos = document.querySelectorAll('#qr-reader video');
+        videos.forEach(video => {
+          video.style.width = '100%';
+          video.style.height = '180px';
+          video.style.objectFit = 'cover';
+          console.log("✅ Estilos aplicados al <video>");
+        });
+      }, 300);
+    }).catch(err => {
       console.error("❌ Error al iniciar escáner:", err);
       alert("Error al acceder a la cámara: " + err);
       scannerActivo = false;
@@ -5280,6 +5297,8 @@ function iniciarScannerQR() {
     cerrarModalQR();
   }
 }
+
+
 
 
 function detenerScannerQR() {
