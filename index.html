@@ -5231,14 +5231,25 @@ function iniciarScannerQR() {
     scannerActivo = true;
     qrScanner = new Html5Qrcode("qr-reader");
 
+    let ultimaLectura = "";
+    let tiempoUltimaLectura = 0;
+
     qrScanner.start(
       { facingMode: "environment" },
-      { fps: 15, qrbox: 220 },
+      { fps: 10, qrbox: 220 },
       qrCodeMessage => {
+        const ahora = Date.now();
+        if (qrCodeMessage === ultimaLectura && ahora - tiempoUltimaLectura < 2000) {
+          // Ignora duplicados muy recientes
+          return;
+        }
+
+        ultimaLectura = qrCodeMessage;
+        tiempoUltimaLectura = ahora;
+
         console.log("✅ QR detectado:", qrCodeMessage);
         document.getElementById("inputQR").value = qrCodeMessage;
-        procesarQR(qrCodeMessage); // asegúrate que esta función existe
-        // cerrarModalQR();
+        procesarQR(qrCodeMessage); // sigue ejecutando sin cerrar modal
       },
       errorMsg => {
         console.log("🔍 Esperando QR válido...", errorMsg);
@@ -5249,12 +5260,14 @@ function iniciarScannerQR() {
       scannerActivo = false;
       cerrarModalQR();
     });
+
   } catch (e) {
     console.error("❌ Excepción en iniciarScannerQR():", e);
     scannerActivo = false;
     cerrarModalQR();
   }
 }
+
 
 function detenerScannerQR() {
   console.log("🔧 detenerScannerQR() llamado");
