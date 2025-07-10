@@ -108,6 +108,13 @@
       white-space: nowrap !important;
       border: 0 !important;
     }
+
+    #qr-reader {
+  border: 2px solid #0f766e;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
   </style>
 </head>
 
@@ -131,14 +138,15 @@
     tabla.appendChild(fila);
   }
 </script>
-<!-- MODAL QR -->
-<div id="modalQR" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] hidden">
-  <div class="bg-white rounded-2xl shadow-lg p-4 w-full max-w-sm relative">
-    <button onclick="cerrarModalQR()" class="absolute top-2 right-3 text-gray-600 hover:text-black text-xl font-bold">&times;</button>
-    <h2 class="text-center font-semibold text-lg mb-2 text-gray-800">Escanea el código QR</h2>
-    <div id="qr-reader" class="w-full"></div>
+<!-- MODAL QR draggable -->
+<div id="modalQR" class="fixed bottom-4 right-4 bg-white border rounded-xl shadow-lg z-[9999] p-2 w-[340px] max-w-full hidden cursor-move">
+  <div class="relative" id="handleQR">
+    <button onclick="cerrarModalQR()" class="absolute top-0 right-0 text-red-600 font-bold text-lg p-1 hover:text-red-800">×</button>
+    <h2 class="text-center font-semibold text-sm mb-1 text-gray-800">Escanea un QR</h2>
+    <div id="qr-reader" class="w-full rounded-md overflow-hidden"></div>
   </div>
 </div>
+
 <!-- LOGO DE CENTRUM ARRIBA A LA DERECHA (solo visible en pantallas grandes) -->
 <div class="absolute top-4 right-4 flex-col items-center text-center hidden sm:flex">
   <h1 class="text-xs font-bold tracking-widest text-white fuente-magma ">In Collab with:</h1>
@@ -5140,18 +5148,54 @@ async function procesarBasurero(qr) {
 
 let scannerActivo = false, qrScanner = null;
 
+// Permitir arrastrar la ventana del lector QR
+function hacerDraggable(idElemento) {
+  const el = document.getElementById(idElemento);
+  let offsetX = 0, offsetY = 0, mouseX = 0, mouseY = 0;
+
+  const handle = document.getElementById("handleQR") || el;
+
+  handle.onmousedown = function (e) {
+    e.preventDefault();
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+    document.onmouseup = detenerArrastre;
+    document.onmousemove = moverElemento;
+  };
+
+  function moverElemento(e) {
+    e.preventDefault();
+    offsetX = mouseX - e.clientX;
+    offsetY = mouseY - e.clientY;
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+
+    const rect = el.getBoundingClientRect();
+    el.style.top = (rect.top - offsetY) + "px";
+    el.style.left = (rect.left - offsetX) + "px";
+    el.style.bottom = "auto";
+    el.style.right = "auto";
+    el.style.position = "fixed";
+  }
+
+  function detenerArrastre() {
+    document.onmouseup = null;
+    document.onmousemove = null;
+  }
+}
+
+// Activar cuando se abra el lector
 function abrirModalQR() {
   const modal = document.getElementById("modalQR");
   const visor = document.getElementById("qr-reader");
 
-  if (!modal || !visor) {
-    console.error("❌ No se encontró modalQR o qr-reader en el DOM");
-    return;
-  }
+  if (!modal || !visor) return;
 
   modal.classList.remove("hidden");
+  hacerDraggable("modalQR");  // 👈 activa drag al abrir
   iniciarScannerQR();
 }
+
 
 
 function cerrarModalQR() {
