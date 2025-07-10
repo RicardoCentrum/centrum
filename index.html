@@ -100,7 +100,7 @@
     .completada {
       background-color: #d1fae5;
     }
-     /* @font-face {
+     @font-face {
     font-family: 'MagmaWave';
     src: url('MagmawaveCaps-Bold.woff2') format('woff2');
     font-weight: normal;
@@ -109,13 +109,24 @@
 
   .fuente-magma {
     font-family: 'MagmaWave', sans-serif;
-  } */
+  }
 
   .modo-basurero {
   background-image: url('blackhole.png');
   background-size: cover;
   background-position: center;
-  transition: background 2s ease-in-out;
+  transition: background 3s ease-in-out;
+}
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
 }
 
   </style>
@@ -335,24 +346,45 @@
         🔒 Modo inactivo
       </button>  -->    
           </div>
-<div class="flex justify-center">
+<div class="flex justify-center gap-x-4 mt-4">
   <button onclick="solicitarNIP()" class="bg-teal-900 text-white px-4 py-2 rounded-2xl shadow hover:bg-teal-800">
-    📝 Capturar Inventario
+    📝 Capturar Datos
+  </button>
+  <button onclick="abrirModalReporteMensual()" class="bg-teal-900 text-white px-4 py-2 rounded-2xl shadow hover:bg-teal-800">
+    📊 Generar Reporte 
   </button>
 </div>
-<div class="text-center mt-4">
-  <button onclick="abrirModalReporteMensual()" class="bg-gradient-to-r from-blue-900 to-teal-900 text-white px-5 py-3 rounded-2xl shadow-lg hover:opacity-90 transition">
-    📊 Generar Reporte Mensual
-  </button>
-</div>
+
  <!-- MODAL REPORTE MENSUAL -->
 <div id="modalReporteMensual" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 hidden">
   <div class="bg-white text-gray-800 rounded-2xl p-6 shadow-2xl w-[90%] max-w-md relative">
     <button onclick="cerrarModalReporteMensual()" class="absolute top-3 right-4 text-red-600 text-2xl font-bold hover:text-red-800">×</button>
     <h2 class="text-xl font-bold text-center mb-6">📊 Generar reporte mensual</h2>
     <div class="mb-6">
-      <label for="inputMes" class="block text-sm font-semibold mb-2">Selecciona el mes:</label>
-      <input type="month" id="inputMes" class="w-full px-4 py-3 border rounded-xl shadow focus:outline-none focus:ring-2 focus:ring-teal-900 text-lg">
+      <div class="flex gap-2">
+        <div class="flex-1">
+          <label for="inputMesMes" class="sr-only">Mes:</label>
+          <select id="inputMesMes" title="Selecciona mes" class="w-full px-3 py-2 rounded-xl border shadow focus:outline-none focus:ring-2 focus:ring-teal-900 text-lg">
+            <option value="">Mes</option>
+            <option value="01">Enero</option>
+            <option value="02">Febrero</option>
+            <option value="03">Marzo</option>
+            <option value="04">Abril</option>
+            <option value="05">Mayo</option>
+            <option value="06">Junio</option>
+            <option value="07">Julio</option>
+            <option value="08">Agosto</option>
+            <option value="09">Septiembre</option>
+            <option value="10">Octubre</option>
+            <option value="11">Noviembre</option>
+            <option value="12">Diciembre</option>
+          </select>
+        </div>
+        <div>
+          <label for="inputMesAnio" class="sr-only">Año:</label>
+          <select id="inputMesAnio" title="Selecciona año" class="w-24 px-3 py-2 rounded-xl border shadow focus:outline-none focus:ring-2 focus:ring-teal-900 text-lg"></select>
+        </div>
+      </div>
     </div>
     <div class="flex justify-end gap-3">
       <button onclick="cerrarModalReporteMensual()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 shadow">Cancelar</button>
@@ -360,6 +392,7 @@
     </div>
   </div>
 </div>
+
     <div class="mt-4">
       <input type="text" id="refBusqueda" placeholder="Buscar por referencia..." class="w-full p-3 mb-4 rounded-xl border text-center" oninput="buscarReferencia(this.value)" />
       <div id="resultadoBusqueda" class="text-sm text-gray-800"></div>
@@ -374,14 +407,14 @@
     </span>
   </div>
 </div>
-<!-- BOTÓN INDEPENDIENTE PARA CAMBIAR UNIDADES (solo visible para admin) -->
+<!-- BOTÓN INDEPENDIENTE PARA CAMBIAR UNIDADES (solo visible para admin)
 <div class="text-center mb-4">
   <button id="btnCambiarUnidades"
     onclick="mostrarModalAsignarUnidades()"
     class="text-xs px-3 py-1 bg-blue-800 text-white rounded-xl hover:bg-blue-700 hidden">
     ⚙️ Cambiar unidades
   </button>
-</div>
+</div> -->
 
 
 <div id="modalOpcionesAdmin" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
@@ -427,7 +460,7 @@
   </div>
 </div>
 
-    <input type="text" id="inputQR" placeholder="Escanea el código QR" class="w-full p-3 mb-4 rounded-xl border text-center" autofocus />
+    <input type="text" id="inputQR" placeholder="Escanea el código QR" class="hidden w-full p-3 mb-4 rounded-xl border text-center" autofocus />
     <div class="text-center mt-2 mb-4">
 
     <div id="tablaRemisionSAP" class="hidden mt-4">
@@ -514,7 +547,9 @@
    
   </table>
 </div>
-    <button onclick="enviarSupabase()" class="mt-4 w-full bg-teal-900 text-white py-2 rounded-2xl">Enviar a Base de Datos</button>
+<button id="btnEnviarSupabase" onclick="enviarSupabase()" class="hidden mt-4 w-full bg-teal-900 text-white py-2 rounded-2xl">
+  Enviar a Base de Datos
+</button>
   </div>
   
   <div id="notificacion" class="modal text-center font-bold"></div>
@@ -678,7 +713,9 @@
   </table>
 </div>
 
-
+<div id="loaderOverlay" class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-[999] hidden select-none">
+  <img src="loader.gif" alt="Cargando..." class="w-24 h-24 pointer-events-none">
+</div>
 
   <script>
 const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo";
@@ -722,6 +759,29 @@ let intervaloCuentaRegresiva = null;
   "C03420": "hospital de la mujer", "C03419": "hg cd. juarez", "C03127": "HGZ 6", "C03131": "HGS 22", "C03135": "HGR 02", "C03133": "HGZ UMAA 35", "C03134": "HGR 66", "C03448": "CAAPS Guachochi", "C03447": "CS Jimenez", "C03446": "HC Guadalupe y Calvo", "C03132": "H.G.Z.M.F. 23", "C03122": "H.R.O. No. 26", "C03124": "H.R.O. No. 36", "C03445": "HG Camargo", "C03421": "hr jimenez", "C03422": "Ginecologia Parral", "C03444": "HG Parral", "C03451": "CESSA Aldama", "C03433": "CESSA Madera",
   "C03415": "hospital central", "C03424": "HG Cuauhtemoc", "C03416": "Ginecologia Cuauhtemoc", "C03432": "CESSA Tierra Nueva", "C03431": "CS Creel", "C03428": "CS Temoris", "C03123": "HRO No. 18 SAN JUANITO", "C03430": "CS Delicias", "C03425": "HC Ojinaga", "C03417": "hr delicias", "C03434": "CS Sta. Isabel", "C03429": "CAAPS Nogales", "C03427": "CS San Felipe", "C03426": "HC Gomez Farias", "C03418": "hie chihuahua", "C03423": "HG Chihuahua", "C03128": "H.G.Z.M.F. 11", "C03130": "H.G.Z.M.F. 16", "C03129": "HGO No. 15", "C03126": "HGR No. 1", "66": "ALMACEN PARRAL", "65": "ALMACEN JUAREZ", "CUU": "ALMACEN CHIHUAHUA"
 };
+const anioSelect = document.getElementById('anioSelect');
+if (anioSelect) {
+  const thisYear = new Date().getFullYear();
+  anioSelect.innerHTML = '<option value="">Año</option>';
+  for (let y = thisYear - 2; y <= thisYear + 8; y++) {
+    anioSelect.innerHTML += `<option value="${y}">${y}</option>`;
+  }
+}
+function mostrarLoader(){const o=document.getElementById("loaderOverlay");o&&o.classList.remove("hidden");document.body.style.overflow="hidden";window.addEventListener("keydown",bloquearTeclas,true);window.addEventListener("mousedown",bloquearClicks,true);}
+function ocultarLoader(){const o=document.getElementById("loaderOverlay");o&&o.classList.add("hidden");document.body.style.overflow="";window.removeEventListener("keydown",bloquearTeclas,true);window.removeEventListener("mousedown",bloquearClicks,true);}
+function bloquearTeclas(e){if(!(e.key==="F5"||e.key==="Escape")){e.stopPropagation();e.preventDefault();}}
+function bloquearClicks(e){e.stopPropagation();e.preventDefault();}
+
+function inicializarSelectorMesAnio() {
+  const anioSelect = document.getElementById('inputMesAnio');
+  if (anioSelect) {
+    const thisYear = new Date().getFullYear();
+    anioSelect.innerHTML = '';
+    for (let y = thisYear - 2; y <= thisYear + 8; y++) {
+      anioSelect.innerHTML += `<option value="${y}">${y}</option>`;
+    }
+  }
+}
   const INTERVALO_MINUTOS = 10; // Puedes cambiar a 5, 15, etc.
   const listaAdmins = ["Silvia", "Luis", "Aida", "Ricardo", "Alex", "Adrian"];
 function enfocarInputQR() {
@@ -891,13 +951,25 @@ async function validarPinYUnidad() {
     actualizarBotonModo(texto.charAt(0).toUpperCase() + texto.slice(1), color, icono);
     notificar(`Modo ${modo.toUpperCase()} activado`, "#003f40");
 
-    enfocarInputQR();  // ✅ Aquí forzamos el enfoque al lector de QR
+        enfocarInputQR();  // ✅ Aquí forzamos el enfoque al lector de QR
 
-  } catch (e) {
-    document.getElementById("pinError").textContent = "❌ Error de conexión.";
-    document.getElementById("pinError").classList.remove("hidden");
-  }
-}
+      } catch (e) {
+        document.getElementById("pinError").textContent = "❌ Error de conexión.";
+        document.getElementById("pinError").classList.remove("hidden");
+      }
+
+      // Mostrar/ocultar controles según modo activo
+      const inputQR = document.getElementById("inputQR");
+      const btnEnviar = document.getElementById("btnEnviarSupabase");
+      if (!modo || modo === "inactivo") {
+        if (inputQR) inputQR.classList.add("hidden");
+        if (btnEnviar) btnEnviar.classList.add("hidden");
+      } else {
+        if (inputQR) inputQR.classList.remove("hidden");
+        if (btnEnviar) btnEnviar.classList.remove("hidden");
+      }
+    }
+
 
 function abrirModalPinDinamico() {
   document.getElementById("modalPinDinamico").classList.remove("hidden");
@@ -1154,6 +1226,167 @@ async function mostrarPrevisualizacionDesdeQR(contenido) {
 
 
 
+//======================================================================================
+
+
+
+
+function intentoMuestreoDeCalidad(producto) {
+  console.log("🧪 Ejecutando intentoMuestreoDeCalidad");
+  console.log("🧪 Producto recibido:", producto);
+
+  const probabilidad = 1 / 30; // Cambia a 1/1 para pruebas
+  const aleatorio = Math.random();
+  console.log("🧪 Número aleatorio generado:", aleatorio);
+
+  if (aleatorio > probabilidad) {
+    console.log("🧪 Muestreo NO activado por probabilidad");
+    return;
+  }
+
+  console.log("🧪 Muestreo ACTIVADO - generando modal");
+
+  // Modal centrado y responsive
+  const modal = document.createElement("div");
+  modal.className = "muestreo-calidad";
+  modal.style.position = "fixed";
+  modal.style.top = "0";
+  modal.style.left = "0";
+  modal.style.width = "100vw";
+  modal.style.height = "100vh";
+  modal.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
+  modal.style.display = "flex";
+  modal.style.justifyContent = "center";
+  modal.style.alignItems = "center";
+  modal.style.zIndex = "9000";
+  modal.style.padding = "1rem";
+  modal.style.boxSizing = "border-box";
+
+  const contenido = document.createElement("div");
+  contenido.style.backgroundColor = "white";
+  contenido.style.padding = "1.5rem";
+  contenido.style.borderRadius = "1rem";
+  contenido.style.boxShadow = "0 0 20px rgba(0,0,0,0.3)";
+  contenido.style.width = "100%";
+  contenido.style.maxWidth = "500px";
+  contenido.style.boxSizing = "border-box";
+  contenido.innerHTML = `
+    <h2 style="font-size: 1.25rem; font-weight: bold; color: #b91c1c; margin-bottom: 1rem;">🧪 Muestreo de Calidad</h2>
+    <p style="margin-bottom: 1rem;">Verifique físicamente el producto y escriba los datos reales:</p>
+    <label>Referencia:</label>
+    <input id="input_ref_validar" type="text" placeholder="Ej: 547321" style="width: 100%; padding: 0.5rem; margin-bottom: 0.5rem;">
+    <label>Lote:</label>
+    <input id="input_lote_validar" type="text" placeholder="Ej: A23B56" style="width: 100%; padding: 0.5rem; margin-bottom: 0.5rem;">
+    <label>Caducidad:</label>
+    <input id="input_cad_validar" type="date" style="width: 100%; padding: 0.5rem; margin-bottom: 1rem;">
+    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+      <button onclick="validarMuestreo('${producto.referencia}','${producto.lote}','${producto.caducidad}')" style="padding: 0.5rem; background-color: #15803d; color: white; font-weight: bold; border: none; border-radius: 0.375rem;">Validar</button>
+      <button onclick="cancelarMuestreo()" style="padding: 0.5rem; background-color: #b91c1c; color: white; font-weight: bold; border: none; border-radius: 0.375rem;">Omitir</button>
+    </div>
+  `;
+
+  modal.appendChild(contenido);
+  document.body.appendChild(modal);
+  console.log("🧪 Modal de muestreo insertado en el DOM");
+}
+
+// Validación y registro en Supabase
+function validarMuestreo(refEsperada, loteEsperado, cadEsperada) {
+  console.log("🧪 Validando muestreo:", { refEsperada, loteEsperado, cadEsperada });
+  const ref = document.getElementById("input_ref_validar").value.trim();
+  const lote = document.getElementById("input_lote_validar").value.trim();
+  const cad = document.getElementById("input_cad_validar").value;
+
+  console.log("🧪 Valores ingresados:", { ref, lote, cad });
+
+  if (!ref || !lote || !cad) {
+    mostrarModal("Completa todos los campos correctamente", "red");
+    return;
+  }
+
+  const nip = typeof usuario !== "undefined" ? usuario : "SIN_NIP";
+  const nombre = localStorage.getItem("nombreUsuario") || "Anonimo";
+
+  // Validación exitosa
+  if (ref === refEsperada && lote === loteEsperado && cad === cadEsperada) {
+    fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/registro_errores", {
+      method: "POST",
+      headers: {
+        "apikey": API_KEY,
+        "Authorization": `Bearer ${API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        usuario: nombre,
+        referencia: refEsperada,
+        lote: loteEsperado,
+        fecha: new Date().toISOString(),
+        motivo: "muestreo validado",
+        modo: "muestreo",
+        pin_ingresado: nip,
+        valido: true
+      })
+    });
+    mostrarModal("Validación exitosa ✅", "green");
+    cerrarModalMuestreo();
+  } else {
+    // Error en validación
+    fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/registro_errores", {
+      method: "POST",
+      headers: {
+        "apikey": API_KEY,
+        "Authorization": `Bearer ${API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        usuario: nombre,
+        referencia: refEsperada,
+        lote: loteEsperado,
+        fecha: new Date().toISOString(),
+        motivo: "muestreo error",
+        modo: "muestreo",
+        pin_ingresado: nip,
+        valido: false
+      })
+    });
+    mostrarModal("❌ Error de validación. Notificado a administradores.", "red");
+    cerrarModalMuestreo();
+  }
+}
+
+function cancelarMuestreo() {
+  console.warn("🚨 Muestreo omitido por el usuario");
+  const nombre = localStorage.getItem("nombreUsuario") || "Anonimo";
+  const nip = typeof usuario !== "undefined" ? usuario : "-";
+  fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/registro_errores", {
+    method: "POST",
+    headers: {
+      "apikey": API_KEY,
+      "Authorization": `Bearer ${API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      usuario: nombre,
+      referencia: "-",
+      lote: "-",
+      fecha: new Date().toISOString(),
+      motivo: "muestreo omitido",
+      modo: "muestreo",
+      pin_ingresado: nip,
+      valido: false
+    })
+  });
+  mostrarModal("🚨 Muestreo omitido. Notificado a administradores.", "red");
+  cerrarModalMuestreo();
+}
+
+function cerrarModalMuestreo() {
+  const modal = document.querySelector(".muestreo-calidad");
+  if (modal) modal.remove();
+}
+
+
+
 async function procesarQR(contenido) {
   try {
     console.log("📥 QR recibido:", contenido);
@@ -1173,7 +1406,6 @@ async function procesarQR(contenido) {
       return;
     }
 
-    // 🚮 MODO BASURERO DE ETIQUETAS
     // 🚮 MODO BASURERO DE ETIQUETAS
     const remision = document.getElementById("inputRemision")?.value.trim().toLowerCase();
     const unidad = unidadSeleccionada?.toLowerCase();
@@ -1256,6 +1488,7 @@ async function procesarQR(contenido) {
 
       console.log("📌 QR de unidad fraccionable agregado a tabla contenedora:", qrUnidad);
       qrsPendientes.push(qrUnidad);
+      intentoMuestreoDeCalidad(qrUnidad);
       actualizarTablaRegistros();
       mostrarModal("✅ Unidad escaneada", "#22c55e");
       return;
@@ -1267,12 +1500,13 @@ async function procesarQR(contenido) {
         ...datos,
         modo,
         usuario,
-        unidad: unidadSeleccionada,
+        unidad: unidad,
         tipo: "fraccion"
       };
 
       console.log("📌 Caja fraccionable agregada a tabla contenedora:", qrCaja);
       qrsPendientes.push(qrCaja);
+      intentoMuestreoDeCalidad(qrCaja);
       actualizarTablaRegistros();
       mostrarModal("✅ Caja escaneada", "#22c55e");
       return;
@@ -1336,6 +1570,7 @@ async function procesarQR(contenido) {
 
     console.log("📌 QR agregado a tabla contenedora:", qrPendiente);
     qrsPendientes.push(qrPendiente);
+    intentoMuestreoDeCalidad(qrPendiente);
     actualizarTablaRegistros();
     mostrarModal("✅ Producto escaneado", "#22c55e");
 
@@ -3087,7 +3322,10 @@ async function mostrarModalAsignarUnidades() {
     });
 
     const usuarios = await res.json();
-    usuarios.forEach(u => {
+    const usuariosFiltrados = usuarios.filter(u => 
+      u.nombre !== "CONTROL_GLOBAL" && u.nombre !== "PIN_AUTO"
+    );
+    usuariosFiltrados.forEach(u => {
       const opt = document.createElement("option");
       opt.value = u.nombre;
       opt.textContent = u.nombre;
@@ -3100,8 +3338,8 @@ async function mostrarModalAsignarUnidades() {
     };
 
     // Dispara por default para el primero
-    if (usuarios.length) {
-      generarCheckboxesPara(usuarios[0].nombre, usuarios[0].unidades);
+    if (usuariosFiltrados.length) {
+      generarCheckboxesPara(usuariosFiltrados[0].nombre, usuariosFiltrados[0].unidades);
     }
 
     modal.classList.remove("hidden");
@@ -3109,6 +3347,7 @@ async function mostrarModalAsignarUnidades() {
     console.error("Error al cargar usuarios:", err);
   }
 }
+
 function generarCheckboxesPara(nombre, unidadesStr) {
   const cont = document.getElementById("listaUnidades");
   cont.innerHTML = "";
@@ -3131,6 +3370,7 @@ function generarCheckboxesPara(nombre, unidadesStr) {
     cont.appendChild(label);
   }
 }
+
 // 1. Obtener mes lógico como YYYY-MM
 function obtenerMesLogico(timestamp) {
   const fecha = new Date(Number(timestamp));
@@ -3271,14 +3511,12 @@ async function guardarUnidadesAsignadas() {
   const errorDiv = document.getElementById("unidadAsignarError");
 
   if (seleccionadas.length === 0) {
-    errorDiv.textContent = "❌ Debes seleccionar al menos una unidad.";
-    errorDiv.classList.remove("hidden");
+    mostrarModal("❌ Debes seleccionar al menos una unidad.", "#b91c1c");
     return;
   }
 
   if (!nipAdmin) {
-    errorDiv.textContent = "❌ No se detectó NIP de administrador.";
-    errorDiv.classList.remove("hidden");
+    mostrarModal("❌ No se detectó NIP de administrador.", "#b91c1c");
     return;
   }
 
@@ -3300,19 +3538,18 @@ async function guardarUnidadesAsignadas() {
 
     if (res.ok) {
       cerrarModalAsignarUnidades();
-      notificar("✅ Unidades actualizadas correctamente", "#16a34a");
+      mostrarModal("✅ Unidades actualizadas correctamente", "#16a34a");
     } else {
       console.warn("Error desde Supabase:", data);
-      errorDiv.textContent = "❌ " + (data.error || "Error al guardar unidades.");
-      errorDiv.classList.remove("hidden");
+      mostrarModal("❌ " + (data.error || "Error al guardar unidades."), "#b91c1c");
     }
 
   } catch (err) {
     console.error("Error de red al guardar unidades:", err);
-    errorDiv.textContent = "❌ Error de red al guardar unidades.";
-    errorDiv.classList.remove("hidden");
+    mostrarModal("❌ Error de red al guardar unidades.", "#b91c1c");
   }
 }
+
 
 function confiabilidadConvertida(original) {
   const resultado = {};
@@ -3437,7 +3674,7 @@ async function enviarSupabase() {
   }
 
   mostrarModal("📤 Enviando datos...", "#0ea5e9");
-
+  mostrarLoader();
   const registros = [];
 
   for (const r of qrsPendientes) {
@@ -3558,6 +3795,8 @@ async function enviarSupabase() {
   } catch (err) {
     console.error("❌ Error al enviar a Supabase:", err);
     mostrarModal("❌ Fallo en el envío", "#b91c1c");
+  } finally {
+    ocultarLoader(); // <-- loader termina SIEMPRE
   }
 }
 
@@ -4190,12 +4429,13 @@ document.addEventListener("keydown", function(e) {
     }
   }
 });
-// abrirModalReporteMensual();
-// --- Registro global de funciones con debug ---
+
+// Abre el modal y prepara el selector:
 window.abrirModalReporteMensual = function() {
   console.log("🟢 abrirModalReporteMensual ejecutado");
   const modal = document.getElementById("modalReporteMensual");
   if (modal) {
+    inicializarSelectorMesAnio();
     modal.classList.remove("hidden");
     console.log("✅ Modal de reporte mensual abierto correctamente");
   } else {
@@ -4208,21 +4448,22 @@ window.cerrarModalReporteMensual = function() {
   document.getElementById("modalReporteMensual")?.classList.add("hidden");
 };
 
-// --- Función principal de generación real ---
 window.generarReporteMensual = async function() {
   console.log("🚀 Iniciando generación de reporte");
 
-  const mesSeleccionado = document.getElementById("inputMes")?.value;
-  if (!mesSeleccionado) {
-    mostrarModal("⚠️ Selecciona un mes válido", "#f59e0b");
+  // Usamos los nuevos selects:
+  const mes = document.getElementById('inputMesMes')?.value;
+  const anio = document.getElementById('inputMesAnio')?.value;
+  if (!mes || !anio) {
+    mostrarModal("⚠️ Selecciona mes y año", "#f59e0b");
     return;
   }
   cerrarModalReporteMensual();
   mostrarModal("⏳ Generando reporte...", "#0ea5e9");
 
-  const [anio, mes] = mesSeleccionado.split("-");
-  const mesNum = parseInt(mes);
-  const anioNum = parseInt(anio);
+  const mesSeleccionado = `${anio}-${mes}`; // Formato "2024-08"
+  const mesNum = parseInt(mes, 10);
+  const anioNum = parseInt(anio, 10);
   const mesAnterior = mesNum === 1 ? 12 : mesNum - 1;
   const anioAnterior = mesNum === 1 ? anioNum - 1 : anioNum;
 
@@ -4857,16 +5098,39 @@ async function procesarBasurero(qr) {
     const data = await res.json();
     console.log("🧾 Respuesta de eliminar_etiqueta_basurero:", data);
 
-    if (data.status === "ok") {
-      mostrarModal("♻️ Etiqueta eliminada completamente", "#0f172a");
-    } else {
-      mostrarModal(`⚠️ Error al eliminar: ${data.message}`, "#facc15");
+        if (data.status === "ok") {
+          mostrarModal("♻️ Etiqueta eliminada completamente", "#0f172a");
+          try {
+            await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/registro_errores", {
+              method: "POST",
+              headers: {
+                "apikey": API_KEY,
+                "Authorization": `Bearer ${API_KEY}`,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                usuario: usuario || "Basurero",
+                referencia: datos.referencia,
+                lote: datos.lote,
+                fecha: new Date().toISOString(),
+                motivo: "borrado etiqueta",
+                modo: "borrar",
+                pin_ingresado: usuario || "Basurero",
+                valido: false,
+                timestamp: datos.timestamp // si existe en tu tabla
+              })
+            });
+            console.log("Registro de eliminación guardado en registro_errores.");
+          } catch (err) {
+            console.warn("No se pudo guardar en registro_errores:", err);
+          }
+        }
+
+      } catch (err) {
+        console.error("❌ Error al contactar Supabase:", err);
+        mostrarModal("❌ Error de red", "#dc2626");
+      }
     }
-  } catch (err) {
-    console.error("❌ Error al contactar Supabase:", err);
-    mostrarModal("❌ Error de red", "#dc2626");
-  }
-}
 
   </script>
 </body>
