@@ -768,44 +768,74 @@ function bloquearClicks(e){e.stopPropagation();e.preventDefault();}
 let scannerActivo = false, qrScanner = null;
 function mostrarVisorQR() {
   const visor = document.getElementById("qr-reader");
+  console.log("📸 mostrarVisorQR fue llamado");
+
+  if (!visor) {
+    console.error("❌ Elemento #qr-reader no encontrado");
+    return;
+  }
+
   if (visor.classList.contains("hidden")) {
+    console.log("🎥 Mostrando visor y arrancando escáner");
     visor.classList.remove("hidden");
     iniciarScannerQR();
   } else {
+    console.log("🛑 Ocultando visor y deteniendo escáner");
     visor.classList.add("hidden");
     detenerScannerQR();
   }
 }
 
+
 function iniciarScannerQR() {
-  if (scannerActivo) return;
+  if (scannerActivo) {
+    console.warn("⏳ Escáner ya activo, omitiendo reinicio");
+    return;
+  }
+
+  const visor = document.getElementById("qr-reader");
+  if (!visor) {
+    alert("No se encontró el visor QR (#qr-reader)");
+    return;
+  }
+
+  console.log("🚀 Iniciando Html5Qrcode...");
   scannerActivo = true;
   qrScanner = new Html5Qrcode("qr-reader");
+
   qrScanner.start(
     { facingMode: "environment" },
     { fps: 15, qrbox: 220 },
     qrCodeMessage => {
+      console.log("✅ QR Detectado:", qrCodeMessage);
       document.getElementById("inputQR").value = qrCodeMessage;
-      procesarQR(qrCodeMessage); // Aquí tu función normal de procesado
+      procesarQR(qrCodeMessage);  // ⚠️ Asegúrate de que esta función existe
       detenerScannerQR();
-      document.getElementById("qr-reader").classList.add("hidden");
+      visor.classList.add("hidden");
     },
-    errorMsg => {}
+    errorMsg => {
+      // console.log("❌ No se detectó QR:", errorMsg);
+    }
   ).catch(err => {
     scannerActivo = false;
-    alert("No se pudo activar cámara: " + err);
-    document.getElementById("qr-reader").classList.add("hidden");
+    console.error("❌ Error al iniciar escáner:", err);
+    alert("No se pudo activar la cámara. Verifica permisos.");
+    visor.classList.add("hidden");
   });
 }
 
 function detenerScannerQR() {
-  if (qrScanner) {
-    qrScanner.stop().then(() => {
-      scannerActivo = false;
-      qrScanner.clear();
-    }).catch(() => { scannerActivo = false; });
-  }
+  if (!qrScanner) return;
+  qrScanner.stop().then(() => {
+    console.log("🛑 Escáner detenido");
+    scannerActivo = false;
+    qrScanner.clear();
+  }).catch(err => {
+    console.warn("⚠️ Error al detener escáner:", err);
+    scannerActivo = false;
+  });
 }
+
 
 
 
