@@ -29,15 +29,6 @@
         background-position: top center;
         padding-top: env(safe-area-insert-top);
         margin: 0;
-          #modalQR {
-            width: 90vw;
-            height: 200px;
-            bottom: 20px;
-            right: 20px;
-          }
-          #qr-reader {
-            height: 140px;
-          }
       }
     }
     .modal {
@@ -119,10 +110,10 @@
     }
 
     #qr-reader {
-      border: 2px solid #01403b;
-      border-radius: 12px;
-      overflow: hidden;
-    }
+  border: 2px solid #0f766e;
+  border-radius: 12px;
+  overflow: hidden;
+}
 
   </style>
 </head>
@@ -148,24 +139,13 @@
   }
 </script>
 <!-- MODAL QR draggable -->
-<!-- MODAL QR tipo PiP -->
-<div id="modalQR"
-     class="fixed bottom-4 right-4 bg-white border rounded-xl shadow-lg z-[9999] p-2 w-[320px] h-[240px] max-w-[90vw] max-h-[50vh] hidden">
-  <div class="relative h-full" id="handleQR">
-    <button onclick="cerrarModalQR()"
-            class="absolute top-0 right-0 text-red-600 font-bold text-xl z-10 hover:text-red-800">×</button>
-
-    <button onclick="toggleMinimizarQR()"
-            class="absolute bottom-1 left-2 text-xs bg-gray-200 px-2 py-1 rounded-full shadow text-gray-700 z-10 hover:bg-gray-300">
-      🗕
-    </button>
-
+<div id="modalQR" class="fixed bottom-4 right-4 bg-white border rounded-xl shadow-lg z-[9999] p-2 w-[340px] max-w-full hidden cursor-move">
+  <div class="relative" id="handleQR">
+    <button onclick="cerrarModalQR()" class="absolute top-0 right-0 text-red-600 font-bold text-lg p-1 hover:text-red-800">×</button>
     <h2 class="text-center font-semibold text-sm mb-1 text-gray-800">Escanea un QR</h2>
-    <div id="qr-reader" class="w-full h-[180px] rounded-md overflow-hidden"></div>
+    <div id="qr-reader" class="w-full rounded-md overflow-hidden"></div>
   </div>
 </div>
-
-
 
 <!-- LOGO DE CENTRUM ARRIBA A LA DERECHA (solo visible en pantallas grandes) -->
 <div class="absolute top-4 right-4 flex-col items-center text-center hidden sm:flex">
@@ -5165,121 +5145,127 @@ async function procesarBasurero(qr) {
     }
 
 
+
 let scannerActivo = false, qrScanner = null;
 
-// Hacer el lector QR draggable en pantallas grandes (desktop)
+// Permitir arrastrar la ventana del lector QR
 function hacerDraggable(idElemento) {
-  if (window.innerWidth < 768) return;  // ❌ No intentar en móviles
   const el = document.getElementById(idElemento);
-  const handle = document.getElementById("handleQR") || el;
   let offsetX = 0, offsetY = 0, mouseX = 0, mouseY = 0;
 
-  handle.onmousedown = e => {
+  const handle = document.getElementById("handleQR") || el;
+
+  handle.onmousedown = function (e) {
     e.preventDefault();
     mouseX = e.clientX;
     mouseY = e.clientY;
-    document.onmouseup = () => document.onmousemove = null;
-    document.onmousemove = e => {
-      offsetX = mouseX - e.clientX;
-      offsetY = mouseY - e.clientY;
-      mouseX = e.clientX;
-      mouseY = e.clientY;
-      const rect = el.getBoundingClientRect();
-      el.style.position = "fixed";
-      el.style.top = (rect.top - offsetY) + "px";
-      el.style.left = (rect.left - offsetX) + "px";
-      el.style.bottom = "auto";
-      el.style.right = "auto";
-    };
+    document.onmouseup = detenerArrastre;
+    document.onmousemove = moverElemento;
   };
+
+  function moverElemento(e) {
+    e.preventDefault();
+    offsetX = mouseX - e.clientX;
+    offsetY = mouseY - e.clientY;
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+
+    const rect = el.getBoundingClientRect();
+    el.style.top = (rect.top - offsetY) + "px";
+    el.style.left = (rect.left - offsetX) + "px";
+    el.style.bottom = "auto";
+    el.style.right = "auto";
+    el.style.position = "fixed";
+  }
+
+  function detenerArrastre() {
+    document.onmouseup = null;
+    document.onmousemove = null;
+  }
 }
 
-// Mostrar modal y activar escáner
+// Activar cuando se abra el lector
 function abrirModalQR() {
   const modal = document.getElementById("modalQR");
   const visor = document.getElementById("qr-reader");
-  if (!modal || !visor) {
-    console.error("❌ No se encontró #modalQR o #qr-reader");
-    return;
-  }
 
-  // Para móviles: mostrar arriba
-  if (window.innerWidth < 768) {
-    modal.style.top = "10px";
-    modal.style.bottom = "auto";
-    modal.style.left = "50%";
-    modal.style.transform = "translateX(-50%)";
-  }
+  if (!modal || !visor) return;
 
   modal.classList.remove("hidden");
-  hacerDraggable("modalQR");
+  hacerDraggable("modalQR");  // 👈 activa drag al abrir
   iniciarScannerQR();
 }
 
-// Ocultar modal y detener escáner
+
+
 function cerrarModalQR() {
   console.log("🛑 cerrarModalQR() llamado");
   const modal = document.getElementById("modalQR");
-  if (!modal) return;
+
+  if (!modal) {
+    console.error("❌ No se encontró el elemento #modalQR para cerrar");
+    return;
+  }
+
   modal.classList.add("hidden");
   detenerScannerQR();
+  console.log("✅ Modal QR oculto");
 }
 
-// Iniciar escáner QR
 function iniciarScannerQR() {
   console.log("🔄 iniciarScannerQR() llamado");
+
   if (scannerActivo) {
-    console.warn("⚠️ Escáner ya activo");
+    console.warn("⚠️ Escáner ya activo, evitando duplicación");
     return;
   }
 
   const visor = document.getElementById("qr-reader");
   if (!visor) {
-    console.error("❌ No se encontró #qr-reader");
+    console.error("❌ No se encontró el visor QR con id #qr-reader");
     return;
   }
 
-  scannerActivo = true;
-  qrScanner = new Html5Qrcode("qr-reader");
+  try {
+    console.log("🚀 Iniciando Html5Qrcode...");
+    scannerActivo = true;
+    qrScanner = new Html5Qrcode("qr-reader");
 
-  qrScanner.start(
-    { facingMode: "environment" },
-    { fps: 15, qrbox: 220 },
-    qrCodeMessage => {
-      console.log("✅ QR detectado:", qrCodeMessage);
-      document.getElementById("inputQR").value = qrCodeMessage;
-      procesarQR(qrCodeMessage);  // <- función tuya
-    },
-    error => {
-      console.log("🔍 Escaneando...", error);
-    }
-  ).then(() => {
-    console.log("📷 Escáner iniciado");
-
-    // Ajustar estilos al <video>
-    setTimeout(() => {
-      const videos = document.querySelectorAll('#qr-reader video');
-      videos.forEach(video => {
-        video.style.width = '100%';
-        video.style.height = '180px';
-        video.style.objectFit = 'cover';
-        console.log("🎥 Estilos aplicados al <video>");
-      });
-    }, 500);
-  }).catch(err => {
-    console.error("❌ Error al iniciar escáner:", err);
-    alert("No se pudo acceder a la cámara: " + err);
+    qrScanner.start(
+      { facingMode: "environment" },
+      { fps: 15, qrbox: 220 },
+      qrCodeMessage => {
+        console.log("✅ QR detectado:", qrCodeMessage);
+        document.getElementById("inputQR").value = qrCodeMessage;
+        procesarQR(qrCodeMessage); // asegúrate que esta función existe
+        cerrarModalQR();
+      },
+      errorMsg => {
+        console.log("🔍 Esperando QR válido...", errorMsg);
+      }
+    ).catch(err => {
+      console.error("❌ Error al iniciar escáner:", err);
+      alert("Error al acceder a la cámara: " + err);
+      scannerActivo = false;
+      cerrarModalQR();
+    });
+  } catch (e) {
+    console.error("❌ Excepción en iniciarScannerQR():", e);
     scannerActivo = false;
     cerrarModalQR();
-  });
+  }
 }
 
-// Detener escáner QR
 function detenerScannerQR() {
   console.log("🔧 detenerScannerQR() llamado");
-  if (!qrScanner) return;
+
+  if (!qrScanner) {
+    console.warn("⚠️ qrScanner no definido aún");
+    return;
+  }
+
   qrScanner.stop().then(() => {
-    console.log("🛑 Escáner detenido");
+    console.log("🛑 Escáner detenido correctamente");
     scannerActivo = false;
     qrScanner.clear();
   }).catch(err => {
@@ -5287,6 +5273,7 @@ function detenerScannerQR() {
     scannerActivo = false;
   });
 }
+
 
   </script>
 </body>
