@@ -31,7 +31,7 @@
         margin: 0;
           #modalQR {
             width: 90vw;
-            height: 200px;
+            height: 120px;
             bottom: 20px;
             right: 20px;
           }
@@ -119,10 +119,10 @@
     }
 
     #qr-reader {
-  border: 2px solid #01403b;
-  border-radius: 12px;
-  overflow: hidden;
-}
+      border: 2px solid #01403b;
+      border-radius: 12px;
+      overflow: hidden;
+    }
 
   </style>
 </head>
@@ -150,7 +150,7 @@
 <!-- MODAL QR draggable -->
 <!-- MODAL QR tipo PiP -->
 <div id="modalQR"
-     class="fixed bottom-4 right-4 bg-white border rounded-xl shadow-lg z-[9999] p-2 w-[320px] h-[240px] max-w-[90vw] max-h-[50vh] hidden cursor-move">
+     class="fixed top-4 right-4 bg-white border rounded-xl shadow-lg z-[9999] p-2 w-[320px] h-[240px] max-w-[90vw] max-h-[50vh] hidden cursor-move">
   <div class="relative h-full" id="handleQR">
     <button onclick="cerrarModalQR()"
             class="absolute top-0 right-0 text-red-600 font-bold text-xl z-10 hover:text-red-800">×</button>
