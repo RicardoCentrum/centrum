@@ -5246,55 +5246,39 @@ function iniciarScannerQR() {
     return;
   }
 
-  try {
-    console.log("🚀 Iniciando Html5Qrcode...");
-    scannerActivo = true;
-    qrScanner = new Html5Qrcode("qr-reader");
+  scannerActivo = true;
+  qrScanner = new Html5Qrcode("qr-reader");
 
-    let ultimaLectura = "";
-    let tiempoUltimaLectura = 0;
+  qrScanner.start(
+    { facingMode: "environment" },
+    { fps: 15, qrbox: 220 },
+    qrCodeMessage => {
+      console.log("✅ QR detectado:", qrCodeMessage);
+      document.getElementById("inputQR").value = qrCodeMessage;
+      procesarQR(qrCodeMessage);  // 🔁 No se detiene el scanner aquí
+    },
+    error => {
+      console.log("🔍 Escaneando...", error);
+    }
+  ).then(() => {
+    console.log("📷 Escáner iniciado correctamente");
 
-    qrScanner.start(
-      { facingMode: "environment" },
-      { fps: 10, qrbox: 220 },
-      qrCodeMessage => {
-        const ahora = Date.now();
-        if (qrCodeMessage === ultimaLectura && ahora - tiempoUltimaLectura < 2000) {
-          return;
-        }
-        ultimaLectura = qrCodeMessage;
-        tiempoUltimaLectura = ahora;
-
-        console.log("✅ QR detectado:", qrCodeMessage);
-        document.getElementById("inputQR").value = qrCodeMessage;
-        procesarQR(qrCodeMessage);
-      },
-      errorMsg => {
-        console.log("🔍 Esperando QR válido...", errorMsg);
-      }
-    ).then(() => {
-      // ✅ Después de iniciar, ajusta el estilo del video
-      setTimeout(() => {
-        const videos = document.querySelectorAll('#qr-reader video');
-        videos.forEach(video => {
-          video.style.width = '100%';
-          video.style.height = '180px';
-          video.style.objectFit = 'cover';
-          console.log("✅ Estilos aplicados al <video>");
-        });
-      }, 300);
-    }).catch(err => {
-      console.error("❌ Error al iniciar escáner:", err);
-      alert("Error al acceder a la cámara: " + err);
-      scannerActivo = false;
-      cerrarModalQR();
-    });
-
-  } catch (e) {
-    console.error("❌ Excepción en iniciarScannerQR():", e);
+    // ✅ Estiliza el <video> cuando ya esté montado
+    setTimeout(() => {
+      const videos = document.querySelectorAll('#qr-reader video');
+      videos.forEach(video => {
+        video.style.width = '100%';
+        video.style.height = '180px';
+        video.style.objectFit = 'cover';
+        console.log("🎥 Estilos aplicados al video");
+      });
+    }, 500);
+  }).catch(err => {
+    console.error("❌ No se pudo iniciar el escáner:", err);
+    alert("No se pudo acceder a la cámara: " + err);
     scannerActivo = false;
     cerrarModalQR();
-  }
+  });
 }
 
 
