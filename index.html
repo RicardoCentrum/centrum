@@ -5260,9 +5260,8 @@ function iniciarScannerQR() {
       qrCodeMessage => {
         const ahora = Date.now();
         if (qrCodeMessage === ultimaLectura && ahora - tiempoUltimaLectura < 2000) {
-          return; // Ignora duplicados muy recientes
+          return;
         }
-
         ultimaLectura = qrCodeMessage;
         tiempoUltimaLectura = ahora;
 
@@ -5274,7 +5273,7 @@ function iniciarScannerQR() {
         console.log("🔍 Esperando QR válido...", errorMsg);
       }
     ).then(() => {
-      // ✅ Este bloque ocurre después de que el scanner inicia correctamente
+      // ✅ Después de iniciar, ajusta el estilo del video
       setTimeout(() => {
         const videos = document.querySelectorAll('#qr-reader video');
         videos.forEach(video => {
@@ -5297,6 +5296,7 @@ function iniciarScannerQR() {
     cerrarModalQR();
   }
 }
+
 
 
 
