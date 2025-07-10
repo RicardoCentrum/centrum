@@ -5,34 +5,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default"> <!-- Esta línea aún es aceptada -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#001d25">
   <link rel="apple-touch-icon" href="medinova_ios.png">
-  <title>Medinova</title>
-  <script src="https://cdn.tailwindcss.com">
-  
-  function agregarFila(ref, lote, estado) {
-    const tabla = document.getElementById("tablaRegistros");
-    const contenedor = document.getElementById("tablaContenedora");
-
-    // Asegura que el contenedor esté visible
-    contenedor.classList.remove("hidden");
-    setTimeout(() => contenedor.classList.remove("opacity-0"), 10);
-
-    // Crea la fila
-    const fila = document.createElement("tr");
-    fila.innerHTML = `
-      <td class='p-1'>${ref}</td>
-      <td class='p-1'>${lote}</td>
-      <td class='p-1'>${estado}</td>
-      <td class='p-1 text-center'><button onclick='eliminarFila(this)' class='text-red-600'>✖</button></td>
-    `;
-    tabla.appendChild(fila);
-  }
-
-</script>
   <link rel="icon" href="medinova.ico" type="image/x-icon" />
-  
+  <title>Medinova</title>
+
+  <!-- ✅ Scripts externos bien cerrados -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
   <style>
     body {
       background: url('bcg_centrum.png') no-repeat center center fixed;
@@ -41,7 +23,7 @@
       font-family: 'Segoe UI', sans-serif;
     }
     @media (max-width: 767px){
-      body{
+      body {
         background-size: cover;
         background-repeat: no-repeat;
         background-position: top center;
@@ -72,7 +54,7 @@
       border-radius: 6px;
       z-index: 9999;
     }
-       #mensajeQR {
+    #mensajeQR {
       position: fixed;
       top: 40%;
       left: 50%;
@@ -88,7 +70,7 @@
       max-width: 80%;
       box-shadow: 0 4px 12px rgba(0,0,0,0.25);
     }
-        .blur-fondo::before {
+    .blur-fondo::before {
       content: "";
       position: fixed;
       inset: 0;
@@ -100,37 +82,35 @@
     .completada {
       background-color: #d1fae5;
     }
-     @font-face {
-    font-family: 'MagmaWave';
-    src: url('MagmawaveCaps-Bold.woff2') format('woff2');
-    font-weight: normal;
-    font-style: normal;
-  }
-
-  .fuente-magma {
-    font-family: 'MagmaWave', sans-serif;
-  }
-
-  .modo-basurero {
-  background-image: url('blackhole.png');
-  background-size: cover;
-  background-position: center;
-  transition: background 3s ease-in-out;
-}
-.sr-only {
-  position: absolute !important;
-  width: 1px !important;
-  height: 1px !important;
-  padding: 0 !important;
-  margin: -1px !important;
-  overflow: hidden !important;
-  clip: rect(0, 0, 0, 0) !important;
-  white-space: nowrap !important;
-  border: 0 !important;
-}
-
+    @font-face {
+      font-family: 'MagmaWave';
+      src: url('MagmawaveCaps-Bold.woff2') format('woff2');
+      font-weight: normal;
+      font-style: normal;
+    }
+    .fuente-magma {
+      font-family: 'MagmaWave', sans-serif;
+    }
+    .modo-basurero {
+      background-image: url('blackhole.png');
+      background-size: cover;
+      background-position: center;
+      transition: background 3s ease-in-out;
+    }
+    .sr-only {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      padding: 0 !important;
+      margin: -1px !important;
+      overflow: hidden !important;
+      clip: rect(0, 0, 0, 0) !important;
+      white-space: nowrap !important;
+      border: 0 !important;
+    }
   </style>
 </head>
+
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">function agregarFila(ref, lote, estado) {
     const tabla = document.getElementById("tablaRegistros");
@@ -460,8 +440,20 @@
   </div>
 </div>
 
-    <input type="text" id="inputQR" placeholder="Escanea el código QR" class="hidden w-full p-3 mb-4 rounded-xl border text-center" autofocus />
-    <div class="text-center mt-2 mb-4">
+<div id="contenedorQR" class="relative w-full mb-4 hidden">
+  <input type="text" id="inputQR" placeholder="Escanea el código QR"
+    class="w-full p-3 rounded-xl border text-center pr-12" autofocus />
+  <button type="button" onclick="mostrarVisorQR()" 
+    aria-label="Escanear QR con cámara"
+    class="absolute right-2 top-1/2 -translate-y-1/2 bg-transparent p-2 rounded-full hover:bg-blue-50 focus:outline-none">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+      stroke="currentColor" class="w-7 h-7 text-blue-700">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M15 10l4.553-2.276A2 2 0 0021 6.382V5a2 2 0 00-2-2H5a2 2 0 00-2 2v1.382a2 2 0 001.447 1.342L9 10m6 0l-4.553-2.276M15 10v8m-6-8v8m6 0a2 2 0 01-2 2H9a2 2 0 01-2-2v-8" />
+    </svg>
+  </button>
+</div>
+
 
     <div id="tablaRemisionSAP" class="hidden mt-4">
       <div class="flex justify-between items-center mb-2">
@@ -771,6 +763,53 @@ function mostrarLoader(){const o=document.getElementById("loaderOverlay");o&&o.c
 function ocultarLoader(){const o=document.getElementById("loaderOverlay");o&&o.classList.add("hidden");document.body.style.overflow="";window.removeEventListener("keydown",bloquearTeclas,true);window.removeEventListener("mousedown",bloquearClicks,true);}
 function bloquearTeclas(e){if(!(e.key==="F5"||e.key==="Escape")){e.stopPropagation();e.preventDefault();}}
 function bloquearClicks(e){e.stopPropagation();e.preventDefault();}
+//88888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888
+
+let scannerActivo = false, qrScanner = null;
+function mostrarVisorQR() {
+  const visor = document.getElementById("qr-reader");
+  if (visor.classList.contains("hidden")) {
+    visor.classList.remove("hidden");
+    iniciarScannerQR();
+  } else {
+    visor.classList.add("hidden");
+    detenerScannerQR();
+  }
+}
+
+function iniciarScannerQR() {
+  if (scannerActivo) return;
+  scannerActivo = true;
+  qrScanner = new Html5Qrcode("qr-reader");
+  qrScanner.start(
+    { facingMode: "environment" },
+    { fps: 15, qrbox: 220 },
+    qrCodeMessage => {
+      document.getElementById("inputQR").value = qrCodeMessage;
+      procesarQR(qrCodeMessage); // Aquí tu función normal de procesado
+      detenerScannerQR();
+      document.getElementById("qr-reader").classList.add("hidden");
+    },
+    errorMsg => {}
+  ).catch(err => {
+    scannerActivo = false;
+    alert("No se pudo activar cámara: " + err);
+    document.getElementById("qr-reader").classList.add("hidden");
+  });
+}
+
+function detenerScannerQR() {
+  if (qrScanner) {
+    qrScanner.stop().then(() => {
+      scannerActivo = false;
+      qrScanner.clear();
+    }).catch(() => { scannerActivo = false; });
+  }
+}
+
+
+
+//88888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888
 
 function inicializarSelectorMesAnio() {
   const anioSelect = document.getElementById('inputMesAnio');
@@ -958,14 +997,14 @@ async function validarPinYUnidad() {
         document.getElementById("pinError").classList.remove("hidden");
       }
 
-      // Mostrar/ocultar controles según modo activo
-      const inputQR = document.getElementById("inputQR");
+      const contenedorQR = document.getElementById("contenedorQR");
       const btnEnviar = document.getElementById("btnEnviarSupabase");
+
       if (!modo || modo === "inactivo") {
-        if (inputQR) inputQR.classList.add("hidden");
+        if (contenedorQR) contenedorQR.classList.add("hidden");
         if (btnEnviar) btnEnviar.classList.add("hidden");
       } else {
-        if (inputQR) inputQR.classList.remove("hidden");
+        if (contenedorQR) contenedorQR.classList.remove("hidden");
         if (btnEnviar) btnEnviar.classList.remove("hidden");
       }
     }
