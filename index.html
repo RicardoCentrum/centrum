@@ -5238,7 +5238,7 @@ function iniciarScannerQR() {
         console.log("✅ QR detectado:", qrCodeMessage);
         document.getElementById("inputQR").value = qrCodeMessage;
         procesarQR(qrCodeMessage); // asegúrate que esta función existe
-        cerrarModalQR();
+        // cerrarModalQR();
       },
       errorMsg => {
         console.log("🔍 Esperando QR válido...", errorMsg);
