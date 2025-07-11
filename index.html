@@ -108,11 +108,16 @@
       white-space: nowrap !important;
       border: 0 !important;
     }
+
+    #qr-reader {
+  border: 2px solid #0f766e;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
   </style>
 </head>
-<div id="loaderOverlay" class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-[9999] hidden select-none">
-  <img src="loader.gif" alt="Cargando..." class="w-24 h-24 pointer-events-none">
-</div>
+
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">function agregarFila(ref, lote, estado) {
     const tabla = document.getElementById("tablaRegistros");
@@ -133,6 +138,14 @@
     tabla.appendChild(fila);
   }
 </script>
+<!-- MODAL QR draggable -->
+<div id="modalQR" class="fixed top-4 right-4 bg-white border rounded-xl shadow-lg z-[9999] p-2 w-[340px] max-w-full hidden cursor-move">
+  <div class="relative" id="handleQR">
+    <button onclick="cerrarModalQR()" class="absolute top-0 right-0 text-red-600 font-bold text-lg p-1 hover:text-red-800">×</button>
+    <h2 class="text-center font-semibold text-sm mb-1 text-gray-800">Escanea un QR</h2>
+    <div id="qr-reader" class="w-full rounded-md overflow-hidden"></div>
+  </div>
+</div>
 
 <!-- LOGO DE CENTRUM ARRIBA A LA DERECHA (solo visible en pantallas grandes) -->
 <div class="absolute top-4 right-4 flex-col items-center text-center hidden sm:flex">
@@ -445,17 +458,12 @@
 <div id="contenedorQR" class="relative w-full mb-4 hidden">
   <input type="text" id="inputQR" placeholder="Escanea el código QR"
     class="w-full p-3 rounded-xl border text-center pr-12" autofocus />
-  <button type="button" onclick="mostrarVisorQR()" 
+  <button type="button" onclick="abrirModalQR()"
     aria-label="Escanear QR con cámara"
-    class="absolute right-2 top-1/2 -translate-y-1/2 bg-transparent p-2 rounded-full hover:bg-blue-50 focus:outline-none">
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-      stroke="currentColor" class="w-7 h-7 text-blue-700">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-        d="M15 10l4.553-2.276A2 2 0 0021 6.382V5a2 2 0 00-2-2H5a2 2 0 00-2 2v1.382a2 2 0 001.447 1.342L9 10m6 0l-4.553-2.276M15 10v8m-6-8v8m6 0a2 2 0 01-2 2H9a2 2 0 01-2-2v-8" />
-    </svg>
+    class="absolute right-2 top-1/2 -translate-y-1/2 bg-transparent p-2 rounded-full hover:bg-blue-50 focus:outline-none text-2xl">
+    📷
   </button>
 </div>
-
 
     <div id="tablaRemisionSAP" class="hidden mt-4">
       <div class="flex justify-between items-center mb-2">
@@ -766,48 +774,6 @@ function ocultarLoader(){const o=document.getElementById("loaderOverlay");o&&o.c
 function bloquearTeclas(e){if(!(e.key==="F5"||e.key==="Escape")){e.stopPropagation();e.preventDefault();}}
 function bloquearClicks(e){e.stopPropagation();e.preventDefault();}
 //88888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888
-
-let scannerActivo = false, qrScanner = null;
-function mostrarVisorQR() {
-  const visor = document.getElementById("qr-reader");
-  if (visor.classList.contains("hidden")) {
-    visor.classList.remove("hidden");
-    iniciarScannerQR();
-  } else {
-    visor.classList.add("hidden");
-    detenerScannerQR();
-  }
-}
-
-function iniciarScannerQR() {
-  if (scannerActivo) return;
-  scannerActivo = true;
-  qrScanner = new Html5Qrcode("qr-reader");
-  qrScanner.start(
-    { facingMode: "environment" },
-    { fps: 15, qrbox: 220 },
-    qrCodeMessage => {
-      document.getElementById("inputQR").value = qrCodeMessage;
-      procesarQR(qrCodeMessage); // Aquí tu función normal de procesado
-      detenerScannerQR();
-      document.getElementById("qr-reader").classList.add("hidden");
-    },
-    errorMsg => {}
-  ).catch(err => {
-    scannerActivo = false;
-    alert("No se pudo activar cámara: " + err);
-    document.getElementById("qr-reader").classList.add("hidden");
-  });
-}
-
-function detenerScannerQR() {
-  if (qrScanner) {
-    qrScanner.stop().then(() => {
-      scannerActivo = false;
-      qrScanner.clear();
-    }).catch(() => { scannerActivo = false; });
-  }
-}
 
 
 
@@ -1141,7 +1107,9 @@ function extraerDatosQR(qr) {
 function verificarCaducidadYMostrarModal(caducidadStr) {
   console.log("🧪 Verificando caducidad:", caducidadStr);
 
-  if (!caducidadStr || caducidadStr.toLowerCase() === "s/c") {
+  if (!caducidadStr || 
+      caducidadStr.toString().trim() === "0" || 
+      caducidadStr.toString().trim().toLowerCase() === "s/c") {
     console.warn("⏩ Caducidad vacía o sin control (S/C)");
     return;
   }
@@ -1217,21 +1185,21 @@ function mostrarModal(mensaje, color) {
 
   modal.textContent = mensaje;
   modal.style.backgroundColor = color;
-  modal.style.zIndex = "999";
+  modal.style.zIndex = "99999";
   modal.style.display = "block";
 
   if (overlay) {
     overlay.style.backgroundColor = color;
     overlay.style.display = "block";
     overlay.style.opacity = "0.6";
-    overlay.style.zIndex = "998";
+    overlay.style.zIndex = "99998";
   }
 
   timeoutAviso = setTimeout(() => {
     modal.style.display = "none";
     if (overlay) overlay.style.display = "none";
     timeoutAviso = null;
-  }, 1500);
+  }, 2500);
 }
 
 async function mostrarPrevisualizacionDesdeQR(contenido) {
@@ -1588,16 +1556,25 @@ async function procesarQR(contenido) {
     const fabricante = match?.fabricante || "SIN FABRICANTE";
 
     let caducidadFinal = null;
-    if (datos.caducidad && !isNaN(datos.caducidad)) {
+
+    if (
+      datos.caducidad === "0" || datos.caducidad === 0 ||
+      datos.caducidad === "000" || datos.caducidad === null ||
+      typeof datos.caducidad === "undefined"
+    ) {
+      caducidadFinal = "S/C";
+    } else if (!isNaN(datos.caducidad)) {
       try {
         const fechaExcel = new Date((Number(datos.caducidad) - 25569) * 86400 * 1000);
         caducidadFinal = fechaExcel.toISOString().split("T")[0];
       } catch (e) {
-        console.warn("⚠️ Error al convertir caducidad:", datos.caducidad);
+        console.warn("⚠️ Error al convertir fecha desde Excel:", datos.caducidad);
+        caducidadFinal = "S/C";
       }
     } else {
-      caducidadFinal = datos.caducidad || null;
+      caducidadFinal = datos.caducidad || "S/C";
     }
+
     verificarCaducidadYMostrarModal(caducidadFinal);
     const qrPendiente = {
       ...datos,
@@ -4341,40 +4318,44 @@ function agregarFila(ref, lote, estado) {
       }
     }
 
-
-</script>
-<div id="versionInfo" class="version-info">v2.4.0</div>
-  <script>
     function cerrarModalCaducidad() {
       document.getElementById("modalCaducidad").classList.add("hidden");
     }
 
-    function calcularDiasRestantes(fecha) {
-      if (!fecha) return Infinity;
-      let fechaCad = null;
+function calcularDiasRestantes(fecha) {
+  if (!fecha || fecha === "S/C" || fecha === "0" || fecha === 0 || fecha === "000") return Infinity;
 
-      if (!isNaN(fecha)) {
-        const serial = parseInt(fecha, 10);
-        if (serial > 1000) fechaCad = new Date(1900, 0, serial - 2);
-      }
+  let fechaCad = null;
 
-      if (!fechaCad && /^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
-        const [anio, mes, dia] = fecha.split("-").map(Number);
-        fechaCad = new Date(anio, mes - 1, dia);
-      }
-
-      if (!fechaCad && /^\d{2}\/\d{2}\/\d{4}$/.test(fecha)) {
-        const [dia, mes, anio] = fecha.split("/").map(Number);
-        fechaCad = new Date(anio, mes - 1, dia);
-      }
-
-      if (!fechaCad) return Infinity;
-
-      const hoy = new Date();
-      hoy.setHours(0, 0, 0, 0);
-      const diff = fechaCad - hoy;
-      return Math.floor(diff / (1000 * 60 * 60 * 24));
+  // Serial de Excel válido
+  if (!isNaN(fecha)) {
+    const serial = parseInt(fecha, 10);
+    if (serial > 1000) {
+      fechaCad = new Date(1900, 0, serial - 2);
     }
+  }
+
+  // Formato YYYY-MM-DD
+  if (!fechaCad && /^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+    const [anio, mes, dia] = fecha.split("-").map(Number);
+    fechaCad = new Date(anio, mes - 1, dia);
+  }
+
+  // Formato DD/MM/YYYY
+  if (!fechaCad && /^\d{2}\/\d{2}\/\d{4}$/.test(fecha)) {
+    const [dia, mes, anio] = fecha.split("/").map(Number);
+    fechaCad = new Date(anio, mes - 1, dia);
+  }
+
+  // Si sigue sin poderse interpretar, retorna infinito
+  if (!fechaCad || isNaN(fechaCad.getTime())) return Infinity;
+
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const diff = fechaCad - hoy;
+  return Math.floor(diff / (1000 * 60 * 60 * 24));
+}
+
 
     function formatearCaducidad(fecha) {
       let fechaCad = null;
@@ -5114,13 +5095,14 @@ async function detectarAdminDesdePIN(pinIngresado) {
 
   return null;
 }
-async function procesarBasurero(qr) {
-  const datos = parsearQR(qr);
-
+async function procesarBasurero(datos) {
   if (!datos || !datos.referencia || !datos.lote || !datos.timestamp) {
     mostrarModal("❌ Código inválido para eliminar", "#6b7280");
     return;
   }
+
+  // 👉 Mostrar el contenedor QR si estaba oculto
+  document.getElementById("contenedorQR")?.classList.remove("hidden");
 
   const payload = {
     referencia: datos.referencia,
@@ -5139,40 +5121,186 @@ async function procesarBasurero(qr) {
     const data = await res.json();
     console.log("🧾 Respuesta de eliminar_etiqueta_basurero:", data);
 
-        if (data.status === "ok") {
-          mostrarModal("♻️ Etiqueta eliminada completamente", "#0f172a");
-          try {
-            await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/registro_errores", {
-              method: "POST",
-              headers: {
-                "apikey": API_KEY,
-                "Authorization": `Bearer ${API_KEY}`,
-                "Content-Type": "application/json"
-              },
-              body: JSON.stringify({
-                usuario: usuario || "Basurero",
-                referencia: datos.referencia,
-                lote: datos.lote,
-                fecha: new Date().toISOString(),
-                motivo: "borrado etiqueta",
-                modo: "borrar",
-                pin_ingresado: usuario || "Basurero",
-                valido: false,
-                timestamp: datos.timestamp // si existe en tu tabla
-              })
-            });
-            console.log("Registro de eliminación guardado en registro_errores.");
-          } catch (err) {
-            console.warn("No se pudo guardar en registro_errores:", err);
-          }
-        }
+    if (data.status === "ok") {
+      mostrarModal("♻️ Etiqueta eliminada completamente", "#0f172a");
 
+      try {
+        await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/registro_errores", {
+          method: "POST",
+          headers: {
+            "apikey": API_KEY,
+            "Authorization": `Bearer ${API_KEY}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            usuario: usuario || "Basurero",
+            referencia: datos.referencia,
+            lote: datos.lote,
+            fecha: new Date().toISOString(),
+            motivo: "borrado etiqueta",
+            modo: "borrar",
+            pin_ingresado: usuario || "Basurero",
+            valido: false,
+            timestamp: datos.timestamp
+          })
+        });
+        console.log("Registro de eliminación guardado en registro_errores.");
       } catch (err) {
-        console.error("❌ Error al contactar Supabase:", err);
-        mostrarModal("❌ Error de red", "#dc2626");
+        console.warn("No se pudo guardar en registro_errores:", err);
       }
     }
 
+  } catch (err) {
+    console.error("❌ Error al contactar Supabase:", err);
+    mostrarModal("❌ Error de red", "#dc2626");
+  }
+}
+
+
+let scannerActivo = false, qrScanner = null;
+
+// Permitir arrastrar la ventana del lector QR
+function hacerDraggable(idElemento) {
+  const el = document.getElementById(idElemento);
+  let offsetX = 0, offsetY = 0, mouseX = 0, mouseY = 0;
+
+  const handle = document.getElementById("handleQR") || el;
+
+  handle.onmousedown = function (e) {
+    e.preventDefault();
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+    document.onmouseup = detenerArrastre;
+    document.onmousemove = moverElemento;
+  };
+
+  function moverElemento(e) {
+    e.preventDefault();
+    offsetX = mouseX - e.clientX;
+    offsetY = mouseY - e.clientY;
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+
+    const rect = el.getBoundingClientRect();
+    el.style.top = (rect.top - offsetY) + "px";
+    el.style.left = (rect.left - offsetX) + "px";
+    el.style.bottom = "auto";
+    el.style.right = "auto";
+    el.style.position = "fixed";
+  }
+
+  function detenerArrastre() {
+    document.onmouseup = null;
+    document.onmousemove = null;
+  }
+}
+
+// Activar cuando se abra el lector
+function abrirModalQR() {
+  const modal = document.getElementById("modalQR");
+  const visor = document.getElementById("qr-reader");
+
+  if (!modal || !visor) return;
+
+  modal.classList.remove("hidden");
+  hacerDraggable("modalQR");  // 👈 activa drag al abrir
+  iniciarScannerQR();
+}
+
+
+
+function cerrarModalQR() {
+  console.log("🛑 cerrarModalQR() llamado");
+  const modal = document.getElementById("modalQR");
+
+  if (!modal) {
+    console.error("❌ No se encontró el elemento #modalQR para cerrar");
+    return;
+  }
+
+  modal.classList.add("hidden");
+  detenerScannerQR();
+  console.log("✅ Modal QR oculto");
+}
+
+function iniciarScannerQR() {
+  console.log("🔄 iniciarScannerQR() llamado");
+
+  if (scannerActivo) {
+    console.warn("⚠️ Escáner ya activo, evitando duplicación");
+    return;
+  }
+
+  const visor = document.getElementById("qr-reader");
+  if (!visor) {
+    console.error("❌ No se encontró el visor QR con id #qr-reader");
+    return;
+  }
+
+  try {
+    console.log("🚀 Iniciando Html5Qrcode...");
+    scannerActivo = true;
+    qrScanner = new Html5Qrcode("qr-reader");
+
+    let ultimaLectura = "";
+    let tiempoUltimaLectura = 0;
+
+    qrScanner.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: 220 },
+      qrCodeMessage => {
+        const ahora = Date.now();
+        if (qrCodeMessage === ultimaLectura && ahora - tiempoUltimaLectura < 2000) {
+          // Ignora duplicados muy recientes
+          return;
+        }
+
+        ultimaLectura = qrCodeMessage;
+        tiempoUltimaLectura = ahora;
+
+        console.log("✅ QR detectado:", qrCodeMessage);
+        document.getElementById("inputQR").value = qrCodeMessage;
+        procesarQR(qrCodeMessage); // sigue ejecutando sin cerrar modal
+      },
+      errorMsg => {
+        console.log("🔍 Esperando QR válido...", errorMsg);
+      }
+    ).catch(err => {
+      console.error("❌ Error al iniciar escáner:", err);
+      alert("Error al acceder a la cámara: " + err);
+      scannerActivo = false;
+      cerrarModalQR();
+    });
+
+  } catch (e) {
+    console.error("❌ Excepción en iniciarScannerQR():", e);
+    scannerActivo = false;
+    cerrarModalQR();
+  }
+}
+
+
+function detenerScannerQR() {
+  console.log("🔧 detenerScannerQR() llamado");
+
+  if (!qrScanner) {
+    console.warn("⚠️ qrScanner no definido aún");
+    return;
+  }
+
+  qrScanner.stop().then(() => {
+    console.log("🛑 Escáner detenido correctamente");
+    scannerActivo = false;
+    qrScanner.clear();
+  }).catch(err => {
+    console.error("❌ Error al detener escáner:", err);
+    scannerActivo = false;
+  });
+}
+
+
+
+<div id="versionInfo" class="version-info">v2.4.0</div>
   </script>
 </body>
 </html>
