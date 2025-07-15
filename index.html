@@ -958,23 +958,35 @@ async function validarPinYUnidad() {
   const esBasurero = (modoSeleccionado === "salida" && unidadRaw === "eliminar" && remisionRaw === "etiqueta");
 
   if (esBasurero) {
-    usuario = "Basurero";
-    unidadSeleccionada = "Eliminar";
-    modo = "salida";
+  usuario = "Basurero";
+  unidadSeleccionada = "Eliminar";
+  modo = "salida";
 
-    document.getElementById("modalPinUnidad").classList.add("hidden");
-    document.getElementById("usuarioActivo").innerHTML = `
-      🕳️ <strong>MODO ELIMINACIÓN ACTIVADO</strong><br>
-       <strong>Eliminar</strong><br>
-       <strong>Etiqueta</strong>
-    `;
+  document.getElementById("modalPinUnidad").classList.add("hidden");
+  document.getElementById("usuarioActivo").innerHTML = `
+    🕳️ <strong>MODO ELIMINACIÓN ACTIVADO</strong><br>
+     <strong>Eliminar</strong><br>
+     <strong>Etiqueta</strong>
+  `;
 
-    actualizarBotonModo("Salida", "bg-black", "🕳️");
-    document.body.classList.add("modo-basurero");
+  actualizarBotonModo("Salida", "bg-black", "🕳️");
+  document.body.classList.add("modo-basurero");
 
-    enfocarInputQR();
-    return;
+  // 👇 Mostrar el contenedor QR e input explícitamente
+  const contenedorQR = document.getElementById("contenedorQR");
+  const btnEnviar = document.getElementById("btnEnviarSupabase");
+  const inputQR = document.getElementById("inputQR");
+
+  if (contenedorQR) contenedorQR.classList.remove("hidden");
+  if (btnEnviar) btnEnviar.classList.remove("hidden");
+  if (inputQR) {
+    inputQR.classList.remove("hidden");
+    inputQR.value = "";
+    inputQR.focus();
   }
+
+  return;
+}
 
   if (esSalida) {
     remision = document.getElementById("inputRemision").value.trim();
@@ -5239,18 +5251,13 @@ async function detectarAdminDesdePIN(pinIngresado) {
 
   return null;
 }
+
 async function procesarBasurero(datos) {
   if (!datos || !datos.referencia || !datos.lote || !datos.timestamp) {
     mostrarModal("❌ Código inválido para eliminar", "#6b7280");
     return;
   }
 
-  // 👉 Mostrar contenedor QR e input de escáner
-  const contenedorQR = document.getElementById("contenedorQR");
-  const inputQR = document.getElementById("inputQR");
-
-  contenedorQR?.classList.remove("hidden");
-  inputQR?.classList.remove("hidden");
   inputQR?.focus(); // 👈 Asegura que vuelva a enfocar después de eliminar
 
   const payload = {
@@ -5312,10 +5319,6 @@ async function procesarBasurero(datos) {
   }
 }
 
-
-
-
-//<div id="versionInfo" class="version-info">v2.4.0</div>
   </script>
 </body>
 </html>
