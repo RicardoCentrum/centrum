@@ -936,15 +936,26 @@ function inicializarSelectorMesAnio() {
   const INTERVALO_MINUTOS = 10; // Puedes cambiar a 5, 15, etc.
   const listaAdmins = ["Silvia", "Luis", "Aida", "Ricardo", "Alex", "Adrian"];
 function enfocarInputQR() {
+  const contenedor = document.getElementById("contenedorQR");
   const input = document.getElementById("inputQR");
+
+  if (contenedor) contenedor.classList.remove("hidden");
+
   if (input) {
-    input.focus();
-    input.select(); // También selecciona el texto por si hay algo previo
-    console.log("🎯 Enfocado inputQR");
+    input.classList.remove("hidden");
+
+    // 🔁 Espera breve para asegurar render antes de enfocar
+    setTimeout(() => {
+      input.value = "";
+      input.focus();
+      input.select();
+      console.log("🎯 Enfocado inputQR (con delay)");
+    }, 100); // Ajustable si es necesario
   } else {
     console.warn("⚠️ No se encontró el inputQR");
   }
 }
+
 
 async function validarPinYUnidad() {
   const nip = document.getElementById("inputNIP").value.trim();
@@ -1114,7 +1125,6 @@ async function validarPinYUnidad() {
     actualizarBotonModo(texto.charAt(0).toUpperCase() + texto.slice(1), color, icono);
     notificar(`Modo ${modo.toUpperCase()} activado`, "#003f40");
 
-        enfocarInputQR();  // ✅ Aquí forzamos el enfoque al lector de QR
 
       } catch (e) {
         document.getElementById("pinError").textContent = "❌ Error de conexión.";
@@ -1130,6 +1140,8 @@ async function validarPinYUnidad() {
       } else {
         if (contenedorQR) contenedorQR.classList.remove("hidden");
         if (btnEnviar) btnEnviar.classList.remove("hidden");
+             enfocarInputQR();  // ✅ Aquí forzamos el enfoque al lector de QR
+
       }
     }
 
