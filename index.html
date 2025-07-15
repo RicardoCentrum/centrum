@@ -5245,8 +5245,13 @@ async function procesarBasurero(datos) {
     return;
   }
 
-  // 👉 Mostrar el contenedor QR si estaba oculto
-  document.getElementById("contenedorQR")?.classList.remove("hidden");
+  // 👉 Mostrar contenedor QR e input de escáner
+  const contenedorQR = document.getElementById("contenedorQR");
+  const inputQR = document.getElementById("inputQR");
+
+  contenedorQR?.classList.remove("hidden");
+  inputQR?.classList.remove("hidden");
+  inputQR?.focus(); // 👈 Asegura que vuelva a enfocar después de eliminar
 
   const payload = {
     referencia: datos.referencia,
@@ -5288,9 +5293,16 @@ async function procesarBasurero(datos) {
             timestamp: datos.timestamp
           })
         });
-        console.log("Registro de eliminación guardado en registro_errores.");
+        console.log("📦 Registro de eliminación guardado en registro_errores.");
       } catch (err) {
-        console.warn("No se pudo guardar en registro_errores:", err);
+        console.warn("⚠️ No se pudo guardar en registro_errores:", err);
+      }
+
+      // ✅ Limpiar y reactivar input de escaneo
+      if (inputQR) {
+        inputQR.value = "";
+        inputQR.classList.remove("hidden");
+        inputQR.focus();
       }
     }
 
@@ -5303,7 +5315,7 @@ async function procesarBasurero(datos) {
 
 
 
-<div id="versionInfo" class="version-info">v2.4.0</div>
+//<div id="versionInfo" class="version-info">v2.4.0</div>
   </script>
 </body>
 </html>
