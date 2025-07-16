@@ -1353,21 +1353,21 @@ function mostrarModal(mensaje, color) {
 
   modal.textContent = mensaje;
   modal.style.backgroundColor = color;
-  modal.style.zIndex = "99999";
+  modal.style.zIndex = "9999";
   modal.style.display = "block";
 
   if (overlay) {
     overlay.style.backgroundColor = color;
     overlay.style.display = "block";
     overlay.style.opacity = "0.6";
-    overlay.style.zIndex = "99998";
+    overlay.style.zIndex = "9998";
   }
 
   timeoutAviso = setTimeout(() => {
     modal.style.display = "none";
     if (overlay) overlay.style.display = "none";
     timeoutAviso = null;
-  }, 2500);
+  }, 1500);
 }
 
 async function mostrarPrevisualizacionDesdeQR(contenido) {
