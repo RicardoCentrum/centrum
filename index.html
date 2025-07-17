@@ -1406,13 +1406,11 @@ async function mostrarPrevisualizacionDesdeQR(contenido) {
 //======================================================================================
 
 
-
-
 function intentoMuestreoDeCalidad(producto) {
   console.log("🧪 Ejecutando intentoMuestreoDeCalidad");
   console.log("🧪 Producto recibido:", producto);
 
-  const probabilidad = 1 / 1; // Cambia a 1/1 para pruebas
+  const probabilidad = 1 / 1; // Cambia a 1/30 en producción
   const aleatorio = Math.random();
   console.log("🧪 Número aleatorio generado:", aleatorio);
 
@@ -1432,6 +1430,8 @@ function intentoMuestreoDeCalidad(producto) {
   modal.style.width = "100vw";
   modal.style.height = "100vh";
   modal.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
+  modal.style.backdropFilter = "blur(8px)";
+  modal.style.webkitBackdropFilter = "blur(8px)"; // Safari/iOS
   modal.style.display = "flex";
   modal.style.justifyContent = "center";
   modal.style.alignItems = "center";
@@ -1449,13 +1449,17 @@ function intentoMuestreoDeCalidad(producto) {
   contenido.style.boxSizing = "border-box";
   contenido.innerHTML = `
     <h2 style="font-size: 1.25rem; font-weight: bold; color: #b91c1c; margin-bottom: 1rem;">🧪 Muestreo de Calidad</h2>
-    <p style="margin-bottom: 1rem;">Verifique físicamente el producto y escriba los datos reales:</p>
-    <label>Referencia:</label>
-    <input id="input_ref_validar" type="text" placeholder="Ej: 547321" style="width: 100%; padding: 0.5rem; margin-bottom: 0.5rem;">
-    <label>Lote:</label>
-    <input id="input_lote_validar" type="text" placeholder="Ej: A23B56" style="width: 100%; padding: 0.5rem; margin-bottom: 0.5rem;">
-    <label>Caducidad:</label>
-    <input id="input_cad_validar" type="date" style="width: 100%; padding: 0.5rem; margin-bottom: 1rem;">
+    <p style="margin-bottom: 1rem; color: black;">Verifique físicamente el producto y escriba los datos reales:</p>
+    <label style="color: black;">Referencia:</label>
+    <input id="input_ref_validar" type="text" placeholder="Ej: 547321" style="width: 100%; color: black; padding: 0.5rem; margin-bottom: 0.5rem;">
+    <label style="color: black;">Lote:</label>
+    <input id="input_lote_validar" type="text" placeholder="Ej: A23B56" style="width: 100%; color: black; padding: 0.5rem; margin-bottom: 0.5rem;">
+    <label style="color: black;">Caducidad:</label>
+    <input id="input_cad_validar" type="date" style="width: 100%; color: black; padding: 0.5rem; margin-bottom: 0.5rem;">
+    <div style="display:flex; align-items:center; margin-bottom: 1rem;">
+      <input id="cad_no_aplica" type="checkbox" style="margin-right: 0.5rem;" onchange="toggleCaducidadInput(this)">
+      <label for="cad_no_aplica" style="color:black; margin:0;">Sin caducidad / No aplica</label>
+    </div>
     <div style="display: flex; flex-direction: column; gap: 0.5rem;">
       <button onclick="validarMuestreo('${producto.referencia}','${producto.lote}','${producto.caducidad}')" style="padding: 0.5rem; background-color: #15803d; color: white; font-weight: bold; border: none; border-radius: 0.375rem;">Validar</button>
       <button onclick="cancelarMuestreo()" style="padding: 0.5rem; background-color: #b91c1c; color: white; font-weight: bold; border: none; border-radius: 0.375rem;">Omitir</button>
@@ -1467,12 +1471,34 @@ function intentoMuestreoDeCalidad(producto) {
   console.log("🧪 Modal de muestreo insertado en el DOM");
 }
 
-// Validación y registro en Supabase
+// Permitir desactivar el input de caducidad si es "no aplica"
+function toggleCaducidadInput(checkbox) {
+  const inputCad = document.getElementById('input_cad_validar');
+  if (checkbox.checked) {
+    inputCad.disabled = true;
+    inputCad.value = "";
+  } else {
+    inputCad.disabled = false;
+  }
+}
+function sonCaducidadesEquivalentes(a, b) {
+  const equivalentes = ["0", "S/C", "SC", "SIN CADUCIDAD", "N/A", "NA", ""];
+  const upperA = String(a).trim().toUpperCase();
+  const upperB = String(b).trim().toUpperCase();
+  if (equivalentes.includes(upperA) && equivalentes.includes(upperB)) return true;
+  return upperA === upperB;
+}
+
 function validarMuestreo(refEsperada, loteEsperado, cadEsperada) {
   console.log("🧪 Validando muestreo:", { refEsperada, loteEsperado, cadEsperada });
   const ref = document.getElementById("input_ref_validar").value.trim();
   const lote = document.getElementById("input_lote_validar").value.trim();
-  const cad = document.getElementById("input_cad_validar").value;
+  let cad = document.getElementById("input_cad_validar").value;
+
+  // Si el checkbox está marcado, la caducidad es "S/C"
+  if (document.getElementById("cad_no_aplica")?.checked) {
+    cad = "S/C";
+  }
 
   console.log("🧪 Valores ingresados:", { ref, lote, cad });
 
@@ -1485,7 +1511,7 @@ function validarMuestreo(refEsperada, loteEsperado, cadEsperada) {
   const nombre = localStorage.getItem("nombreUsuario") || "Anonimo";
 
   // Validación exitosa
-  if (ref === refEsperada && lote === loteEsperado && cad === cadEsperada) {
+  if (ref === refEsperada && lote === loteEsperado && sonCaducidadesEquivalentes(cad, cadEsperada)) {
     fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/registro_errores", {
       method: "POST",
       headers: {
@@ -1564,6 +1590,7 @@ function cerrarModalMuestreo() {
 
 
 
+
 //888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888
 
 
@@ -1571,103 +1598,80 @@ function cerrarModalMuestreo() {
 async function procesarQR(contenido) {
   try {
     console.log("📥 QR recibido:", contenido);
-
     const datos = extraerDatosQR(contenido);
     console.log("🔍 Datos extraídos del QR:", datos);
 
     if (!datos || !datos.referencia || !datos.timestamp) {
-      console.warn("⚠️ QR incompleto:", datos);
       mostrarModal("❌ QR incompleto o ilegible", "#6b7280");
       return;
     }
 
     if (!datos.lote) {
-      console.warn("⚠️ QR sin lote:", datos);
       mostrarModal("❌ QR sin lote", "#6b7280");
       return;
     }
 
-    // 🚮 MODO BASURERO DE ETIQUETAS
+    // 🕳️ BASURERO
     const remision = document.getElementById("inputRemision")?.value.trim().toLowerCase();
     const unidad = unidadSeleccionada?.toLowerCase();
     const esBasurero = modo === "salida" && unidad === "eliminar" && remision === "etiqueta";
 
     if (esBasurero) {
-      document.body.classList.add("modo-basurero");
-      console.log("🕳️ Modo basurero activado. Eliminando etiqueta:", datos);
-
-      await procesarBasurero(datos);  // ✅ SOLO esto se ejecuta
-      return; // ✅ Detiene todo el flujo restante
+      await procesarBasurero(datos);
+      return;
     }
 
     if (datos.lote.includes('|')) {
-      console.warn("⚠️ Lote contaminado, limpiando:", datos.lote);
       datos.lote = datos.lote.split('|')[0];
     }
 
     if (!usuario || !modo || modo === "inactivo") {
-      console.warn("⚠️ Usuario o modo no definidos:", { usuario, modo });
       mostrarModal("⚠️ Selecciona un modo y un usuario", "#f59e0b");
       return;
     }
 
     if (modo === "salida" && !unidadSeleccionada) {
-      console.warn("⚠️ Unidad médica no seleccionada en modo salida");
       mostrarModal("⚠️ Selecciona una unidad médica", "#f59e0b");
       return;
-    } else {
-      console.log(`✅ Unidad médica ${unidadSeleccionada || "N/A"} aceptada para modo ${modo}`);
     }
 
+    // ⚠️ Duplicado local
     if (qrsPendientes.some(q => q.timestamp === datos.timestamp)) {
-      console.warn("⚠️ QR ya escaneado localmente:", datos.timestamp);
       mostrarModal("📦 Ya escaneado localmente", "#0284c7");
       return;
     }
 
+    // 🔒 Validación de remisión si aplica
     if (modo === "salida") {
       const inputRemision = document.getElementById("inputNumeroRemision");
       const numeroRemision = inputRemision ? inputRemision.value.trim() : "";
-      console.log("📄 Número de remisión ingresado:", numeroRemision);
-
       if (numeroRemision) {
         const remisionValida = await validarContraRemision(datos.referencia, datos.lote, numeroRemision);
-        console.log("✅ Remisión válida:", remisionValida);
         if (!remisionValida) return;
       }
     }
 
     mostrarModal("📤 Procesando QR...", "#0ea5e9");
 
-    // 🔍 Verificar fraccionables
+    // 🔍 Fraccionables
     const urlMultip = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/multiplicadores?select=fraccionable,referencia,referencia_unidad,multiplicador&or=(referencia.eq.${datos.referencia},referencia_unidad.eq.${datos.referencia})`;
-    console.log("🔎 Consultando fraccionables:", urlMultip);
-
     const fraccionableRes = await fetch(urlMultip, {
-      headers: {
-        "apikey": API_KEY,
-        "Authorization": `Bearer ${API_KEY}`
-      }
+      headers: { "apikey": API_KEY, "Authorization": `Bearer ${API_KEY}` }
     });
-
     const fraccionableData = await fraccionableRes.json();
     const entry = fraccionableData[0];
     const esFraccionable = entry?.fraccionable === true;
 
-    console.log("📦 Datos fraccionable:", entry);
-
-    // 🔧 Si es unidad de fraccionable
+    // ✅ Si es unidad fraccionable
     if (entry?.referencia_unidad === datos.referencia) {
       const qrUnidad = {
         ...datos,
         modo,
         usuario,
-        unidad: unidadSeleccionada || null,
+        unidad: unidadSeleccionada,
         referenciaCaja: entry.referencia,
         tipo: "unidad"
       };
-
-      console.log("📌 QR de unidad fraccionable agregado a tabla contenedora:", qrUnidad);
       qrsPendientes.push(qrUnidad);
       intentoMuestreoDeCalidad(qrUnidad);
       actualizarTablaRegistros();
@@ -1675,17 +1679,15 @@ async function procesarQR(contenido) {
       return;
     }
 
-    // 🔧 Si es fraccionable completo (caja)
+    // ✅ Si es caja fraccionable
     if (esFraccionable && modo === "entrada") {
       const qrCaja = {
         ...datos,
         modo,
         usuario,
-        unidad: unidad,
+        unidad: unidadSeleccionada,
         tipo: "fraccion"
       };
-
-      console.log("📌 Caja fraccionable agregada a tabla contenedora:", qrCaja);
       qrsPendientes.push(qrCaja);
       intentoMuestreoDeCalidad(qrCaja);
       actualizarTablaRegistros();
@@ -1693,61 +1695,47 @@ async function procesarQR(contenido) {
       return;
     }
 
+    // 🔄 Salida fraccionable
     if (esFraccionable && modo === "salida") {
-      console.log("🟥 Fraccionable en modo salida: esperando cantidad...");
       abrirModalCantidadFraccionable(datos.referencia, datos.lote, contenido);
       return;
     }
 
-    // 🔧 Producto normal (no fraccionable)
+    // ✅ Producto normal (no fraccionable)
     if (modo === "salida") {
       const permitido = await procesarExtraccionConValidacion(datos.referencia, unidadSeleccionada, 1, usuario);
-      console.log("🔐 Validación extracción:", permitido);
       if (!permitido) return;
     }
 
-    // 🔍 Buscar nombre y fabricante para futura inserción
+    // 🔍 Datos complementarios
     const historicoRes = await fetch(
       `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/historicos?select=referencia,nombre,fabricante`,
-      {
-        headers: {
-          "apikey": API_KEY,
-          "Authorization": `Bearer ${API_KEY}`
-        }
-      }
+      { headers: { "apikey": API_KEY, "Authorization": `Bearer ${API_KEY}` } }
     );
-
     const historico = await historicoRes.json();
     const normalizar = str => str.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     const refLimpiada = normalizar(datos.referencia);
     const match = historico.find(h => normalizar(h.referencia) === refLimpiada);
 
-    console.log("🔍 Coincidencia encontrada en historicos:", match);
-
     const nombre = match?.nombre || "SIN NOMBRE";
     const fabricante = match?.fabricante || "SIN FABRICANTE";
 
-    let caducidadFinal = null;
-
-    if (
-      datos.caducidad === "0" || datos.caducidad === 0 ||
-      datos.caducidad === "000" || datos.caducidad === null ||
-      typeof datos.caducidad === "undefined"
-    ) {
-      caducidadFinal = "S/C";
-    } else if (!isNaN(datos.caducidad)) {
+    // 🗓️ Caducidad
+    let caducidadFinal = "S/C";
+    if (datos.caducidad && !isNaN(datos.caducidad)) {
       try {
         const fechaExcel = new Date((Number(datos.caducidad) - 25569) * 86400 * 1000);
         caducidadFinal = fechaExcel.toISOString().split("T")[0];
-      } catch (e) {
-        console.warn("⚠️ Error al convertir fecha desde Excel:", datos.caducidad);
+      } catch {
         caducidadFinal = "S/C";
       }
-    } else {
-      caducidadFinal = datos.caducidad || "S/C";
+    } else if (typeof datos.caducidad === "string") {
+      caducidadFinal = datos.caducidad;
     }
 
     verificarCaducidadYMostrarModal(caducidadFinal);
+
+    // ✅ Agrega QR normal a tabla contenedora
     const qrPendiente = {
       ...datos,
       modo,
@@ -1758,14 +1746,13 @@ async function procesarQR(contenido) {
       caducidad: caducidadFinal
     };
 
-    console.log("📌 QR agregado a tabla contenedora:", qrPendiente);
     qrsPendientes.push(qrPendiente);
     intentoMuestreoDeCalidad(qrPendiente);
     actualizarTablaRegistros();
     mostrarModal("✅ Producto escaneado", "#22c55e");
 
   } catch (error) {
-    console.error("❌ Error global en procesarQR:", error);
+    console.error("❌ Error en procesarQR:", error);
     mostrarModal("❌ Error inesperado", "#dc2626");
   }
 }
@@ -3925,7 +3912,7 @@ async function enviarSupabase() {
         lote,
         nombre,
         fabricante,
-        cantidad: 1,
+        cantidad: 0,
         caducidad: caducidadFinal
       };
 
