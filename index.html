@@ -1241,36 +1241,33 @@ function eliminarFila(boton) {
 
 // Extraer datos de QR incluso si el lote está vacío
 function extraerDatosQR(qr) {
-  const limpio = qr.trim().replace(/\s+/g, '');
+    const limpio = qr.trim().replace(/\s+/g, '');
 
-  // Formato tipo R:xxx|L:xxx|C:xxx|T:xxx
-  if (limpio.includes('|')) {
-    const partes = Object.fromEntries(
-      limpio.split('|').map(p => p.split(':')).filter(p => p.length === 2)
-    );
+    let partes = null;
+
+    // Formato tipo R:xxx|L:xxx|C:xxx|T:xxx
+    if (limpio.includes('|') && limpio.includes(':')) {
+      partes = Object.fromEntries(
+        limpio.split('|').map(p => p.split(':')).filter(p => p.length === 2)
+      );
+    }
+
+    // Formato móvil tipo R>xxx`L>xxx`C>xxx`T>xxx
+    else if (limpio.includes('`') && limpio.includes('>')) {
+      partes = Object.fromEntries(
+        limpio.split('`').map(p => p.split('>')).filter(p => p.length === 2)
+      );
+    }
+
+    if (!partes) return null;
+
     return {
-      referencia: partes["R"] || null,
-      lote: partes["L"] || null,
-      caducidad: partes["C"] || null,
-      timestamp: partes["T"] || null
+      referencia: partes["R"]?.trim() || null,
+      lote: partes["L"]?.trim() || null,
+      caducidad: partes["C"]?.trim() || null,
+      timestamp: partes["T"]?.trim() || null
     };
   }
-
-  // Formato móvil tipo R>xxx`L>xxx`C>xxx`T>xxx
-  if (limpio.includes('`') && limpio.includes('>')) {
-    const partes = Object.fromEntries(
-      limpio.split('`').map(p => p.split('>')).filter(p => p.length === 2)
-    );
-    return {
-      referencia: partes["R"] || null,
-      lote: partes["L"] || null,
-      caducidad: partes["C"] || null,
-      timestamp: partes["T"] || null
-    };
-  }
-
-  return null;
-}
 
 function verificarCaducidadYMostrarModal(caducidadStr) {
   console.log("🧪 Verificando caducidad:", caducidadStr);
@@ -1410,7 +1407,7 @@ function intentoMuestreoDeCalidad(producto) {
   console.log("🧪 Ejecutando intentoMuestreoDeCalidad");
   console.log("🧪 Producto recibido:", producto);
 
-  const probabilidad = 1 / 1; // Cambia a 1/30 en producción
+  const probabilidad = 1 / 30; // Cambia a 1/30 en producción
   const aleatorio = Math.random();
   console.log("🧪 Número aleatorio generado:", aleatorio);
 
@@ -1508,7 +1505,7 @@ function validarMuestreo(refEsperada, loteEsperado, cadEsperada) {
   }
 
   const nip = typeof usuario !== "undefined" ? usuario : "SIN_NIP";
-  const nombre = localStorage.getItem("nombreUsuario") || "Anonimo";
+  const nombre = localStorage.getItem("usuario") || "Anonimo";
 
   // Validación exitosa
   if (ref === refEsperada && lote === loteEsperado && sonCaducidadesEquivalentes(cad, cadEsperada)) {
@@ -1595,6 +1592,8 @@ function cerrarModalMuestreo() {
 
 
 
+
+
 async function procesarQR(contenido) {
   try {
     console.log("📥 QR recibido:", contenido);
@@ -1639,6 +1638,24 @@ async function procesarQR(contenido) {
       return;
     }
 
+    // ✅ Verificar si el timestamp ya existe o fue eliminado
+    const tsCheckRes = await fetch(
+      `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/TimeStamps?timestamp=eq.${datos.timestamp}&select=timestamp,ts_eliminado,usuario,unidad_destino,fecha_salida_str`,
+      { headers: { "apikey": API_KEY, "Authorization": `Bearer ${API_KEY}` } }
+    );
+    const tsData = await tsCheckRes.json();
+    const registro = tsData[0];
+
+    if (modo === "entrada" && registro?.timestamp) {
+      mostrarModal("📦 Ya escaneado anteriormente", "#0284c7");
+      return;
+    }
+    if (modo === "salida" && registro?.ts_eliminado) {
+      const msg = `🟡 Producto ya fue retirado\n👤 ${registro.usuario || "-"}\n🏥 ${registro.unidad_destino || "-"}\n📅 ${registro.fecha_salida_str || "-"}`;
+      mostrarModal(msg, "#facc15");
+      return;
+    }
+
     if (modo === "salida") {
       const inputRemision = document.getElementById("inputNumeroRemision");
       const numeroRemision = inputRemision ? inputRemision.value.trim() : "";
@@ -1650,7 +1667,6 @@ async function procesarQR(contenido) {
 
     mostrarModal("📤 Procesando QR...", "#0ea5e9");
 
-    // Consultar en tabla multiplicadores
     const urlMultip = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/multiplicadores?select=fraccionable,referencia,referencia_unidad,multiplicador&or=(referencia.eq.${datos.referencia},referencia_unidad.eq.${datos.referencia})`;
     const fraccionableRes = await fetch(urlMultip, {
       headers: { "apikey": API_KEY, "Authorization": `Bearer ${API_KEY}` }
@@ -1659,42 +1675,20 @@ async function procesarQR(contenido) {
     const entry = fraccionableData[0];
     const esFraccionable = entry?.fraccionable === true;
 
-    // ✅ UNIDAD FRACCIONABLE (referencia_unidad exacta)
+    // ✅ UNIDAD FRACCIONABLE
     if (entry?.referencia_unidad === datos.referencia) {
-      if (modo === "entrada") {
-        // entrada: registrar unidad vía Edge Function
-        const respuesta = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_unidad", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ referencia_unidad: datos.referencia, lote: datos.lote })
-        });
-        const res = await respuesta.json();
-        if (respuesta.ok) {
-          mostrarModal("✅ Unidad registrada correctamente", "#22c55e");
-        } else {
-          mostrarModal(`❌ ${res.error || "Error al registrar unidad"}`, "#dc2626");
-        }
-        return;
-      }
-
-      if (modo === "salida") {
-        const respuesta = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_unidad_salida", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            referencia_unidad: datos.referencia,
-            lote: datos.lote,
-            unidad_destino: unidadSeleccionada
-          })
-        });
-        const res = await respuesta.json();
-        if (respuesta.ok) {
-          mostrarModal("✅ Unidad retirada correctamente", "#ef4444");
-        } else {
-          mostrarModal(`❌ ${res.error || "Error al retirar unidad"}`, "#facc15");
-        }
-        return;
-      }
+      const qrUnidad = {
+        ...datos,
+        modo,
+        usuario,
+        unidad: unidadSeleccionada,
+        tipo: "unidad"
+      };
+      qrsPendientes.push(qrUnidad);
+      intentoMuestreoDeCalidad(qrUnidad);
+      actualizarTablaRegistros();
+      mostrarModal("✅ Unidad escaneada", "#22c55e");
+      return;
     }
 
     // ✅ CAJA FRACCIONABLE
@@ -1719,13 +1713,12 @@ async function procesarQR(contenido) {
       return;
     }
 
-    // ✅ Producto normal (no fraccionable)
+    // ✅ Producto normal
     if (modo === "salida") {
       const permitido = await procesarExtraccionConValidacion(datos.referencia, unidadSeleccionada, 1, usuario);
       if (!permitido) return;
     }
 
-    // Historial para nombre/fabricante
     const historicoRes = await fetch(
       `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/historicos?select=referencia,nombre,fabricante`,
       { headers: { "apikey": API_KEY, "Authorization": `Bearer ${API_KEY}` } }
@@ -1737,7 +1730,6 @@ async function procesarQR(contenido) {
     const nombre = match?.nombre || "SIN NOMBRE";
     const fabricante = match?.fabricante || "SIN FABRICANTE";
 
-    // Caducidad
     let caducidadFinal = "S/C";
     if (datos.caducidad && !isNaN(datos.caducidad)) {
       try {
@@ -1772,8 +1764,6 @@ async function procesarQR(contenido) {
     mostrarModal("❌ Error inesperado", "#dc2626");
   }
 }
-
-
 
 
 
@@ -2143,7 +2133,7 @@ async function procesarQRFraccionableSalida(referencia, lote, cantidad) {
       actualizarTablaRegistros();
       mostrarModal("✅ Retiro fraccionado exitoso", "#22c55e");
     } else if (r?.status === "extraido_previo") {
-      mostrarModal(`⚠️ Ya extraído por ${r.usuario}`, "#facc15");
+      mostrarModal(`⚠️ Producto ya fue retirado\n👤 ${res.usuario}\n🏥 ${res.unidad_destino}\n📅 ${res.fecha_str}`, "#facc15");
     } else if (r?.mensaje) {
       mostrarModal(`⚠️ ${r.mensaje}`, "#6b7280");
     } else {
@@ -3861,6 +3851,10 @@ function actualizarTablaRegistros() {
 }
 
 
+//8888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888
+
+
+
 async function enviarSupabase() {
   if (!modo || modo === "inactivo") {
     mostrarModal("⚠️ Selecciona primero el modo", "#f59e0b");
@@ -3879,24 +3873,10 @@ async function enviarSupabase() {
   for (const r of qrsPendientes) {
     const { referencia, lote, caducidad } = r;
 
-    console.log(`🔎 Verificando si existe ${referencia} / ${lote} en productos...`);
-    const consultaProducto = await fetch(
-      `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos?referencia=eq.${referencia}&lote=eq.${lote}`,
-      {
-        headers: {
-          "apikey": API_KEY,
-          "Authorization": `Bearer ${API_KEY}`
-        }
-      }
-    );
-
-    const productos = await consultaProducto.json();
-
-    if (productos.length === 0) {
-      console.log(`➕ Producto nuevo, insertando: ${referencia} / ${lote}`);
-
-      const historicoRes = await fetch(
-        `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/historicos?select=referencia,nombre,fabricante`,
+    // Omitir búsqueda si es unidad fraccionable, se hará con referencia base en la función Edge
+    if (r.tipo !== "unidad") {
+      const consultaProducto = await fetch(
+        `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos?referencia=eq.${referencia}&lote=eq.${lote}`,
         {
           headers: {
             "apikey": API_KEY,
@@ -3905,49 +3885,59 @@ async function enviarSupabase() {
         }
       );
 
-      const historico = await historicoRes.json();
-      const normalizar = s => s.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
-      const refClean = normalizar(referencia);
-      const match = historico.find(h => normalizar(h.referencia) === refClean);
+      const productos = await consultaProducto.json();
 
-      const nombre = match?.nombre || "SIN NOMBRE";
-      const fabricante = match?.fabricante || "SIN FABRICANTE";
+      if (productos.length === 0) {
+        const historicoRes = await fetch(
+          `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/historicos?select=referencia,nombre,fabricante`,
+          {
+            headers: {
+              "apikey": API_KEY,
+              "Authorization": `Bearer ${API_KEY}`
+            }
+          }
+        );
 
-      let caducidadFinal = null;
-      if (caducidad && !isNaN(caducidad)) {
-        try {
-          const fechaExcel = new Date((Number(caducidad) - 25569) * 86400 * 1000);
-          caducidadFinal = fechaExcel.toISOString().split("T")[0];
-        } catch (e) {
-          console.warn("⚠️ Error al convertir caducidad:", caducidad);
+        const historico = await historicoRes.json();
+        const normalizar = s => s.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+        const refClean = normalizar(referencia);
+        const match = historico.find(h => normalizar(h.referencia) === refClean);
+
+        const nombre = match?.nombre || "SIN NOMBRE";
+        const fabricante = match?.fabricante || "SIN FABRICANTE";
+
+        let caducidadFinal = null;
+        if (caducidad && !isNaN(caducidad)) {
+          try {
+            const fechaExcel = new Date((Number(caducidad) - 25569) * 86400 * 1000);
+            caducidadFinal = fechaExcel.toISOString().split("T")[0];
+          } catch (e) {
+            console.warn("⚠️ Error al convertir caducidad:", caducidad);
+          }
+        } else {
+          caducidadFinal = caducidad || null;
         }
-      } else {
-        caducidadFinal = caducidad || null;
+
+        const nuevo = {
+          referencia,
+          lote,
+          nombre,
+          fabricante,
+          cantidad: 0,
+          caducidad: caducidadFinal
+        };
+
+        await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos", {
+          method: "POST",
+          headers: {
+            "apikey": API_KEY,
+            "Authorization": `Bearer ${API_KEY}`,
+            "Content-Type": "application/json",
+            "Prefer": "return=minimal"
+          },
+          body: JSON.stringify(nuevo)
+        });
       }
-
-      const nuevo = {
-        referencia,
-        lote,
-        nombre,
-        fabricante,
-        cantidad: 0,
-        caducidad: caducidadFinal
-      };
-
-      console.log("📤 Insertando producto:", nuevo);
-
-      await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos", {
-        method: "POST",
-        headers: {
-          "apikey": API_KEY,
-          "Authorization": `Bearer ${API_KEY}`,
-          "Content-Type": "application/json",
-          "Prefer": "return=minimal"
-        },
-        body: JSON.stringify(nuevo)
-      });
-    } else {
-      console.log(`✅ Producto ya existe: ${referencia} / ${lote}`);
     }
 
     const base = {
@@ -3964,8 +3954,9 @@ async function enviarSupabase() {
 
   console.log("✅ Registros a enviar:", registros);
 
-  const normales = registros.filter(r => r.tipo !== "fraccion");
+  const normales = registros.filter(r => !r.tipo || r.tipo === "normal");
   const fracciones = registros.filter(r => r.tipo === "fraccion");
+  const unidades = registros.filter(r => r.tipo === "unidad");
 
   try {
     if (normales.length > 0) {
@@ -3986,6 +3977,15 @@ async function enviarSupabase() {
       });
     }
 
+    if (unidades.length > 0) {
+      console.log("🔹 Enviando unidades fraccionables:", unidades);
+      await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_unidad", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ registros: unidades })
+      });
+    }
+
     mostrarModal("📦 Productos enviados correctamente", "#22c55e");
     qrsPendientes = [];
     actualizarTablaRegistros();
@@ -3995,9 +3995,14 @@ async function enviarSupabase() {
     console.error("❌ Error al enviar a Supabase:", err);
     mostrarModal("❌ Fallo en el envío", "#b91c1c");
   } finally {
-    ocultarLoader(); // <-- loader termina SIEMPRE
+    ocultarLoader();
   }
 }
+
+
+
+//8888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888
+
 
 
 function agregarFila(ref, lote, estado) {
