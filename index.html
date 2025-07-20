@@ -1611,7 +1611,6 @@ async function procesarQR(contenido) {
       return;
     }
 
-    // 🕳️ BASURERO
     const remision = document.getElementById("inputRemision")?.value.trim().toLowerCase();
     const unidad = unidadSeleccionada?.toLowerCase();
     const esBasurero = modo === "salida" && unidad === "eliminar" && remision === "etiqueta";
@@ -1635,13 +1634,11 @@ async function procesarQR(contenido) {
       return;
     }
 
-    // ⚠️ Duplicado local
     if (qrsPendientes.some(q => q.timestamp === datos.timestamp)) {
       mostrarModal("📦 Ya escaneado localmente", "#0284c7");
       return;
     }
 
-    // 🔒 Validación de remisión si aplica
     if (modo === "salida") {
       const inputRemision = document.getElementById("inputNumeroRemision");
       const numeroRemision = inputRemision ? inputRemision.value.trim() : "";
@@ -1653,7 +1650,7 @@ async function procesarQR(contenido) {
 
     mostrarModal("📤 Procesando QR...", "#0ea5e9");
 
-    // 🔍 Fraccionables
+    // Consultar en tabla multiplicadores
     const urlMultip = `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/multiplicadores?select=fraccionable,referencia,referencia_unidad,multiplicador&or=(referencia.eq.${datos.referencia},referencia_unidad.eq.${datos.referencia})`;
     const fraccionableRes = await fetch(urlMultip, {
       headers: { "apikey": API_KEY, "Authorization": `Bearer ${API_KEY}` }
@@ -1662,24 +1659,45 @@ async function procesarQR(contenido) {
     const entry = fraccionableData[0];
     const esFraccionable = entry?.fraccionable === true;
 
-    // ✅ Si es unidad fraccionable
+    // ✅ UNIDAD FRACCIONABLE (referencia_unidad exacta)
     if (entry?.referencia_unidad === datos.referencia) {
-      const qrUnidad = {
-        ...datos,
-        modo,
-        usuario,
-        unidad: unidadSeleccionada,
-        referenciaCaja: entry.referencia,
-        tipo: "unidad"
-      };
-      qrsPendientes.push(qrUnidad);
-      intentoMuestreoDeCalidad(qrUnidad);
-      actualizarTablaRegistros();
-      mostrarModal("✅ Unidad escaneada", "#22c55e");
-      return;
+      if (modo === "entrada") {
+        // entrada: registrar unidad vía Edge Function
+        const respuesta = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_unidad", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ referencia_unidad: datos.referencia, lote: datos.lote })
+        });
+        const res = await respuesta.json();
+        if (respuesta.ok) {
+          mostrarModal("✅ Unidad registrada correctamente", "#22c55e");
+        } else {
+          mostrarModal(`❌ ${res.error || "Error al registrar unidad"}`, "#dc2626");
+        }
+        return;
+      }
+
+      if (modo === "salida") {
+        const respuesta = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_unidad_salida", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            referencia_unidad: datos.referencia,
+            lote: datos.lote,
+            unidad_destino: unidadSeleccionada
+          })
+        });
+        const res = await respuesta.json();
+        if (respuesta.ok) {
+          mostrarModal("✅ Unidad retirada correctamente", "#ef4444");
+        } else {
+          mostrarModal(`❌ ${res.error || "Error al retirar unidad"}`, "#facc15");
+        }
+        return;
+      }
     }
 
-    // ✅ Si es caja fraccionable
+    // ✅ CAJA FRACCIONABLE
     if (esFraccionable && modo === "entrada") {
       const qrCaja = {
         ...datos,
@@ -1695,7 +1713,7 @@ async function procesarQR(contenido) {
       return;
     }
 
-    // 🔄 Salida fraccionable
+    // 🔄 SALIDA FRACCIONABLE
     if (esFraccionable && modo === "salida") {
       abrirModalCantidadFraccionable(datos.referencia, datos.lote, contenido);
       return;
@@ -1707,7 +1725,7 @@ async function procesarQR(contenido) {
       if (!permitido) return;
     }
 
-    // 🔍 Datos complementarios
+    // Historial para nombre/fabricante
     const historicoRes = await fetch(
       `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/historicos?select=referencia,nombre,fabricante`,
       { headers: { "apikey": API_KEY, "Authorization": `Bearer ${API_KEY}` } }
@@ -1716,11 +1734,10 @@ async function procesarQR(contenido) {
     const normalizar = str => str.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     const refLimpiada = normalizar(datos.referencia);
     const match = historico.find(h => normalizar(h.referencia) === refLimpiada);
-
     const nombre = match?.nombre || "SIN NOMBRE";
     const fabricante = match?.fabricante || "SIN FABRICANTE";
 
-    // 🗓️ Caducidad
+    // Caducidad
     let caducidadFinal = "S/C";
     if (datos.caducidad && !isNaN(datos.caducidad)) {
       try {
@@ -1735,7 +1752,6 @@ async function procesarQR(contenido) {
 
     verificarCaducidadYMostrarModal(caducidadFinal);
 
-    // ✅ Agrega QR normal a tabla contenedora
     const qrPendiente = {
       ...datos,
       modo,
@@ -1760,7 +1776,6 @@ async function procesarQR(contenido) {
 
 
 
-//8888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888
 
 
 // === Funciones auxiliares ===
@@ -1917,6 +1932,9 @@ async function registrarExtraccionConjunta(fracciones, referencia, usuario, unid
     mostrarModal(`⚠️ ${errores} de ${fracciones.length} cajas fallaron`, "#f59e0b");
   }
 }
+
+
+//88888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888
 
 
 async function validarContraRemision(referencia, lote, numeroRemision) {
