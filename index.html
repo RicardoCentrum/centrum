@@ -470,6 +470,11 @@
   </button>
 </div>
 
+<button id="btnCerrarSesion" onclick="cerrarSesion()" 
+  class="hidden fixed bottom-4 left-4 bg-gray-800 text-white px-4 py-2 rounded-xl shadow-lg text-sm hover:bg-gray-700 z-50">
+  🔒 Cerrar sesión
+</button>
+
     <div id="tablaRemisionSAP" class="hidden mt-4">
       <div class="flex justify-between items-center mb-2">
         <h2 class="font-bold text-sm">🧾 Avance remisión SAP:</h2>
@@ -606,6 +611,7 @@
         <h2 class="text-xl font-bold">📋 Captura de Inventario / Pruebas Facturadas</h2>
         <button onclick="cerrarModalCaptura()" class="text-red-600 font-bold text-xl">×</button>
       </div>
+      
 
 <div class="flex flex-wrap justify-between items-center mt-4 gap-4 w-full">
   <!-- Modo -->
@@ -719,8 +725,6 @@
     <tbody class="bg-white text-black"></tbody>
   </table>
 </div>
-
-
 
   <script>
 const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo";
@@ -1141,7 +1145,13 @@ async function validarPinYUnidad() {
         if (contenedorQR) contenedorQR.classList.remove("hidden");
         if (btnEnviar) btnEnviar.classList.remove("hidden");
              enfocarInputQR();  // ✅ Aquí forzamos el enfoque al lector de QR
-
+        // ✅ Mostrar u ocultar botón de cerrar sesión
+        const btnCerrar = document.getElementById("btnCerrarSesion");
+        if (modo && modo !== "inactivo") {
+          btnCerrar.classList.remove("hidden");
+        } else {
+          btnCerrar.classList.add("hidden");
+        }
       }
     }
 
@@ -1479,11 +1489,45 @@ function toggleCaducidadInput(checkbox) {
   }
 }
 function sonCaducidadesEquivalentes(a, b) {
-  const equivalentes = ["0", "S/C", "SC", "SIN CADUCIDAD", "N/A", "NA", ""];
-  const upperA = String(a).trim().toUpperCase();
-  const upperB = String(b).trim().toUpperCase();
-  if (equivalentes.includes(upperA) && equivalentes.includes(upperB)) return true;
-  return upperA === upperB;
+  const equivalentes = ["0", "S/C", "SC", "SIN CADUCIDAD", "N/A", "NA", "", null, undefined];
+
+  // Si ambos son equivalentes, acepta
+  if (equivalentes.includes(String(a).trim().toUpperCase()) &&
+      equivalentes.includes(String(b).trim().toUpperCase())) {
+    return true;
+  }
+
+  // Normaliza a fecha ISO si es Excel
+  function fechaExcelANormal(fecha) {
+    if (!fecha) return null;
+    if (!isNaN(Number(fecha)) && Number(fecha) > 10000 && Number(fecha) < 60000) {
+      // Formato Excel: días desde 1899-12-30
+      const base = new Date(Date.UTC(1899, 11, 30));
+      base.setDate(base.getDate() + Number(fecha));
+      return base.toISOString().split("T")[0];
+    }
+    // Si ya viene tipo "YYYY-MM-DD"
+    if (/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return fecha;
+    // Si viene tipo "YYYY/MM/DD"
+    if (/^\d{4}\/\d{2}\/\d{2}$/.test(fecha)) return fecha.replace(/\//g, '-');
+    // Si viene tipo "DD/MM/YYYY"
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(fecha)) {
+      const [d, m, y] = fecha.split("/");
+      return `${y}-${m}-${d}`;
+    }
+    // Si es string y parece fecha
+    if (!isNaN(Date.parse(fecha))) {
+      return new Date(fecha).toISOString().split("T")[0];
+    }
+    return String(fecha).trim().toUpperCase();
+  }
+
+  const fa = fechaExcelANormal(a);
+  const fb = fechaExcelANormal(b);
+
+  // Si alguna es "S/C", "0", etc., ya fue cubierto arriba
+  // Ahora comparamos fechas normales
+  return fa === fb;
 }
 
 function validarMuestreo(refEsperada, loteEsperado, cadEsperada) {
@@ -2732,11 +2776,11 @@ function ajustarMesLogico(timestamp) {
   document.body.appendChild(contenedor);
 }
 
-let nipAdmin = null; // Nuevo
+let nipAdmin = null;
+
 function solicitarPinModo(tipo, boton) {
   const modalAnterior = boton.closest('.modal-modo');
   if (modalAnterior) modalAnterior.remove();
-
   modoSeleccionado = tipo;
   unidadSeleccionada = null;
   document.getElementById("inputNIP").value = "";
@@ -2746,16 +2790,17 @@ function solicitarPinModo(tipo, boton) {
 
   const unidadGroup = document.getElementById("unidadDestinoGroup");
   const remisionGroup = document.getElementById("remisionGroup");
-  const bloqueCargaRemision = document.getElementById("bloqueCargaRemision"); // NUEVO BLOQUE
+  const bloqueCargaRemision = document.getElementById("bloqueCargaRemision");
 
   const esSalida = (tipo === "salida");
 
   unidadGroup.classList.toggle("hidden", !esSalida);
   remisionGroup.classList.toggle("hidden", !esSalida);
-  bloqueCargaRemision.classList.toggle("hidden", !esSalida);  // OCULTAMOS/ACTIVAMOS EL BLOQUE CARGA
+  bloqueCargaRemision.classList.toggle("hidden", !esSalida);
 
   document.getElementById("modalPinUnidad").classList.remove("hidden");
   document.getElementById("inputNIP").focus();
+
 }
 
 
@@ -5365,6 +5410,42 @@ async function procesarBasurero(datos) {
     mostrarModal("❌ Error de red", "#dc2626");
   }
 }
+
+function cerrarSesion() {
+  // 🔁 Limpiar estados
+  usuario = null;
+  nipAdmin = null;
+  unidadSeleccionada = null;
+  remisionActual = null;
+  modo = "inactivo";
+  modoSeleccionado = null;
+  qrsPendientes = [];
+
+  // ⛔️ Ocultar botón cerrar sesión si existe
+  const btnCerrar = document.getElementById("btnCerrarSesion");
+  if (btnCerrar) btnCerrar.classList.add("hidden");
+
+  // 🧼 Limpiar visual
+  document.getElementById("usuarioActivo").textContent = "Selecciona un modo para iniciar";
+  actualizarBotonModo("Inactivo", "bg-gray-500", "🔒");
+
+  // 🧽 Limpiar campos
+  document.getElementById("inputNIP").value = "";
+  document.getElementById("inputUnidad").value = "";
+  document.getElementById("inputRemision").value = "";
+
+  // 🧺 Ocultar modales abiertos
+  document.querySelectorAll(".fixed, .modal-modo, #modalPinUnidad").forEach(el => el.classList.add("hidden"));
+
+  // 🗑️ Vaciar tabla
+  if (typeof actualizarTablaRegistros === "function") {
+    actualizarTablaRegistros();
+  }
+
+  // ✅ Mostrar confirmación
+  mostrarModal("🔒 Sesión cerrada", "#6b7280");
+}
+
 
   </script>
 </body>
