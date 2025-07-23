@@ -1227,17 +1227,17 @@ function cerrarModalOpcionesAdmin() {
 
 function eliminarFila(boton) {
   const fila = boton.closest("tr");
-  fila.remove();
+  const index = parseInt(fila.dataset.index);
 
-  const tabla = document.getElementById("tablaRegistros");
-  const contenedor = document.getElementById("tablaContenedora");
-
-  // Oculta el contenedor si ya no hay filas
-  if (tabla.querySelectorAll("tr").length === 0) {
-    contenedor.classList.add("opacity-0");
-    setTimeout(() => contenedor.classList.add("hidden"), 500);
+  if (!isNaN(index)) {
+    console.log(`🗑️ Eliminando fila ${index} de qrsPendientes`);
+    qrsPendientes.splice(index, 1); // Eliminar del arreglo
+    actualizarTablaRegistros();     // Volver a renderizar tabla
+  } else {
+    console.warn("⚠️ No se pudo determinar el índice de la fila a eliminar.");
   }
 }
+
 
 // Extraer datos de QR incluso si el lote está vacío
 function extraerDatosQR(qr) {
@@ -1583,6 +1583,7 @@ function cancelarMuestreo() {
 function cerrarModalMuestreo() {
   const modal = document.querySelector(".muestreo-calidad");
   if (modal) modal.remove();
+  inputQR?.focus();
 }
 
 
@@ -1655,7 +1656,10 @@ async function procesarQR(contenido) {
       mostrarModal(msg, "#facc15");
       return;
     }
-
+    if (modo === "salida" && !registro?.timestamp && !registro?.ts_eliminado) {
+      mostrarModal("❌ Este código no ha sido registrado previamente en modo entrada.\nNo se encontró el timestamp en la base de datos.", "#dc2626");
+      return;
+    }
     if (modo === "salida") {
       const inputRemision = document.getElementById("inputNumeroRemision");
       const numeroRemision = inputRemision ? inputRemision.value.trim() : "";
@@ -1732,6 +1736,7 @@ async function procesarQR(contenido) {
 
     let caducidadFinal = "S/C";
     if (datos.caducidad && !isNaN(datos.caducidad)) {
+      inputQR?.focus();
       try {
         const fechaExcel = new Date((Number(datos.caducidad) - 25569) * 86400 * 1000);
         caducidadFinal = fechaExcel.toISOString().split("T")[0];
@@ -2523,6 +2528,48 @@ async function verificarPin(pinIngresado) {
   return { valido: false, generadoPor: null };
 }
 
+function iniciarActualizacionAutomaticaPIN() {
+  if (intervaloPin) clearInterval(intervaloPin);
+
+  // Ejecutar inmediatamente
+  actualizarPinYContador();
+
+  // Calcular cuánto falta para el siguiente múltiplo exacto del intervalo
+  const ahora = new Date();
+  const minutos = ahora.getUTCMinutes();
+  const segundos = ahora.getUTCSeconds();
+
+  const minutosHastaProximo = INTERVALO_MINUTOS - (minutos % INTERVALO_MINUTOS);
+  const msHastaProximo = (minutosHastaProximo * 60 - segundos) * 1000;
+
+  // ⏳ Primera actualización al siguiente punto exacto (ej. HH:10:00, HH:20:00...)
+  setTimeout(() => {
+    actualizarPinYContador();
+    intervaloPin = setInterval(actualizarPinYContador, INTERVALO_MINUTOS * 60000);
+  }, msHastaProximo);
+}
+
+async function detectarAdminDesdePIN(pinIngresado) {
+  const ahora = new Date();
+  const yyyy = ahora.getUTCFullYear();
+  const mm = String(ahora.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(ahora.getUTCDate()).padStart(2, "0");
+  const hh = String(ahora.getUTCHours()).padStart(2, "0");
+  const bloque = Math.floor(ahora.getUTCMinutes() / 10);
+  const clave = "medinova-secreto-2025";
+
+  for (const admin of listaAdmins) {
+    const base = `${admin.toLowerCase()}::${yyyy}-${mm}-${dd}-${hh}-${bloque}::${clave}`;
+    const hash = await sha256(base);
+    const pinGenerado = hash.substring(0, 6).toUpperCase();
+
+    if (pinIngresado === pinGenerado) {
+      return admin;
+    }
+  }
+
+  return null;
+}
 
 
 //==========================================================================================================
@@ -3835,25 +3882,22 @@ function actualizarTablaRegistros() {
     </thead>
   `;
 
-  // Agregar filas
-  qrsPendientes.forEach((qr, index) => {
-    const fila = document.createElement("tr");
-    fila.innerHTML = `
-      <td class="p-1">${qr.referencia}</td>
-      <td class="p-1">${qr.lote}</td>
-      <td class="p-1">${qr.modo}</td>
-      <td class="p-1 text-center">
-        <button onclick="eliminarFila(this)" class="bg-red-500 hover:bg-red-700 text-white px-2 rounded-xl">X</button>
-      </td>
-    `;
-    tabla.appendChild(fila);
-  });
+qrsPendientes.forEach((qr, index) => {
+  const fila = document.createElement("tr");
+  fila.dataset.index = index; // 💡 Aquí se guarda el índice
+  fila.innerHTML = `
+    <td class="p-1">${qr.referencia}</td>
+    <td class="p-1">${qr.lote}</td>
+    <td class="p-1">${qr.modo}</td>
+    <td class="p-1 text-center">
+      <button onclick="eliminarFila(this)" class="bg-red-500 hover:bg-red-700 text-white px-2 rounded-xl">X</button>
+    </td>
+  `;
+  tabla.appendChild(fila);
+});
 }
 
-
 //8888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888
-
-
 
 async function enviarSupabase() {
   if (!modo || modo === "inactivo") {
@@ -3873,7 +3917,6 @@ async function enviarSupabase() {
   for (const r of qrsPendientes) {
     const { referencia, lote, caducidad } = r;
 
-    // Omitir búsqueda si es unidad fraccionable, se hará con referencia base en la función Edge
     if (r.tipo !== "unidad") {
       const consultaProducto = await fetch(
         `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos?referencia=eq.${referencia}&lote=eq.${lote}`,
@@ -3959,31 +4002,48 @@ async function enviarSupabase() {
   const unidades = registros.filter(r => r.tipo === "unidad");
 
   try {
-    if (normales.length > 0) {
-      console.log("📤 Enviando productos normales:", normales);
-      await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr", {
+    // FUNCIONES EDGE CON RESPUESTA VERIFICADA
+    async function enviarYVerificar(url, datos, tipo) {
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ registros: normales })
+        body: JSON.stringify({ registros: datos })
       });
+      const json = await res.json();
+      const errores = json.resultados?.filter(r => r.status === "error");
+      if (errores?.length > 0) {
+        console.warn(`❌ Errores en ${tipo}:`, errores);
+        mostrarModal(`❌ Error al enviar productos (${tipo})`, "#b91c1c");
+        ocultarLoader();
+        throw new Error(`Errores en ${tipo}`);
+      }
+    }
+
+    if (normales.length > 0) {
+      console.log("📤 Enviando productos normales:", normales);
+      await enviarYVerificar(
+        "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr",
+        normales,
+        "normales"
+      );
     }
 
     if (fracciones.length > 0) {
       console.log("📦 Enviando productos fraccionables:", fracciones);
-      await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_fraccionable", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ registros: fracciones })
-      });
+      await enviarYVerificar(
+        "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_fraccionable",
+        fracciones,
+        "fraccionables"
+      );
     }
 
     if (unidades.length > 0) {
       console.log("🔹 Enviando unidades fraccionables:", unidades);
-      await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_unidad", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ registros: unidades })
-      });
+      await enviarYVerificar(
+        "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_unidad",
+        unidades,
+        "unidades fraccionables"
+      );
     }
 
     mostrarModal("📦 Productos enviados correctamente", "#22c55e");
@@ -3992,8 +4052,7 @@ async function enviarSupabase() {
     window.pinAutorizadoPor = null;
 
   } catch (err) {
-    console.error("❌ Error al enviar a Supabase:", err);
-    mostrarModal("❌ Fallo en el envío", "#b91c1c");
+    console.error("❌ Error al enviar productos:", err);
   } finally {
     ocultarLoader();
   }
@@ -5239,48 +5298,6 @@ function confirmarModoInventario() {
   document.getElementById("modalInventario").classList.remove("hidden");
 }
 
-function iniciarActualizacionAutomaticaPIN() {
-  if (intervaloPin) clearInterval(intervaloPin);
-
-  // Ejecutar inmediatamente
-  actualizarPinYContador();
-
-  // Calcular cuánto falta para el siguiente múltiplo exacto del intervalo
-  const ahora = new Date();
-  const minutos = ahora.getUTCMinutes();
-  const segundos = ahora.getUTCSeconds();
-
-  const minutosHastaProximo = INTERVALO_MINUTOS - (minutos % INTERVALO_MINUTOS);
-  const msHastaProximo = (minutosHastaProximo * 60 - segundos) * 1000;
-
-  // ⏳ Primera actualización al siguiente punto exacto (ej. HH:10:00, HH:20:00...)
-  setTimeout(() => {
-    actualizarPinYContador();
-    intervaloPin = setInterval(actualizarPinYContador, INTERVALO_MINUTOS * 60000);
-  }, msHastaProximo);
-}
-
-async function detectarAdminDesdePIN(pinIngresado) {
-  const ahora = new Date();
-  const yyyy = ahora.getUTCFullYear();
-  const mm = String(ahora.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(ahora.getUTCDate()).padStart(2, "0");
-  const hh = String(ahora.getUTCHours()).padStart(2, "0");
-  const bloque = Math.floor(ahora.getUTCMinutes() / 10);
-  const clave = "medinova-secreto-2025";
-
-  for (const admin of listaAdmins) {
-    const base = `${admin.toLowerCase()}::${yyyy}-${mm}-${dd}-${hh}-${bloque}::${clave}`;
-    const hash = await sha256(base);
-    const pinGenerado = hash.substring(0, 6).toUpperCase();
-
-    if (pinIngresado === pinGenerado) {
-      return admin;
-    }
-  }
-
-  return null;
-}
 
 async function procesarBasurero(datos) {
   if (!datos || !datos.referencia || !datos.lote || !datos.timestamp) {
