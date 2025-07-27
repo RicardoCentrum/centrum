@@ -144,7 +144,7 @@
 </div>
 
 <!-- MODAL QR draggable -->
-<div id="modalQR" class="fixed top-4 right-4 bg-white border rounded-xl shadow-lg z-[9999] p-2 w-[340px] max-w-full hidden cursor-move">
+<div id="modalQR" class="fixed top-4 right-4 bg-white border rounded-xl shadow-lg z-[980] p-2 w-[340px] max-w-full hidden cursor-move">
   <div class="relative" id="handleQR">
     <button onclick="cerrarModalQR()" class="absolute top-0 right-0 text-red-600 font-bold text-lg p-1 hover:text-red-800">×</button>
     <h2 class="text-center font-semibold text-sm mb-1 text-gray-800">Escanea un QR</h2>
@@ -730,6 +730,7 @@
 const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo";
 const VALIDAR_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/validar_qr";
 const API_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr";
+const SONIDO_BLOQUEADO = "https://github.com/RicardoCentrum/centrum/raw/main/losiento.mp3";
 let modo = "entrada";
 let qrsPendientes = [];  // lo que se ha validado pero aún no enviado
 let estaProcesandoSalida = false;
@@ -741,7 +742,6 @@ let usuario = null;                 // Se debe asignar al seleccionar usuario
 let unidadSeleccionada = null;      // Se asigna desde la selección de unidad médica
 let modoSeleccionado = null;
 let esAdmin = false;
-let nombre_usuario_validado = null;
 let UNIDAD_DESTINO = null;          // Se usa en modo salida para fraccionados
 let REF_GLOBAL = null;
 let modoExtraccionFraccionableActivo = false;
@@ -776,7 +776,7 @@ if (anioSelect) {
     anioSelect.innerHTML += `<option value="${y}">${y}</option>`;
   }
 }
-function mostrarLoader(){const o=document.getElementById("loaderOverlay");o&&o.classList.remove("hidden");document.body.style.overflow="hidden";window.addEventListener("keydown",bloquearTeclas,true);window.addEventListener("mousedown",bloquearClicks,true);}
+function mostrarLoader(delay=1500){const o=document.getElementById("loaderOverlay");o&&o.classList.remove("hidden");document.body.style.overflow="hidden";window.addEventListener("keydown",bloquearTeclas,true);window.addEventListener("mousedown",bloquearClicks,true);}
 function ocultarLoader(){const o=document.getElementById("loaderOverlay");o&&o.classList.add("hidden");document.body.style.overflow="";window.removeEventListener("keydown",bloquearTeclas,true);window.removeEventListener("mousedown",bloquearClicks,true);}
 function bloquearTeclas(e){if(!(e.key==="F5"||e.key==="Escape")){e.stopPropagation();e.preventDefault();}}
 function bloquearClicks(e){e.stopPropagation();e.preventDefault();}
@@ -939,6 +939,7 @@ function inicializarSelectorMesAnio() {
 }
   const INTERVALO_MINUTOS = 10; // Puedes cambiar a 5, 15, etc.
   const listaAdmins = ["Silvia", "Luis", "Aida", "Ricardo", "Alex", "Adrian"];
+
 function enfocarInputQR() {
   const contenedor = document.getElementById("contenedorQR");
   const input = document.getElementById("inputQR");
@@ -959,6 +960,33 @@ function enfocarInputQR() {
     console.warn("⚠️ No se encontró el inputQR");
   }
 }
+
+
+function desbloquearEscaneoCritico() {
+  window.escaneoBloqueado = false;
+  if (typeof reanudarEscaneo === "function") reanudarEscaneo();
+  const inputQR = document.getElementById("inputQR");
+  if (inputQR) inputQR.disabled = false;
+}
+
+
+function bloquearEscaneoCritico(opciones = {}) {
+  window.escaneoBloqueado = true;
+  if (typeof detenerEscaneo === "function") detenerEscaneo();
+  const inputQR = document.getElementById("inputQR");
+  if (inputQR) {
+    inputQR.disabled = true;
+    inputQR.blur();
+  }
+  const sonido = opciones.sonido || SONIDO_BLOQUEADO;
+  if (sonido) {
+    try { new Audio(sonido).play(); } catch (e) {}
+  }
+  if (opciones.vibrar && window.navigator.vibrate) {
+    window.navigator.vibrate([200, 100, 200]);
+  }
+}
+
 
 
 async function validarPinYUnidad() {
@@ -1082,12 +1110,13 @@ async function validarPinYUnidad() {
     }
 
     usuario = data.nombre;
+    window.usuario = usuario; // ✅ Asegura que esté disponible globalmente
     esAdmin = data.es_admin;
     usuarioAdmin = esAdmin === true;
     window.usuarioEsAdmin = usuarioAdmin;
 
     if (usuarioAdmin) {
-      window.nombreAdmin = usuario;
+      window.nombreAdmin = usuario; // ✅ Requerido para generar PIN dinámico
       console.log("✅ Admin detectado:", window.nombreAdmin);
     } else {
       window.nombreAdmin = null;
@@ -1175,7 +1204,7 @@ async function sha256(text) {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-async function generarPinDinamico(nombreAdmin) {
+async function generarPinDinamico(usuarioAdmin) {
   if (!nombreAdmin || typeof nombreAdmin !== "string") {
     console.error("❌ No se proporcionó un nombreAdmin válido a generarPinDinamico");
     return "------";
@@ -1251,6 +1280,18 @@ function eliminarFila(boton) {
 
 // Extraer datos de QR incluso si el lote está vacío
 function extraerDatosQR(qr) {
+    if (window.escaneoBloqueado) {
+      try {
+        new Audio(SONIDO_BLOQUEADO).play();
+      } catch (e) {}
+      mostrarModal(
+        "🚫 El sistema está temporalmente bloqueado.<br>Completa o cierra la operación crítica antes de escanear.",
+        "#b91c1c"
+      );
+      console.log("🚫 Escaneo bloqueado por función crítica.");
+      return;
+    }
+
     const limpio = qr.trim().replace(/\s+/g, '');
 
     let partes = null;
@@ -1269,6 +1310,18 @@ function extraerDatosQR(qr) {
       );
     }
 
+    // Formato móvil tipo RÑxxxÇLÑxxxÇCÑxxxÇTÑxxx
+    else if (limpio.includes('Ç') && limpio.includes('Ñ')) {
+      partes = Object.fromEntries(
+        limpio.split('Ç').map(p => p.split('Ñ')).filter(p => p.length === 2)
+      );
+    }
+        // Formato móvil tipo RÑxxxÇLÑxxxÇCÑxxxÇTÑxxx
+    else if (limpio.includes(']') && limpio.includes('Ñ')) {
+      partes = Object.fromEntries(
+        limpio.split(']').map(p => p.split('Ñ')).filter(p => p.length === 2)
+      );
+    }
     if (!partes) return null;
 
     return {
@@ -1282,9 +1335,7 @@ function extraerDatosQR(qr) {
 function verificarCaducidadYMostrarModal(caducidadStr) {
   console.log("🧪 Verificando caducidad:", caducidadStr);
 
-  if (!caducidadStr || 
-      caducidadStr.toString().trim() === "0" || 
-      caducidadStr.toString().trim().toLowerCase() === "s/c") {
+  if (!caducidadStr || caducidadStr.toLowerCase() === "s/c") {
     console.warn("⏩ Caducidad vacía o sin control (S/C)");
     return;
   }
@@ -1300,54 +1351,67 @@ function verificarCaducidadYMostrarModal(caducidadStr) {
   const diff = Math.ceil((fecha - hoy) / (1000 * 60 * 60 * 24));
   console.log(`📆 Días hasta caducidad: ${diff}`);
 
-  if (diff < 8) {
+  if (diff < 5) {
     console.warn("⚠️ Producto caduco o próximo a caducar");
 
     if (modo === "entrada") {
-      // Mostrar modal sin bloquear, con calaverita
+      // ⚡ Aviso rápido, sin bloqueo
       setTimeout(() => {
         mostrarModal("💀 Producto caduco o próximo a caducar", "#304000");
       }, 600);
+
     } else if (modo === "salida") {
-      // Modal persistente personalizado
+      // 🚨 Modal interactivo con botón “Entendido”
+      const overlay = document.createElement("div");
+      overlay.style.position = "fixed";
+      overlay.style.top = "0";
+      overlay.style.left = "0";
+      overlay.style.width = "100vw";
+      overlay.style.height = "100vh";
+      overlay.style.background = "rgba(48, 64, 0, 0.4)";
+      overlay.style.backdropFilter = "blur(10px)";
+      overlay.style.webkitBackdropFilter = "blur(10px)";
+      overlay.style.zIndex = "998";
+
       const modal = document.createElement("div");
       modal.style.position = "fixed";
-      modal.style.top = "0";
-      modal.style.left = "0";
-      modal.style.width = "100vw";
-      modal.style.height = "100vh";
-      modal.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
-      modal.style.display = "flex";
-      modal.style.justifyContent = "center";
-      modal.style.alignItems = "center";
-      modal.style.zIndex = "9999";
+      modal.style.top = "50%";
+      modal.style.left = "50%";
+      modal.style.transform = "translate(-50%, -50%)";
+      modal.style.background = "rgba(255, 255, 255, 0.25)";
+      modal.style.border = "2px solid rgba(255, 255, 255, 0.6)";
+      modal.style.boxShadow = "0 4px 30px rgba(0, 0, 0, 0.2)";
+      modal.style.borderRadius = "16px";
+      modal.style.padding = "24px 32px";
+      modal.style.textAlign = "center";
+      modal.style.color = "#000";
+      modal.style.fontWeight = "bold";
+      modal.style.fontSize = "20px";
+      modal.style.zIndex = "999";
 
-      const contenido = document.createElement("div");
-      contenido.style.backgroundColor = "#304000";
-      contenido.style.padding = "2rem";
-      contenido.style.borderRadius = "13rem";
-      contenido.style.boxShadow = "0 0 20px #00000080";
-      contenido.style.textAlign = "center";
-      contenido.innerHTML = `
+      modal.innerHTML = `
         <div style="font-size: 3rem; margin-bottom: 1rem;">💀</div>
-        <div style="font-size: 1.5rem; font-weight: bold;">Producto caduco o próximo a caducar</div>
+        <div>Producto caduco o próximo a caducar</div>
         <div style="margin-top: 1rem;">
-          <button style="margin-top: 1.5rem; padding: 0.5rem 1.5rem; font-size: 1rem; border: none; background-color: #333; color: white; border-radius: 2rem; cursor: pointer;">
+          <button id="btnEntendidoCaducidad"
+            style="margin-top: 1.5rem; padding: 0.5rem 1.5rem; font-size: 1rem; border: none; background-color: #333; color: white; border-radius: 12px; cursor: pointer;">
             Entendido
           </button>
         </div>
       `;
 
-      modal.appendChild(contenido);
+      document.body.appendChild(overlay);
       document.body.appendChild(modal);
 
-      const botonCerrar = contenido.querySelector("button");
-      botonCerrar.addEventListener("click", () => {
+      // 🎯 Cerrar modal al hacer clic en "Entendido"
+      document.getElementById("btnEntendidoCaducidad").addEventListener("click", () => {
         modal.remove();
+        overlay.remove();
       });
     }
   }
 }
+
 
 
 // Mostrar mensajes temporales
@@ -1358,24 +1422,64 @@ function mostrarModal(mensaje, color) {
 
   if (timeoutAviso) clearTimeout(timeoutAviso);
 
+  // 🎯 Estilo del modal (efecto vidrio con borde brillante)
   modal.textContent = mensaje;
-  modal.style.backgroundColor = color;
-  modal.style.zIndex = "9999";
+  modal.style.background = "rgba(255, 255, 255, 0.25)";   // más transparente para que el glass sea real
+  modal.style.color = "#000";                             // texto oscuro
+  modal.style.backdropFilter = "blur(10px)";
+  modal.style.webkitBackdropFilter = "blur(10px)";
+  modal.style.border = "2px solid rgba(255, 255, 255, 0.6)";  // 🔥 Borde brillante estilo glass
+  modal.style.boxShadow = "0 4px 30px rgba(0, 0, 0, 0.2)";    // sombra suave para flotar
+  modal.style.borderRadius = "16px";
+  modal.style.padding = "24px 32px";
+  modal.style.zIndex = "999";
   modal.style.display = "block";
+  modal.style.textAlign = "center";
+  modal.style.fontWeight = "bold";
+  modal.style.fontSize = "20px";
 
   if (overlay) {
-    overlay.style.backgroundColor = color;
+    // ✅ Convertimos el color sólido en translúcido
+    let colorRGBA = color;
+    if (!color.includes("rgba") && color.startsWith("#")) {
+      const hex = color.replace("#", "");
+      const r = parseInt(hex.substring(0, 2), 16);
+      const g = parseInt(hex.substring(2, 4), 16);
+      const b = parseInt(hex.substring(4, 6), 16);
+      colorRGBA = `rgba(${r}, ${g}, ${b}, 0.5)`; // 🔥 un poco menos opaco para ver el blur
+    } else if (!color.includes("rgba") && color.startsWith("rgb")) {
+      colorRGBA = color.replace("rgb", "rgba").replace(")", ", 0.5)");
+    }
+
+    // 🎨 Fondo con color + transparencia
+    overlay.style.backgroundColor = colorRGBA;
     overlay.style.display = "block";
-    overlay.style.opacity = "0.6";
-    overlay.style.zIndex = "9998";
+    overlay.style.zIndex = "998";
+
+    // 🪟 Blur real del fondo
+    overlay.style.backdropFilter = "blur(10px)";
+    overlay.style.webkitBackdropFilter = "blur(10px)";
+
+    // 🔧 Aseguramos que cubra toda la pantalla
+    overlay.style.position = "fixed";
+    overlay.style.top = "0";
+    overlay.style.left = "0";
+    overlay.style.width = "100vw";
+    overlay.style.height = "100vh";
   }
 
   timeoutAviso = setTimeout(() => {
     modal.style.display = "none";
-    if (overlay) overlay.style.display = "none";
+    if (overlay) {
+      overlay.style.display = "none";
+      overlay.style.backdropFilter = "";
+      overlay.style.webkitBackdropFilter = "";
+    }
     timeoutAviso = null;
   }, 1500);
 }
+
+
 
 async function mostrarPrevisualizacionDesdeQR(contenido) {
   const ref = extraerReferenciaDesdeQR(contenido);
@@ -1417,7 +1521,7 @@ function intentoMuestreoDeCalidad(producto) {
   console.log("🧪 Ejecutando intentoMuestreoDeCalidad");
   console.log("🧪 Producto recibido:", producto);
 
-  const probabilidad = 1 / 30; // Cambia a 1/30 en producción
+  const probabilidad = 1 / 1; // Cambia a 1/30 en producción
   const aleatorio = Math.random();
   console.log("🧪 Número aleatorio generado:", aleatorio);
 
@@ -1455,25 +1559,33 @@ function intentoMuestreoDeCalidad(producto) {
   contenido.style.maxWidth = "500px";
   contenido.style.boxSizing = "border-box";
   contenido.innerHTML = `
-    <h2 style="font-size: 1.25rem; font-weight: bold; color: #b91c1c; margin-bottom: 1rem;">🧪 Muestreo de Calidad</h2>
-    <p style="margin-bottom: 1rem; color: black;">Verifique físicamente el producto y escriba los datos reales:</p>
-    <label style="color: black;">Referencia:</label>
+    <h2 style="font-size: 1.25rem; font-weight: bold; text-align: center; color: #990026; margin-bottom: 1rem;">🧪 Muestreo de Calidad</h2>
+    <p style="margin-bottom: 0.5rem; color: #990026; font-weight: bold;">
+      ⚠️ <b>IMPORTANTE:</b> NO uses la etiqueta. 
+      Ingresa los datos impresos directamente en el envase o empaque original del producto.
+    </p>
+    <label style="color: black;"><b>Referencia:</b> Escribe la clave o número como aparece en el empaque.</label>
     <input id="input_ref_validar" type="text" placeholder="Ej: 547321" style="width: 100%; color: black; padding: 0.5rem; margin-bottom: 0.5rem;">
-    <label style="color: black;">Lote:</label>
+    <label style="color: black;"><b>Lote:</b> Captura el lote visible en el producto (no en la etiqueta).</label>
     <input id="input_lote_validar" type="text" placeholder="Ej: A23B56" style="width: 100%; color: black; padding: 0.5rem; margin-bottom: 0.5rem;">
-    <label style="color: black;">Caducidad:</label>
+    <label style="color: black;"><b>Caducidad:</b> Ingresa la fecha como viene impresa, o marca "Sin caducidad" si aplica.</label>
     <input id="input_cad_validar" type="date" style="width: 100%; color: black; padding: 0.5rem; margin-bottom: 0.5rem;">
     <div style="display:flex; align-items:center; margin-bottom: 1rem;">
       <input id="cad_no_aplica" type="checkbox" style="margin-right: 0.5rem;" onchange="toggleCaducidadInput(this)">
       <label for="cad_no_aplica" style="color:black; margin:0;">Sin caducidad / No aplica</label>
     </div>
     <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-      <button onclick="validarMuestreo('${producto.referencia}','${producto.lote}','${producto.caducidad}')" style="padding: 0.5rem; background-color: #15803d; color: white; font-weight: bold; border: none; border-radius: 0.375rem;">Validar</button>
-      <button onclick="cancelarMuestreo()" style="padding: 0.5rem; background-color: #b91c1c; color: white; font-weight: bold; border: none; border-radius: 0.375rem;">Omitir</button>
+      <button onclick="validarMuestreo('${producto.referencia}','${producto.lote}','${producto.caducidad}')" style="padding: 0.5rem; background-color: #15803d; color: white; font-weight: bold; border: none; border-radius: 5rem;">Validar</button>
+      <button onclick="cancelarMuestreo()" style="padding: 0.5rem; background-color: #990026; color: white; font-weight: bold; border: none; border-radius: 5rem;">Omitir</button>
     </div>
   `;
 
   modal.appendChild(contenido);
+    // 🚫 Bloquea escaneo cuando se activa el muestreo
+  bloquearEscaneoCritico({
+    sonido: "https://github.com/RicardoCentrum/centrum/raw/main/losiento.mp3",
+    vibrar: true
+  });
   document.body.appendChild(modal);
   console.log("🧪 Modal de muestreo insertado en el DOM");
 }
@@ -1488,29 +1600,37 @@ function toggleCaducidadInput(checkbox) {
     inputCad.disabled = false;
   }
 }
+
 function sonCaducidadesEquivalentes(a, b) {
   const equivalentes = ["0", "S/C", "SC", "SIN CADUCIDAD", "N/A", "NA", "", null, undefined];
 
-  // Si ambos son equivalentes, acepta
-  if (equivalentes.includes(String(a).trim().toUpperCase()) &&
-      equivalentes.includes(String(b).trim().toUpperCase())) {
+  // Si ambos son equivalentes "sin caducidad", acepta
+  const upperA = (a === null || a === undefined) ? "" : String(a).trim().toUpperCase();
+  const upperB = (b === null || b === undefined) ? "" : String(b).trim().toUpperCase();
+  if (equivalentes.includes(upperA) && equivalentes.includes(upperB)) {
+    console.log("🟢 Ambos valores equivalentes a 'sin caducidad':", upperA, upperB);
     return true;
   }
 
-  // Normaliza a fecha ISO si es Excel
+  // Función interna para normalizar cualquier fecha a ISO (YYYY-MM-DD)
   function fechaExcelANormal(fecha) {
-    if (!fecha) return null;
+    if (!fecha) return "";
+    // Detecta si es un número Excel válido
     if (!isNaN(Number(fecha)) && Number(fecha) > 10000 && Number(fecha) < 60000) {
-      // Formato Excel: días desde 1899-12-30
-      const base = new Date(Date.UTC(1899, 11, 30));
-      base.setDate(base.getDate() + Number(fecha));
-      return base.toISOString().split("T")[0];
+      const serial = Number(fecha);
+      // Excel usa 1899-12-30 como día 0
+      const msPerDay = 24 * 60 * 60 * 1000;
+      const excelEpoch = Date.UTC(1899, 11, 30);
+      const dateMs = excelEpoch + serial * msPerDay;
+      // Siempre toma la fecha en UTC, así no afecta la zona horaria local
+      const date = new Date(dateMs);
+      return date.toISOString().split("T")[0];
     }
-    // Si ya viene tipo "YYYY-MM-DD"
+    // YYYY-MM-DD
     if (/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return fecha;
-    // Si viene tipo "YYYY/MM/DD"
+    // YYYY/MM/DD
     if (/^\d{4}\/\d{2}\/\d{2}$/.test(fecha)) return fecha.replace(/\//g, '-');
-    // Si viene tipo "DD/MM/YYYY"
+    // DD/MM/YYYY
     if (/^\d{2}\/\d{2}\/\d{4}$/.test(fecha)) {
       const [d, m, y] = fecha.split("/");
       return `${y}-${m}-${d}`;
@@ -1525,16 +1645,28 @@ function sonCaducidadesEquivalentes(a, b) {
   const fa = fechaExcelANormal(a);
   const fb = fechaExcelANormal(b);
 
-  // Si alguna es "S/C", "0", etc., ya fue cubierto arriba
-  // Ahora comparamos fechas normales
-  return fa === fb;
+  console.log("🔎 Caducidad A normalizada:", fa, "| original:", a);
+  console.log("🔎 Caducidad B normalizada:", fb, "| original:", b);
+
+  // Si alguna era "S/C" o "0", ya fue cubierto arriba.
+  // Ahora comparamos fechas normalizadas.
+  const resultado = fa === fb;
+  if (resultado) {
+    console.log("✅ Caducidades equivalentes:", fa, fb);
+  } else {
+    console.log("❌ Caducidades diferentes:", fa, fb);
+  }
+  return resultado;
 }
+
 
 function validarMuestreo(refEsperada, loteEsperado, cadEsperada) {
   console.log("🧪 Validando muestreo:", { refEsperada, loteEsperado, cadEsperada });
   const ref = document.getElementById("input_ref_validar").value.trim();
   const lote = document.getElementById("input_lote_validar").value.trim();
-  let cad = document.getElementById("input_cad_validar").value;
+  let cad = document.getElementById("input_cad_validar")
+    ? document.getElementById("input_cad_validar").value
+    : null;
 
   // Si el checkbox está marcado, la caducidad es "S/C"
   if (document.getElementById("cad_no_aplica")?.checked) {
@@ -1543,65 +1675,26 @@ function validarMuestreo(refEsperada, loteEsperado, cadEsperada) {
 
   console.log("🧪 Valores ingresados:", { ref, lote, cad });
 
-  if (!ref || !lote || !cad) {
-    mostrarModal("Completa todos los campos correctamente", "red");
-    return;
-  }
-
   const nip = typeof usuario !== "undefined" ? usuario : "SIN_NIP";
-  const nombre = localStorage.getItem("usuario") || "Anonimo";
-
-  // Validación exitosa
-  if (ref === refEsperada && lote === loteEsperado && sonCaducidadesEquivalentes(cad, cadEsperada)) {
-    fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/registro_errores", {
-      method: "POST",
-      headers: {
-        "apikey": API_KEY,
-        "Authorization": `Bearer ${API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        usuario: nombre,
-        referencia: refEsperada,
-        lote: loteEsperado,
-        fecha: new Date().toISOString(),
-        motivo: "muestreo validado",
-        modo: "muestreo",
-        pin_ingresado: nip,
-        valido: true
-      })
-    });
-    mostrarModal("Validación exitosa ✅", "green");
-    cerrarModalMuestreo();
-  } else {
-    // Error en validación
-    fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/registro_errores", {
-      method: "POST",
-      headers: {
-        "apikey": API_KEY,
-        "Authorization": `Bearer ${API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        usuario: nombre,
-        referencia: refEsperada,
-        lote: loteEsperado,
-        fecha: new Date().toISOString(),
-        motivo: "muestreo error",
-        modo: "muestreo",
-        pin_ingresado: nip,
-        valido: false
-      })
-    });
-    mostrarModal("❌ Error de validación. Notificado a administradores.", "red");
-    cerrarModalMuestreo();
-  }
-}
-
-function cancelarMuestreo() {
-  console.warn("🚨 Muestreo omitido por el usuario");
   const nombre = localStorage.getItem("nombreUsuario") || "Anonimo";
-  const nip = typeof usuario !== "undefined" ? usuario : "-";
+
+  // Si la caducidad esperada es "vacía" o equivalente, acepta cualquier valor en caducidad:
+  const equivalentes = ["0", "S/C", "SC", "SIN CADUCIDAD", "N/A", "NA", "", null, undefined];
+  const cadEsperadaVacía = equivalentes.includes(
+    cadEsperada === undefined || cadEsperada === null ? "" : String(cadEsperada).trim().toUpperCase()
+  );
+
+  let validacionOK = false;
+  if (cadEsperadaVacía) {
+    validacionOK = ref === refEsperada && lote === loteEsperado;
+  } else {
+    validacionOK =
+      ref === refEsperada &&
+      lote === loteEsperado &&
+      sonCaducidadesEquivalentes(cad, cadEsperada);
+  }
+
+  // SIEMPRE registra el intento, aunque falte referencia/lote/cad
   fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/registro_errores", {
     method: "POST",
     headers: {
@@ -1611,21 +1704,129 @@ function cancelarMuestreo() {
     },
     body: JSON.stringify({
       usuario: nombre,
-      referencia: "-",
-      lote: "-",
+      referencia: refEsperada,
+      lote: loteEsperado,
       fecha: new Date().toISOString(),
-      motivo: "muestreo omitido",
+      motivo: validacionOK ? "muestreo validado" : "muestreo error",
       modo: "muestreo",
       pin_ingresado: nip,
-      valido: false
+      valido: validacionOK,
+      // OPCIONAL: guarda lo que el usuario capturó
+      ref_ingresada: ref,
+      lote_ingresado: lote,
+      caducidad_ingresada: cad
     })
   });
-  mostrarModal("🚨 Muestreo omitido. Notificado a administradores.", "red");
+
+  if (validacionOK) {
+    mostrarModal("Validación exitosa ✅", "#22c55e");
+  } else {
+    mostrarModal("❌ Error de validación. Notificado a administradores.", "#990026");
+  }
+
+  desbloquearEscaneoCritico();
   cerrarModalMuestreo();
 }
 
+
+
+
+function cancelarMuestreo() {
+  console.warn("🚨 Muestreo omitido por el usuario");
+
+  // Sonido advertencia
+  const SONIDO_ADVERTENCIA = "https://github.com/RicardoCentrum/centrum/raw/main/advertencia%20muestreo%20calidad.mp3";
+  try { new Audio(SONIDO_ADVERTENCIA).play(); } catch (e) {}
+
+  // Modal de confirmación especial
+  const modalConfirm = document.createElement("div");
+  modalConfirm.style.position = "fixed";
+  modalConfirm.style.top = "0";
+  modalConfirm.style.left = "0";
+  modalConfirm.style.width = "100vw";
+  modalConfirm.style.height = "100vh";
+  modalConfirm.style.background = "rgba(200,0,60,0.55)";
+  modalConfirm.style.backdropFilter = "blur(8px)";
+  modalConfirm.style.webkitBackdropFilter = "blur(8px)";
+  modalConfirm.style.zIndex = "99999";
+  modalConfirm.style.display = "flex";
+  modalConfirm.style.justifyContent = "center";
+  modalConfirm.style.alignItems = "center";
+
+  const contenido = document.createElement("div");
+  contenido.style.background = "rgba(255,255,255,0.75)"; // Fondo glass
+  contenido.style.backdropFilter = "blur(10px)";
+  contenido.style.webkitBackdropFilter = "blur(10px)";
+  contenido.style.border = "2px solid rgba(255,255,255,0.6)";
+  contenido.style.boxShadow = "0 4px 30px rgba(0,0,0,0.2)";
+  contenido.style.borderRadius = "16px";
+  contenido.style.padding = "2rem";
+  contenido.style.textAlign = "center";
+  contenido.style.color = "#990026";
+  contenido.style.fontWeight = "bold";
+  contenido.style.maxWidth = "420px";
+  contenido.style.margin = "0 auto";
+
+  // El resto de tu contenido HTML:
+  contenido.innerHTML = `
+    <div style="font-size: 2rem; margin-bottom: 1rem;">⚠️</div>
+    <div style="font-size: 1.15rem; margin-bottom: 1.25rem; color:#990026;">
+      ¿Te rehusas a participar en el <b>muestreo aleatorio de calidad</b>?
+    </div>
+    <div style="display:flex; justify-content:center; gap:1rem;">
+      <button id="btnOmitirMuestreo" style="background:#990026; color:white; border:none; border-radius:5rem; padding:0.75rem 2rem; font-size:1rem; font-weight:bold; box-shadow:0 2px 10px #99002633; cursor:pointer;">
+        Sí, omitir muestreo
+      </button>
+      <button id="btnCancelarOmitir" style="background:#e5e7eb; color:#990026; border:none; border-radius:5rem; padding:0.75rem 2rem; font-size:1rem; font-weight:bold; box-shadow:0 2px 10px #99002622; cursor:pointer;">
+        Cancelar
+      </button>
+    </div>
+  `;
+
+  modalConfirm.appendChild(contenido);
+  document.body.appendChild(modalConfirm);
+
+  // Acción al aceptar (omitir realmente)
+  contenido.querySelector("#btnOmitirMuestreo").onclick = () => {
+    const nombre = localStorage.getItem("nombreUsuario") || "Anonimo";
+    const nip = typeof usuario !== "undefined" ? usuario : "-";
+    fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/registro_errores", {
+      method: "POST",
+      headers: {
+        "apikey": API_KEY,
+        "Authorization": `Bearer ${API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        usuario: nombre,
+        referencia: "-",
+        lote: "-",
+        fecha: new Date().toISOString(),
+        motivo: "muestreo omitido",
+        modo: "muestreo",
+        pin_ingresado: nip,
+        valido: false
+      })
+    });
+    desbloquearEscaneoCritico();
+    cerrarModalMuestreo();
+    modalConfirm.remove();
+    mostrarModal("🚨 Muestreo omitido. Notificado a administradores.", "#990026");
+  };
+
+  // Acción al cancelar (volver al muestreo)
+  contenido.querySelector("#btnCancelarOmitir").onclick = () => {
+    modalConfirm.remove();
+    // ¡El muestreo original sigue abierto y el escaneo sigue bloqueado!
+    try { document.getElementById("input_ref_validar").focus(); } catch (e) {}
+  };
+}
+
+
+
 function cerrarModalMuestreo() {
   const modal = document.querySelector(".muestreo-calidad");
+  desbloquearEscaneoCritico()
   if (modal) modal.remove();
   inputQR?.focus();
 }
@@ -1683,23 +1884,54 @@ async function procesarQR(contenido) {
       return;
     }
 
-    // ✅ Verificar si el timestamp ya existe o fue eliminado
     const tsCheckRes = await fetch(
-      `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/TimeStamps?timestamp=eq.${datos.timestamp}&select=timestamp,ts_eliminado,usuario,unidad_destino,fecha_salida_str`,
+      `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/TimeStamps?or=(timestamp.eq.${datos.timestamp},ts_eliminado.eq.${datos.timestamp})&select=timestamp,ts_eliminado,usuario,unidad_destino,fecha_salida_str`,
       { headers: { "apikey": API_KEY, "Authorization": `Bearer ${API_KEY}` } }
     );
-    const tsData = await tsCheckRes.json();
-    const registro = tsData[0];
 
-    if (modo === "entrada" && registro?.timestamp) {
-      mostrarModal("📦 Ya escaneado anteriormente", "#0284c7");
-      return;
-    }
+    const tsData = await tsCheckRes.json();
+    console.log("🔍 [TS DEBUG] Respuesta completa de Supabase:", tsData);
+
+    const registro = tsData[0] || null;
+
     if (modo === "salida" && registro?.ts_eliminado) {
-      const msg = `🟡 Producto ya fue retirado\n👤 ${registro.usuario || "-"}\n🏥 ${registro.unidad_destino || "-"}\n📅 ${registro.fecha_salida_str || "-"}`;
+      // ✅ Convertir código de unidad a nombre legible
+      const unidadNombre = unidadesDestino[registro.unidad_destino] || registro.unidad_destino || "-";
+
+      // ✅ Formatear fecha
+      const fechaStr = registro.fecha_salida_str || "-";
+      let fechaFormateada = fechaStr;
+
+      try {
+        // Ejemplo: "26/07/25 18:03:49"
+        const [fechaParte, horaParte] = fechaStr.split(" ");
+        const [dia, mes, anioCorto] = fechaParte.split("/");
+        const anio = anioCorto.length === 2 ? `20${anioCorto}` : anioCorto;
+
+        const fechaISO = `${anio}-${mes}-${dia}T${horaParte}`;
+        const fechaObjeto = new Date(fechaISO);
+
+        const opcionesFecha = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        const opcionesHora = { hour: '2-digit', minute: '2-digit' };
+
+        const fechaBonita = fechaObjeto.toLocaleDateString('es-MX', opcionesFecha);
+        const horaBonita = fechaObjeto.toLocaleTimeString('es-MX', opcionesHora);
+
+        fechaFormateada = `${fechaBonita} a las ${horaBonita}`;
+      } catch (e) {
+        console.warn("⚠️ No se pudo formatear fecha:", fechaStr, e);
+      }
+
+      // ✅ Mensaje final
+      const msg = `⚠️ Este producto ya fue previamente retirado por:
+    ${registro.usuario || "-"}
+    para la unidad ${unidadNombre}
+    el día ${fechaFormateada}`;
+
       mostrarModal(msg, "#facc15");
       return;
     }
+
     if (modo === "salida" && !registro?.timestamp && !registro?.ts_eliminado) {
       mostrarModal("❌ Este código no ha sido registrado previamente en modo entrada.\nNo se encontró el timestamp en la base de datos.", "#dc2626");
       return;
@@ -1818,27 +2050,29 @@ async function procesarQR(contenido) {
 
 
 // === Funciones auxiliares ===
-  function prepararEventoCantidadFraccionable() {
-    const input = document.getElementById("inputCantidadFraccionable");
-    if (!input) return;
+function prepararEventoCantidadFraccionable() {
+  const input = document.getElementById("inputCantidadFraccionable");
+  if (!input) return;
 
-    // Primero eliminamos cualquier listener previo (por seguridad)
-    input.replaceWith(input.cloneNode(true));
+  // Primero eliminamos cualquier listener previo (por seguridad)
+  input.replaceWith(input.cloneNode(true));
 
-    const nuevoInput = document.getElementById("inputCantidadFraccionable");
-    nuevoInput.addEventListener("keyup", function(e) {
-      if (e.key === "Enter") confirmarCantidadFraccionable();
-    });
-  }
-
+  const nuevoInput = document.getElementById("inputCantidadFraccionable");
+  nuevoInput.addEventListener("keyup", function (e) {
+    if (e.key === "Enter") confirmarCantidadFraccionable();
+  });
+}
 
 function iniciarExtraccionFraccionableFrontend(ref, lote, cantidad) {
   fraccionesEscaneadas = [];
   cantidadFaltante = cantidad;
   referenciaActual = ref;
   loteActual = lote;
+  referenciaFraccionable = ref; // ✅ Definir referencia esperada
+  loteFraccionable = lote;       // ✅ Definir lote esperado
   mostrarModal("🔄 Escanea la primera caja...", "#6b7280");
 }
+
 function reenfocarInputFraccionable() {
   const input = document.getElementById("inputEscaneoFraccionable");
   if (input) {
@@ -1875,7 +2109,11 @@ async function procesarCajaFraccionable(contenidoQR) {
       }
     });
 
+    if (!res.ok) throw new Error(`❌ Error HTTP: ${res.status}`);
+
     const [fraccion] = await res.json();
+
+    console.log("📦 Caja procesada:", fraccion);
 
     if (!fraccion || fraccion.cantidad_restante <= 0) {
       mostrarModal("❌ Caja vacía o no encontrada", "#dc2626");
@@ -1884,8 +2122,8 @@ async function procesarCajaFraccionable(contenidoQR) {
     }
 
     const usado = Math.min(fraccion.cantidad_restante, cantidadFaltante);
+    cantidadFaltante = Math.max(0, cantidadFaltante - usado);
     fraccionesEscaneadas.push({ timestamp: ts, lote: datos.lote, usado });
-    cantidadFaltante -= usado;
 
     actualizarModalFraccionable();
 
@@ -1905,11 +2143,17 @@ async function procesarCajaFraccionable(contenidoQR) {
     reenfocarInputFraccionable();
   }
 }
+
 async function registrarExtraccionConjunta(fracciones, referencia, usuario, unidad) {
   let errores = 0;
+  const cajasProcesadas = new Set();
 
   for (const [i, f] of fracciones.entries()) {
     try {
+      const key = `${referencia}-${f.lote}-${f.timestamp}`;
+      if (cajasProcesadas.has(key)) continue;
+      cajasProcesadas.add(key);
+
       const registro = {
         referencia,
         lote: f.lote,
@@ -1920,7 +2164,6 @@ async function registrarExtraccionConjunta(fracciones, referencia, usuario, unid
         unidad
       };
 
-      // 👉 Solo añadir si hay un PIN autorizado por alguien distinto al usuario
       if (window.pinAutorizadoPor && window.pinAutorizadoPor !== usuario) {
         registro.pin_autorizado_por = window.pinAutorizadoPor;
       }
@@ -1931,8 +2174,12 @@ async function registrarExtraccionConjunta(fracciones, referencia, usuario, unid
         body: JSON.stringify({ registros: [registro] })
       });
 
+      if (!res.ok) throw new Error(`❌ Error HTTP: ${res.status}`);
+
       const result = await res.json();
       const r = result.resultados?.[0];
+
+      console.log("📤 Respuesta Supabase:", result);
 
       if (r?.status === "ok") {
         const registroQR = {
@@ -1941,14 +2188,22 @@ async function registrarExtraccionConjunta(fracciones, referencia, usuario, unid
           cantidad: f.usado,
           modo: "salida",
           usuario,
-          unidad
+          unidad,
+          tipo: "fraccion"
         };
 
         if (registro.pin_autorizado_por) {
           registroQR.pin_autorizado_por = registro.pin_autorizado_por;
         }
 
-        qrsPendientes.push(registroQR);
+        const yaExiste = qrsPendientes.find(q =>
+          q.referencia === referencia &&
+          q.lote === f.lote &&
+          q.timestamp === f.timestamp
+        );
+
+        if (!yaExiste) qrsPendientes.push(registroQR);
+
         mostrarModal(`✅ Caja ${i + 1} procesada (${f.usado} piezas)`, "#22c55e");
 
       } else {
@@ -1971,6 +2226,7 @@ async function registrarExtraccionConjunta(fracciones, referencia, usuario, unid
     mostrarModal(`⚠️ ${errores} de ${fracciones.length} cajas fallaron`, "#f59e0b");
   }
 }
+
 
 
 //88888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888
@@ -2243,7 +2499,7 @@ function confirmarCantidadFraccionable() {
 //========================================================================================================
 
 
-async function procesarExtraccionConValidacion(ref, unidadDestino, cantidadSolicitada, usuario) {
+async function procesarExtraccionConValidacion(ref, unidadDestino, cantidadSolicitada) {
   console.log("🔍 Iniciando validación de dotación para:", { ref, unidadDestino, cantidadSolicitada });
 
   const fecha = new Date();
@@ -2326,6 +2582,12 @@ async function procesarExtraccionConValidacion(ref, unidadDestino, cantidadSolic
     const modal = document.getElementById("modalPINExceso");
     const contenido = document.getElementById("contenidoPINExceso");
 
+    // BLOQUEA ESCANEO AL ABRIR EL MODAL PIN
+    bloquearEscaneoCritico({
+      sonido: "https://github.com/RicardoCentrum/centrum/raw/main/losiento.mp3",
+      vibrar: true
+    });
+
     console.log("🧪 usuario en generar PIN:", usuario);
     const pinGenerado = await generarPinDinamico();
     console.log("🔐 PIN dinámico actual:", pinGenerado);
@@ -2340,7 +2602,7 @@ async function procesarExtraccionConValidacion(ref, unidadDestino, cantidadSolic
         <li><strong>Solicitado ahora:</strong> ${cantidadSolicitada}</li>
         <li class="text-red-700"><strong>Total proyectado:</strong> ${consumoProyectado} (excede)</li>
       </ul>
-      <p class="mt-3 text-sm">🔐 Se ha generado un PIN dinámico. Solicítalo a Silvia para continuar.</p>
+      <p class="mt-3 text-sm">🔐 Se ha generado un PIN dinámico. Solicítalo a un administrador para continuar.</p>
     `;
 
     console.log("🚪 Mostrando modalPINExceso");
@@ -2356,6 +2618,7 @@ async function procesarExtraccionConValidacion(ref, unidadDestino, cantidadSolic
 
       if (!btnConfirmar || !btnCancelar || !input) {
         console.error("❌ Elementos del modal no encontrados.");
+        desbloquearEscaneoCritico();
         return resolve(false);
       }
 
@@ -2393,6 +2656,7 @@ async function procesarExtraccionConValidacion(ref, unidadDestino, cantidadSolic
           if (valido) {
             mostrarModal("✔️ PIN correcto. Puedes continuar.", "#16a34a");
             limpiarListeners();
+            desbloquearEscaneoCritico();
             modal.classList.add("hidden");
 
             // Marcar como autorizado en memoria
@@ -2419,7 +2683,7 @@ async function procesarExtraccionConValidacion(ref, unidadDestino, cantidadSolic
             resolve(true);
           } else {
             console.warn("❌ PIN incorrecto.");
-            document.getElementById("pinError").textContent = "❌ PIN incorrecto. Solicita uno nuevo a Silvia.";
+            document.getElementById("pinError").textContent = "❌ PIN incorrecto. Solicita uno nuevo a un administrador.";
             document.getElementById("pinError").classList.remove("hidden");
             input.value = "";
             input.focus();
@@ -2434,6 +2698,7 @@ async function procesarExtraccionConValidacion(ref, unidadDestino, cantidadSolic
 
       const cancelarListener = () => {
         limpiarListeners();
+        desbloquearEscaneoCritico();
         modal.classList.add("hidden");
         resolve(false);
       };
@@ -2456,6 +2721,7 @@ async function procesarExtraccionConValidacion(ref, unidadDestino, cantidadSolic
   }
 
   console.log("✅ Validación superada. Se permite continuar.");
+  desbloquearEscaneoCritico();
   return true;
 }
 
@@ -2502,7 +2768,7 @@ async function validarDotacionAntesDeExtraer(ref, unidadDestino, cantidadSolicit
 
   if (sumaConsumos + cantidadSolicitada > cantidadPermitida) {
     const pin = await obtenerPin(usuario);
-    mostrarModal("🔐 Se requiere PIN especial de Silvia para continuar", "#f87171");
+    mostrarModal("🔐 Se requiere PIN especial para continuar", "#f87171");
     return false;
   }
 
@@ -2564,55 +2830,13 @@ async function verificarPin(pinIngresado) {
 
     if (generado === pinIngresado) {
       console.log("✅ PIN verificado. Generado por:", admin);
+      desbloquearEscaneoCritico();
       return { valido: true, generadoPor: admin };
     }
   }
 
   console.warn("❌ PIN no coincide con ningún admin");
   return { valido: false, generadoPor: null };
-}
-
-function iniciarActualizacionAutomaticaPIN() {
-  if (intervaloPin) clearInterval(intervaloPin);
-
-  // Ejecutar inmediatamente
-  actualizarPinYContador();
-
-  // Calcular cuánto falta para el siguiente múltiplo exacto del intervalo
-  const ahora = new Date();
-  const minutos = ahora.getUTCMinutes();
-  const segundos = ahora.getUTCSeconds();
-
-  const minutosHastaProximo = INTERVALO_MINUTOS - (minutos % INTERVALO_MINUTOS);
-  const msHastaProximo = (minutosHastaProximo * 60 - segundos) * 1000;
-
-  // ⏳ Primera actualización al siguiente punto exacto (ej. HH:10:00, HH:20:00...)
-  setTimeout(() => {
-    actualizarPinYContador();
-    intervaloPin = setInterval(actualizarPinYContador, INTERVALO_MINUTOS * 60000);
-  }, msHastaProximo);
-}
-
-async function detectarAdminDesdePIN(pinIngresado) {
-  const ahora = new Date();
-  const yyyy = ahora.getUTCFullYear();
-  const mm = String(ahora.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(ahora.getUTCDate()).padStart(2, "0");
-  const hh = String(ahora.getUTCHours()).padStart(2, "0");
-  const bloque = Math.floor(ahora.getUTCMinutes() / 10);
-  const clave = "medinova-secreto-2025";
-
-  for (const admin of listaAdmins) {
-    const base = `${admin.toLowerCase()}::${yyyy}-${mm}-${dd}-${hh}-${bloque}::${clave}`;
-    const hash = await sha256(base);
-    const pinGenerado = hash.substring(0, 6).toUpperCase();
-
-    if (pinIngresado === pinGenerado) {
-      return admin;
-    }
-  }
-
-  return null;
 }
 
 
@@ -5342,6 +5566,52 @@ document.getElementById("btnToggleFilasValidadas").addEventListener("click", () 
 function confirmarModoInventario() {
   document.getElementById("modalInventario").classList.remove("hidden");
 }
+
+
+
+function iniciarActualizacionAutomaticaPIN() {
+  if (intervaloPin) clearInterval(intervaloPin);
+
+  // Ejecutar inmediatamente
+  actualizarPinYContador();
+
+  // Calcular cuánto falta para el siguiente múltiplo exacto del intervalo
+  const ahora = new Date();
+  const minutos = ahora.getUTCMinutes();
+  const segundos = ahora.getUTCSeconds();
+
+  const minutosHastaProximo = INTERVALO_MINUTOS - (minutos % INTERVALO_MINUTOS);
+  const msHastaProximo = (minutosHastaProximo * 60 - segundos) * 1000;
+
+  // ⏳ Primera actualización al siguiente punto exacto (ej. HH:10:00, HH:20:00...)
+  setTimeout(() => {
+    actualizarPinYContador();
+    intervaloPin = setInterval(actualizarPinYContador, INTERVALO_MINUTOS * 60000);
+  }, msHastaProximo);
+}
+
+async function detectarAdminDesdePIN(pinIngresado) {
+  const ahora = new Date();
+  const yyyy = ahora.getUTCFullYear();
+  const mm = String(ahora.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(ahora.getUTCDate()).padStart(2, "0");
+  const hh = String(ahora.getUTCHours()).padStart(2, "0");
+  const bloque = Math.floor(ahora.getUTCMinutes() / 10);
+  const clave = "medinova-secreto-2025";
+
+  for (const admin of listaAdmins) {
+    const base = `${admin.toLowerCase()}::${yyyy}-${mm}-${dd}-${hh}-${bloque}::${clave}`;
+    const hash = await sha256(base);
+    const pinGenerado = hash.substring(0, 6).toUpperCase();
+
+    if (pinIngresado === pinGenerado) {
+      return admin;
+    }
+  }
+
+  return null;
+}
+
 
 
 async function procesarBasurero(datos) {
