@@ -758,6 +758,7 @@ let avanceRemision = {}; // { '10309546||252450': { nombre, lote, escaneados, to
 let ocultarValidados = false;
 let intervaloPin = null;
 let intervaloCuentaRegresiva = null;
+window.autorizacionesExceso = window.autorizacionesExceso || {};
     const unidadesDestino = {
   "C03442": "C.S. GALEANA", "C03441": "C.S. HIDALGO", "C03438": "C.S. NUEVO CASAS GRANDES", "C03443": "CAAPS ANAPRA", "C03439": "CESSA COLINAS", "C03440": "CESSA ZARAGOZA", "C03435": "H.C. NUEVO CASAS GRANDES", "C03436": "HIE JUAREZ",
   "C03420": "HOSPITAL DE LA MUJER CD JUAREZ", "C03419": "HOSPITAL GENERAL CD JUAREZ", "C03127": "HGZ 6", "C03131": "HGS 22", "C03135": "HGR 02", "C03133": "HGZ UMAA 35", "C03134": "HGR 66", "C03448": "C.S. GUACHOCHI", "C03447": "C.S. JIMENEZ", "C03446": "H. GPE Y CALVO", "C03132": "H.G.Z.M.F. 23", "C03122": "H.R.O. No. 26", "C03124": "H.R.O. No. 36", "C03445": "HOSPITAL CAMARGO", "C03421": "HOSPITAL DE JIMENEZ", "C03422": "HOSPITAL GINECOLOGIA PARRAL", "C03444": "HOSPITAL PARRAL", "C03451": "CESSA ALDAMA", "C03433": "CESSA MADERA",
@@ -1527,7 +1528,7 @@ function intentoMuestreoDeCalidad(producto) {
   console.log("🧪 Ejecutando intentoMuestreoDeCalidad");
   console.log("🧪 Producto recibido:", producto);
 
-  const probabilidad = 1 / 31; // Cambia a 1/30 en producción
+  const probabilidad = 1 / 30; // Cambia a 1/30 en producción
   const aleatorio = Math.random();
   console.log("🧪 Número aleatorio generado:", aleatorio);
 
@@ -1902,47 +1903,42 @@ async function procesarQR(contenido) {
     const registro = tsData[0] || null;
     console.log("📦 [TS DEBUG] Registro procesado:", registro);
 
+    if (modo === "entrada" && registro?.timestamp) {
+      mostrarModal("📦 Ya escaneado anteriormente", "#0284c7");
+      return;
+    }
+
     if (modo === "salida" && registro?.ts_eliminado) {
-      console.log("🚩 [TS DEBUG] Producto marcado como eliminado, procesando alerta...");
+      console.log("🚩 [TS DEBUG] Producto marcado como eliminado, generando historial...");
 
-      // ✅ Convertir código de unidad a nombre legible
-      const unidadNombre = unidadesDestino[registro.unidad_destino] || registro.unidad_destino || "-";
-      console.log("🏥 [TS DEBUG] Unidad destino identificada:", unidadNombre);
+      // ✅ Función auxiliar para armar historial completo
+      function construirHistorial(usuarioStr, unidadStr, remisionStr, fechaStr) {
+        const usuarios = usuarioStr ? usuarioStr.split(",") : [];
+        const unidades = unidadStr ? unidadStr.split(",") : [];
+        const remisiones = remisionStr ? remisionStr.split(",") : [];
+        const fechas = fechaStr ? fechaStr.split(",") : [];
 
-      // ✅ Formatear fecha
-      const fechaStr = registro.fecha_salida_str || "-";
-      let fechaFormateada = fechaStr;
-      console.log("📆 [TS DEBUG] Fecha bruta recibida:", fechaStr);
-
-      try {
-        // Ejemplo: "26/07/25 18:03:49"
-        const [fechaParte, horaParte] = fechaStr.split(" ");
-        const [dia, mes, anioCorto] = fechaParte.split("/");
-        const anio = anioCorto.length === 2 ? `20${anioCorto}` : anioCorto;
-
-        const fechaISO = `${anio}-${mes}-${dia}T${horaParte}`;
-        const fechaObjeto = new Date(fechaISO);
-        console.log("📆 [TS DEBUG] Fecha convertida a objeto Date:", fechaObjeto);
-
-        const opcionesFecha = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        const opcionesHora = { hour: '2-digit', minute: '2-digit' };
-
-        const fechaBonita = fechaObjeto.toLocaleDateString('es-MX', opcionesFecha);
-        const horaBonita = fechaObjeto.toLocaleTimeString('es-MX', opcionesHora);
-
-        fechaFormateada = `${fechaBonita} a las ${horaBonita}`;
-        console.log("✅ [TS DEBUG] Fecha formateada correctamente:", fechaFormateada);
-      } catch (e) {
-        console.warn("⚠️ [TS DEBUG] No se pudo formatear la fecha:", fechaStr, e);
+        const historial = [];
+        for (let i = 0; i < usuarios.length; i++) {
+          historial.push(
+            `${usuarios[i] || "-"} → ${unidades[i] || "-"} ` +
+            `(Remisión: ${remisiones[i] || "-"}) en ${fechas[i] || "-"}`
+          );
+        }
+        return historial.join("\n");
       }
 
-      // ✅ Mensaje final
-      const msg = `⚠️ Este producto ya fue previamente retirado por:
-    ${registro.usuario || "-"}
-    para la unidad ${unidadNombre}
-    el día ${fechaFormateada}`;
+      // ✅ Construimos el historial con los campos concatenados del backend
+      const historial = construirHistorial(
+        registro.usuario,
+        registro.unidad_destino,
+        registro.remision,
+        registro.fecha_salida_str
+      );
 
-      console.log("📢 [TS DEBUG] Mostrando modal con mensaje:", msg);
+      // ✅ Mostrar historial en un modal amarillo
+      const msg = `⚠️ Este producto ya fue retirado anteriormente:\n\n${historial}`;
+      console.log("📢 [TS DEBUG] Mostrando historial completo:\n" + historial);
       mostrarModal(msg, "#facc15");
       return;
     } else {
@@ -1980,7 +1976,8 @@ async function procesarQR(contenido) {
         modo,
         usuario,
         unidad: unidadSeleccionada,
-        tipo: "unidad"
+        tipo: "unidad",
+        remision: document.getElementById("inputRemision")?.value.trim() || null
       };
       qrsPendientes.push(qrUnidad);
       intentoMuestreoDeCalidad(qrUnidad);
@@ -1996,7 +1993,8 @@ async function procesarQR(contenido) {
         modo,
         usuario,
         unidad: unidadSeleccionada,
-        tipo: "fraccion"
+        tipo: "fraccion",
+        remision: document.getElementById("inputRemision")?.value.trim() || null
       };
       qrsPendientes.push(qrCaja);
       intentoMuestreoDeCalidad(qrCaja);
@@ -2050,7 +2048,9 @@ async function procesarQR(contenido) {
       unidad: unidadSeleccionada,
       nombre,
       fabricante,
-      caducidad: caducidadFinal
+      caducidad: caducidadFinal,
+      remision: document.getElementById("inputRemision")?.value.trim() || null
+
     };
 
     qrsPendientes.push(qrPendiente);
@@ -2151,11 +2151,20 @@ async function procesarCajaFraccionable(contenidoQR) {
     cantidadFaltante = Math.max(0, cantidadFaltante - usado);
 
     // ✅ Guardar en fraccionesEscaneadas con tipo correcto
+    console.log("📥 Caja/Unidad añadida a fraccionesEscaneadas:", {
+      ts,
+      lote: datos.lote,
+      usado,
+      tipo: esUnidad ? "unidad" : "fraccion",
+      remision: document.getElementById("inputRemision")?.value.trim() || null
+    });
+
     fraccionesEscaneadas.push({
       timestamp: ts,
       lote: datos.lote,
       usado,
-      tipo: esUnidad ? "unidad" : "fraccion"
+      tipo: esUnidad ? "unidad" : "fraccion",
+      remision: document.getElementById("inputRemision")?.value.trim() || null
     });
 
     actualizarModalFraccionable();
@@ -2172,14 +2181,21 @@ async function procesarCajaFraccionable(contenidoQR) {
       modoExtraccionFraccionableActivo = false;
 
       // ✅ Ahora fraccionesEscaneadas puede contener mezcla de cajas y unidades
-      await registrarExtraccionConjunta(
-        fraccionesEscaneadas,
-        referenciaFraccionable,
-        usuario,
-        unidadSeleccionada
-      );
-
+      fraccionesEscaneadas.forEach(f => {
+        qrsPendientes.push({
+          referencia: referenciaFraccionable,
+          lote: f.lote,
+          timestamp: f.timestamp,
+          cantidad: f.usado,
+          usuario,
+          unidad: unidadSeleccionada,
+          tipo: f.tipo,
+          remision: f.remision || null,
+          modo: "salida"
+        });
+      });
       actualizarTablaRegistros();
+
     }
   } catch (error) {
     console.error("❌ Error al consultar fracción:", error);
@@ -2208,7 +2224,8 @@ async function registrarExtraccionConjunta(elementos, referencia, usuario, unida
         cantidad: f.usado,
         usuario,
         modo: "salida",
-        unidad
+        unidad,
+        remision: f.remision || null
       };
 
       // 🔑 Si hay PIN de autorización, lo agregamos
@@ -2221,7 +2238,7 @@ async function registrarExtraccionConjunta(elementos, referencia, usuario, unida
         ? "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_fraccionable"
         : "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_unidad";
 
-      console.log(`🚀 Enviando ${f.tipo} a:`, url, registro);
+      console.log("🔵 [registrarExtraccionConjunta] Enviando:", url, registro);
 
       const res = await fetch(url, {
         method: "POST",
@@ -2234,7 +2251,7 @@ async function registrarExtraccionConjunta(elementos, referencia, usuario, unida
       const result = await res.json();
       const r = result.resultados?.[0];
 
-      console.log("📤 Respuesta Supabase:", result);
+      console.log("📤 [registrarExtraccionConjunta] Respuesta Supabase:", result);
 
       // ✅ Si Supabase confirma el registro
       if (r?.status === "ok") {
@@ -2247,7 +2264,9 @@ async function registrarExtraccionConjunta(elementos, referencia, usuario, unida
           modo: "salida",
           usuario,
           unidad,
-          tipo: f.tipo
+          tipo: f.tipo,
+          remision: f.remision || null
+
         };
 
         if (registro.pin_autorizado_por) {
@@ -2272,7 +2291,7 @@ async function registrarExtraccionConjunta(elementos, referencia, usuario, unida
       }
 
     } catch (err) {
-      console.error(`❌ Error al registrar elemento ${i + 1}:`, err);
+      console.error(`❌ [registrarExtraccionConjunta] Error al registrar elemento ${i + 1}:`, err);
       errores++;
       mostrarModal(`❌ Error de red al registrar elemento ${i + 1}`, "#dc2626");
     }
@@ -2360,7 +2379,7 @@ function abrirModalCantidadFraccionable(referencia, lote, contenidoQR) {
 
       <div class="flex justify-between mt-4">
         <button onclick="cerrarModalFraccionable()" class="bg-gray-300 hover:bg-gray-400 text-sm px-4 py-2 rounded-md">Cancelar</button>
-        <button onclick="(async () => {
+          <button id="btnConfirmarCantidadFraccionable" onclick="(async () => {
           const cantidad = parseInt(document.getElementById('inputCantidadFraccionable').value.trim());
           if (!cantidad || cantidad <= 0) {
             mostrarModal('⚠️ Ingresa una cantidad válida', '#f59e0b');
@@ -2414,8 +2433,14 @@ function abrirModalCantidadFraccionable(referencia, lote, contenidoQR) {
         const cantidadSolicitada = parseInt(input.value);
         if (!cantidadSolicitada || cantidadSolicitada < 1) return;
 
-        const permitido = await procesarExtraccionConValidacion(referencia, unidadSeleccionada, cantidadSolicitada);
-        if (!permitido) return;
+        const claveRemision = `${referencia}::${unidadSeleccionada}::${document.getElementById("inputRemision")?.value.trim() || "sin_remision"}`;
+
+        if (window.autorizacionesExceso[claveRemision]?.validado) {
+            console.log("🔓 PIN ya autorizado previamente para esta remisión. No se pedirá de nuevo.");
+        } else {
+            const permitido = await procesarExtraccionConValidacion(referencia, unidadSeleccionada, cantidadSolicitada);
+            if (!permitido) return;
+        }
 
         cerrarModalFraccionable();
         iniciarModoExtraccionFraccionable(referencia, lote, contenidoQR, cantidadSolicitada);
@@ -2487,6 +2512,7 @@ async function procesarQRFraccionableSalida(referencia, lote, cantidad) {
     }]
   };
   try {
+    console.log("🟠 [procesarQRFraccionableSalida] Enviando fetch a registrar_qr_fraccionable:", payload);
     const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_fraccionable", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -2494,7 +2520,7 @@ async function procesarQRFraccionableSalida(referencia, lote, cantidad) {
     });
     const result = await res.json();
     const r = result.resultados?.[0];
-
+    console.log("📤 [procesarQRFraccionableSalida] Respuesta Supabase:", result);
     if (r?.status === "ok") {
       qrsPendientes.push({ referencia, lote, cantidad, modo: "salida", usuario, unidad: unidadSeleccionada });
       actualizarTablaRegistros();
@@ -2507,7 +2533,7 @@ async function procesarQRFraccionableSalida(referencia, lote, cantidad) {
       mostrarModal("❌ Error en el retiro", "#6b7280");
     }
   } catch (err) {
-    console.error("❌ Error de red:", err);
+    console.error("❌ [procesarQRFraccionableSalida] Error:", err);
     mostrarModal("❌ Error de conexión", "#6b7280");
   }
 }
@@ -2575,8 +2601,7 @@ async function procesarExtraccionConValidacion(ref, unidadDestino, cantidadSolic
 
   console.log("📅 Columnas a consultar:", colA, colB);
 
-  const claveRemision = `${ref}||${unidadDestino}||${remisionActual || "sin_remision"}`;
-
+  const claveRemision = `${ref}::${unidadDestino}::${numeroRemision || "sin_remision"}`;
   // Validar si ya está autorizada en memoria
   if (window.autorizacionesExceso?.[claveRemision]) {
     console.log("🔓 PIN ya validado anteriormente para esta remisión. Se permite continuar.");
@@ -4231,7 +4256,7 @@ qrsPendientes.forEach((qr, index) => {
 //8888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888
 
 async function enviarSupabase() {
-  console.log("🚀 [SUPABASE] Inicio de enviarSupabase()");
+  console.log("🟢🚀 [SUPABASE] Inicio de enviarSupabase()");
 
   // ✅ Validación de modo
   if (!modo || modo === "inactivo") {
@@ -4388,6 +4413,7 @@ async function enviarSupabase() {
 
     // 🚚 Envíos según tipo
     if (normales.length > 0) {
+      console.log("🟢 [enviarSupabase] Enviando NORMALES:", normales);
       await enviarYVerificar(
         "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr",
         normales,
@@ -4396,6 +4422,7 @@ async function enviarSupabase() {
     }
 
     if (fracciones.length > 0) {
+      console.log("🟢 [enviarSupabase] Enviando FRACCIONABLES:", fracciones);
       await enviarYVerificar(
         "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_fraccionable",
         fracciones,
@@ -4404,6 +4431,7 @@ async function enviarSupabase() {
     }
 
     if (unidades.length > 0) {
+      console.log("🟢 [enviarSupabase] Enviando UNIDADES:", unidades);
       await enviarYVerificar(
         "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr_unidad",
         unidades,
