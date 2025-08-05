@@ -14,6 +14,7 @@
   <!-- ✅ Scripts externos bien cerrados -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://cdn.jsdelivr.net/gh/qzind/tray/qz-tray.js"></script>
 
   <style>
     body {
@@ -475,6 +476,7 @@
   🔒 Cerrar sesión
 </button>
 
+
     <div id="tablaRemisionSAP" class="hidden mt-4">
       <div class="flex justify-between items-center mb-2">
         <h2 class="font-bold text-sm">🧾 Avance remisión SAP:</h2>
@@ -515,6 +517,16 @@
       ⚠️ Ver productos próximos a caducar
     </button>
   </div>
+
+  
+
+
+<!-- <button onclick="imprimirEtiquetaZebra('^XA^FO50,50^A0N,30,30^FD¡Hola Zebra!^FS^XZ')" 
+        class="bg-green-700 text-white px-4 py-2 rounded-xl">
+  🖨️ Imprimir Prueba
+</button> -->
+
+
 
 <div id="modalPINExceso" class="hidden fixed inset-0 bg-pink-300 bg-opacity-60 backdrop-blur-sm z-[9990] flex items-center justify-center">
   <div class="bg-white border-2 border-pink-500 p-6 rounded-xl w-[360px] shadow-lg text-sm text-gray-800">
@@ -782,6 +794,34 @@ function ocultarLoader(){const o=document.getElementById("loaderOverlay");o&&o.c
 function bloquearTeclas(e){if(!(e.key==="F5"||e.key==="Escape")){e.stopPropagation();e.preventDefault();}}
 function bloquearClicks(e){e.stopPropagation();e.preventDefault();}
 //88888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888
+
+// async function conectarQZ() {
+//   try {
+//     await qz.websocket.connect();
+//     console.log("✅ Conectado a QZ Tray");
+//   } catch (err) {
+//     console.error("❌ Error al conectar con QZ Tray:", err);
+//     alert("No se pudo conectar con QZ Tray. ¿Está abierto?");
+//   }
+// }
+// conectarQZ();
+
+// async function imprimirEtiquetaZebra(zpl) {
+//   try {
+//     if (!qz.websocket.isActive()) {
+//       await qz.websocket.connect();
+//     }
+
+//     // Configuración de la impresora (debe tener el mismo nombre que en Windows)
+//     const config = qz.configs.create("Zebra GC420d");  // ⚠️ cambia el nombre si es distinto
+
+//     // Enviar el ZPL a la impresora
+//     await qz.print(config, [zpl]);
+//     console.log("✅ Etiqueta enviada a la impresora");
+//   } catch (err) {
+//     console.error("❌ Error al imprimir:", err);
+//   }
+// }
 
 
 let scannerActivo = false, qrScanner = null;
@@ -1302,7 +1342,7 @@ function extraerDatosQR(qr) {
     const limpio = qr.trim().replace(/\s+/g, '');
 
     let partes = null;
-    // 📌 Nuevo formato **{ref}//{lote}--{caducidad}|T:{timestamp}
+    // 📌 Nuevo formato **{ref}//{lote}--{caducidad}|T:{timestamp}--Formato Israel
     const nuevoFormato = /^\*\*\{(.+?)\}\/\/\{(.+?)\}--\{(.+?)\}\|T:(.+)$/;
     const matchNuevo = limpio.match(nuevoFormato);
     if (matchNuevo) {
@@ -1538,7 +1578,7 @@ function intentoMuestreoDeCalidad(producto) {
   console.log("🧪 Ejecutando intentoMuestreoDeCalidad");
   console.log("🧪 Producto recibido:", producto);
 
-  const probabilidad = 1 / 300; // Cambia a 1/30 en producción
+  const probabilidad = 1 / 30; // Cambia a 1/30 en producción
   const aleatorio = Math.random();
   console.log("🧪 Número aleatorio generado:", aleatorio);
 
@@ -2021,7 +2061,7 @@ async function procesarQR(contenido) {
 
     // ✅ Producto normal
     if (modo === "salida") {
-      const permitido = await procesarExtraccionConValidacion(datos.referencia, unidadSeleccionada, 1, usuario);
+      const permitido = await procesarExtraccionConValidacion(datos.referencia, unidadSeleccionada, 1, usuario, remisionActual);
       if (!permitido) return;
     }
 
@@ -2396,7 +2436,7 @@ function abrirModalCantidadFraccionable(referencia, lote, contenidoQR) {
             return;
           }
 
-          const permitido = await procesarExtraccionConValidacion('${referencia}', '${unidadSeleccionada}', cantidad);
+          const permitido = await procesarExtraccionConValidacion('${referencia}', '${unidadSeleccionada}', cantidad, usuario, remisionActual);
           if (!permitido) {
             mostrarModal('❌ Operación cancelada por exceso de dotación', '#b91c1c');
             cerrarModalFraccionable();
@@ -2448,7 +2488,8 @@ function abrirModalCantidadFraccionable(referencia, lote, contenidoQR) {
         if (window.autorizacionesExceso[claveRemision]?.validado) {
             console.log("🔓 PIN ya autorizado previamente para esta remisión. No se pedirá de nuevo.");
         } else {
-            const permitido = await procesarExtraccionConValidacion(referencia, unidadSeleccionada, cantidadSolicitada);
+            const permitido = await procesarExtraccionConValidacion(referencia, unidadSeleccionada, cantidadSolicitada, usuario, remisionActual);
+
             if (!permitido) return;
         }
 
@@ -2597,8 +2638,8 @@ function confirmarCantidadFraccionable() {
 //========================================================================================================
 
 
-async function procesarExtraccionConValidacion(ref, unidadDestino, cantidadSolicitada) {
-  console.log("🔍 Iniciando validación de dotación para:", { ref, unidadDestino, cantidadSolicitada });
+async function procesarExtraccionConValidacion(ref, unidadDestino, cantidadSolicitada, usuario, numeroRemision = null) {
+  console.log("🔍 Iniciando validación de dotación para:", { ref, unidadDestino, cantidadSolicitada, numeroRemision });
 
   const fecha = new Date();
   const mes = fecha.getMonth() + 1;
@@ -2611,7 +2652,7 @@ async function procesarExtraccionConValidacion(ref, unidadDestino, cantidadSolic
 
   console.log("📅 Columnas a consultar:", colA, colB);
 
-  const claveRemision = `${ref}::${unidadDestino}::${numeroRemision || "sin_remision"}`;
+  const claveRemision = `${ref}||${unidadDestino}||${numeroRemision || "sin_remision"}`;
   // Validar si ya está autorizada en memoria
   if (window.autorizacionesExceso?.[claveRemision]) {
     console.log("🔓 PIN ya validado anteriormente para esta remisión. Se permite continuar.");
@@ -2619,8 +2660,8 @@ async function procesarExtraccionConValidacion(ref, unidadDestino, cantidadSolic
   }
 
   // Validar si ya estaba autorizada en Supabase
-  if (remisionActual) {
-    const resCheck = await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/remisiones_pendientes?select=nip_verificado&numero_remision=eq.${remisionActual}`, {
+  if (numeroRemision) {
+    const resCheck = await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/remisiones_pendientes?select=nip_verificado&numero_remision=eq.${numeroRemision}`, {
       headers: {
         apikey: API_KEY,
         Authorization: `Bearer ${API_KEY}`
@@ -2762,8 +2803,8 @@ async function procesarExtraccionConValidacion(ref, unidadDestino, cantidadSolic
             console.log("✅ Autorización por PIN guardada para:", claveRemision);
 
             // Actualizar Supabase si es una remisión válida
-            if (remisionActual) {
-              await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/remisiones_pendientes?numero_remision=eq.${remisionActual}`, {
+            if (numeroRemision) {
+              await fetch(`https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/remisiones_pendientes?numero_remision=eq.${numeroRemision}`, {
                 method: "PATCH",
                 headers: {
                   apikey: API_KEY,
