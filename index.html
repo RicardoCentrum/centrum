@@ -1302,7 +1302,17 @@ function extraerDatosQR(qr) {
     const limpio = qr.trim().replace(/\s+/g, '');
 
     let partes = null;
-
+    // 📌 Nuevo formato **{ref}//{lote}--{caducidad}|T:{timestamp}
+    const nuevoFormato = /^\*\*\{(.+?)\}\/\/\{(.+?)\}--\{(.+?)\}\|T:(.+)$/;
+    const matchNuevo = limpio.match(nuevoFormato);
+    if (matchNuevo) {
+      return {
+        referencia: matchNuevo[1]?.trim() || null,
+        lote: matchNuevo[2]?.trim() || null,
+        caducidad: matchNuevo[3]?.trim() || null,
+        timestamp: matchNuevo[4]?.trim() || null
+      };
+    }
     // Formato tipo R:xxx|L:xxx|C:xxx|T:xxx
     if (limpio.includes('|') && limpio.includes(':')) {
       partes = Object.fromEntries(
