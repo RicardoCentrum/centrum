@@ -558,6 +558,9 @@
 
 
 
+<!-- Resumen escaneos -->
+<div id="resumenEscaneos" class="hidden mb-3 p-2 bg-white/80 rounded-xl shadow text-sm text-gray-800"></div>
+
 <div id="tablaContenedora" class="hidden opacity-0 transition-opacity duration-300">
   <table class="min-w-full text-sm text-left" id="tablaRegistros">
     <thead>
@@ -568,6 +571,9 @@
         <th class="p-1 text-center">Eliminar</th>
       </tr>
     </thead>
+  </table>
+</div>
+
    
   </table>
 </div>
@@ -1339,55 +1345,71 @@ function extraerDatosQR(qr) {
     return;
   }
 
-    const limpio = qr.trim().replace(/\s+/g, '');
+  const limpio = qr.trim().replace(/\s+/g, '');
+  let partes = null;
 
-    let partes = null;
-    // 📌 Nuevo formato **{ref}//{lote}--{caducidad}|T:{timestamp}--Formato Israel
-    const nuevoFormato = /^\*\*\{(.+?)\}\/\/\{(.+?)\}--\{(.+?)\}\|T:(.+)$/;
-    const matchNuevo = limpio.match(nuevoFormato);
-    if (matchNuevo) {
-      return {
-        referencia: matchNuevo[1]?.trim() || null,
-        lote: matchNuevo[2]?.trim() || null,
-        caducidad: matchNuevo[3]?.trim() || null,
-        timestamp: matchNuevo[4]?.trim() || null
-      };
-    }
-    // Formato tipo R:xxx|L:xxx|C:xxx|T:xxx
-    if (limpio.includes('|') && limpio.includes(':')) {
-      partes = Object.fromEntries(
-        limpio.split('|').map(p => p.split(':')).filter(p => p.length === 2)
-      );
-    }
-
-    // Formato móvil tipo R>xxx`L>xxx`C>xxx`T>xxx
-    else if (limpio.includes('`') && limpio.includes('>')) {
-      partes = Object.fromEntries(
-        limpio.split('`').map(p => p.split('>')).filter(p => p.length === 2)
-      );
-    }
-
-    // Formato móvil tipo RÑxxxÇLÑxxxÇCÑxxxÇTÑxxx
-    else if (limpio.includes('Ç') && limpio.includes('Ñ')) {
-      partes = Object.fromEntries(
-        limpio.split('Ç').map(p => p.split('Ñ')).filter(p => p.length === 2)
-      );
-    }
-        // Formato móvil tipo RÑxxxÇLÑxxxÇCÑxxxÇTÑxxx
-    else if (limpio.includes(']') && limpio.includes('Ñ')) {
-      partes = Object.fromEntries(
-        limpio.split(']').map(p => p.split('Ñ')).filter(p => p.length === 2)
-      );
-    }
-    if (!partes) return null;
-
+  // 📌 Formato original Israel: **{ref}//{lote}--{caducidad}|T:{timestamp}
+  const nuevoFormato = /^\*\*\{(.+?)\}\/\/\{(.+?)\}--\{(.+?)\}\|T:(.+)$/;
+  const matchNuevo = limpio.match(nuevoFormato);
+  if (matchNuevo) {
     return {
-      referencia: partes["R"]?.trim() || null,
-      lote: partes["L"]?.trim() || null,
-      caducidad: partes["C"]?.trim() || null,
-      timestamp: partes["T"]?.trim() || null
+      referencia: matchNuevo[1]?.trim() || null,
+      lote: matchNuevo[2]?.trim() || null,
+      caducidad: matchNuevo[3]?.trim() || null,
+      timestamp: matchNuevo[4]?.trim() || null
     };
   }
+
+  // 📌 NUEVO formato Israel (mejorado) — acepta asteriscos especiales y guion largo
+  const nuevoFormatoV2 = /^[\*\u2217\u2731]{2}\{(.+?)\}\/\/\{(.+?)\}(?:--|—)\{(.+?)\}\|T:(.+)$/;
+  const matchNuevoV2 = limpio.match(nuevoFormatoV2);
+  if (matchNuevoV2) {
+    return {
+      referencia: matchNuevoV2[1]?.trim() || null,
+      lote: matchNuevoV2[2]?.trim() || null,
+      caducidad: matchNuevoV2[3]?.trim() || null,
+      timestamp: matchNuevoV2[4]?.trim() || null
+    };
+  }
+
+  // 📌 Formato tipo R:xxx|L:xxx|C:xxx|T:xxx
+  if (limpio.includes('|') && limpio.includes(':')) {
+    partes = Object.fromEntries(
+      limpio.split('|').map(p => p.split(':')).filter(p => p.length === 2)
+    );
+  }
+
+  // 📌 Formato móvil tipo R>xxx`L>xxx`C>xxx`T>xxx
+  else if (limpio.includes('`') && limpio.includes('>')) {
+    partes = Object.fromEntries(
+      limpio.split('`').map(p => p.split('>')).filter(p => p.length === 2)
+    );
+  }
+
+  // 📌 Formato móvil tipo RÑxxxÇLÑxxxÇCÑxxxÇTÑxxx
+  else if (limpio.includes('Ç') && limpio.includes('Ñ')) {
+    partes = Object.fromEntries(
+      limpio.split('Ç').map(p => p.split('Ñ')).filter(p => p.length === 2)
+    );
+  }
+
+  // 📌 Formato móvil tipo RÑxxx]LÑxxx]CÑxxx]TÑxxx
+  else if (limpio.includes(']') && limpio.includes('Ñ')) {
+    partes = Object.fromEntries(
+      limpio.split(']').map(p => p.split('Ñ')).filter(p => p.length === 2)
+    );
+  }
+
+  if (!partes) return null;
+
+  return {
+    referencia: partes["R"]?.trim() || null,
+    lote: partes["L"]?.trim() || null,
+    caducidad: partes["C"]?.trim() || null,
+    timestamp: partes["T"]?.trim() || null
+  };
+}
+
 
 function verificarCaducidadYMostrarModal(caducidadStr) {
   console.log("🧪 Verificando caducidad:", caducidadStr);
@@ -4259,9 +4281,12 @@ async function descargarReporteForecast() {
     alert("❌ Error al generar el reporte.");
   }
 }
+
+
 function actualizarTablaRegistros() {
   const tabla = document.getElementById("tablaRegistros");
   const contenedor = document.getElementById("tablaContenedora");
+  const resumenDiv = document.getElementById("resumenEscaneos"); // ⬅ nuevo
 
   if (!tabla) {
     console.warn("⚠️ No existe la tabla de registros aún en el DOM.");
@@ -4277,32 +4302,80 @@ function actualizarTablaRegistros() {
     setTimeout(() => contenedor.classList.add("hidden"), 500);
   }
 
-  // Limpiar contenido
+  // Encabezado con columna extra de Timestamp
   tabla.innerHTML = `
     <thead>
       <tr>
         <th class="p-1">Referencia</th>
         <th class="p-1">Lote</th>
-        <th class="p-1">Estado</th>
+        <th class="p-1">Timestamp</th>
         <th class="p-1 text-center">Eliminar</th>
       </tr>
     </thead>
   `;
 
-qrsPendientes.forEach((qr, index) => {
-  const fila = document.createElement("tr");
-  fila.dataset.index = index; // 💡 Aquí se guarda el índice
-  fila.innerHTML = `
-    <td class="p-1">${qr.referencia}</td>
-    <td class="p-1">${qr.lote}</td>
-    <td class="p-1">${qr.modo}</td>
-    <td class="p-1 text-center">
-      <button onclick="eliminarFila(this)" class="bg-red-500 hover:bg-red-700 text-white px-2 rounded-xl">X</button>
-    </td>
-  `;
-  tabla.appendChild(fila);
-});
+  // Filas de la tabla contenedora
+  qrsPendientes.forEach((qr, index) => {
+    const fila = document.createElement("tr");
+    fila.dataset.index = index;
+    fila.innerHTML = `
+      <td class="p-1">${qr.referencia}</td>
+      <td class="p-1">${qr.lote}</td>
+      <td class="p-1">${qr.timestamp || ""}</td>
+
+      <td class="p-1 text-center">
+        <button onclick="eliminarFila(this)" class="bg-red-500 hover:bg-red-700 text-white px-2 rounded-xl">X</button>
+      </td>
+    `;
+    tabla.appendChild(fila);
+  });
+
+// === Generar resumen como tabla ===
+if (resumenDiv) {
+  if (qrsPendientes.length > 0) {
+    const conteo = {};
+    qrsPendientes.forEach(q => {
+      const clave = `${q.referencia}||${q.lote}`;
+      conteo[clave] = (conteo[clave] || 0) + 1;
+    });
+
+    let html = `
+      <strong>Resumen:</strong>
+      <table class="w-full mt-2 border border-gray-300 text-sm text-center bg-white/80 rounded-xl overflow-hidden">
+        <thead class="bg-teal-900 text-white">
+          <tr>
+            <th class="p-1">Referencia</th>
+            <th class="p-1">Lote</th>
+            <th class="p-1">Cantidad</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    for (const clave in conteo) {
+      const [ref, lote] = clave.split("||");
+      html += `
+        <tr>
+          <td class="p-1">${ref}</td>
+          <td class="p-1">${lote}</td>
+          <td class="p-1 font-bold">${conteo[clave]}</td>
+        </tr>
+      `;
+    }
+
+    html += `
+        </tbody>
+      </table>
+    `;
+
+    resumenDiv.innerHTML = html;
+    resumenDiv.classList.remove("hidden");
+  } else {
+    resumenDiv.classList.add("hidden");
+  }
 }
+}
+
 
 //8888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888
 
