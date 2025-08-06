@@ -1387,11 +1387,11 @@ function extraerDatosQR(qr) {
   }
 
   // 📌 Formato móvil tipo RÑxxxÇLÑxxxÇCÑxxxÇTÑxxx
-  else if (limpio.includes('Ç') && limpio.includes('Ñ')) {
-    partes = Object.fromEntries(
-      limpio.split('Ç').map(p => p.split('Ñ')).filter(p => p.length === 2)
-    );
-  }
+//  else if (limpio.includes('Ç') && limpio.includes('Ñ')) {
+ //   partes = Object.fromEntries(
+  //    limpio.split('Ç').map(p => p.split('Ñ')).filter(p => p.length === 2)
+    //);
+  //}
 
   // 📌 Formato móvil tipo RÑxxx]LÑxxx]CÑxxx]TÑxxx
   else if (limpio.includes(']') && limpio.includes('Ñ')) {
