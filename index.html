@@ -670,12 +670,28 @@
   <!-- Referencia -->
   <div class="w-full">
     <label class="block font-semibold mb-1">Referencia:</label>
-    <input
-      id="inputReferencia"
-      class="w-full px-4 py-2 border rounded-xl"
-      placeholder="Ej. 368171 o MD-VE-C22"
-      oninput="buscarReferenciaCaptura()"
-      onkeydown="if(event.key==='Enter'){ agregarFilaCaptura(); }" />
+
+    <div class="flex gap-2">
+      <input
+        id="inputReferencia"
+        class="w-full px-4 py-2 border rounded-xl"
+        placeholder="Ej. 368171 o MD-VE-C22"
+        oninput="buscarReferenciaCaptura()"
+        onkeydown="if(event.key==='Enter'){ agregarFilaCaptura(); }"
+      />
+
+      <!-- Botón QR -->
+      <button
+        type="button"
+        id="btnQrInventario"
+        onclick="abrirModalQRInventario()"
+        class="inline-flex items-center justify-center px-3 py-2 rounded-xl border text-xl"
+        title="Escanear etiqueta con cámara (modo inventario)"
+      >
+        📷
+      </button>
+    </div>
+
     <div
       id="sugerenciasReferencia"
       class="absolute z-50 bg-white border rounded-xl shadow hidden">
@@ -859,6 +875,9 @@ function bloquearClicks(e){e.stopPropagation();e.preventDefault();}
 
 let scannerActivo = false, qrScanner = null;
 let modoScannerQR = "movimientos"; // "movimientos" | "inventario"
+// Inventario detallado por referencia / lote / caducidad
+// inventarioDetallado[referencia][lote][caducidad] = cantidad
+let inventarioDetallado = {};
 
 // Permitir arrastrar la ventana del lector QR
 function hacerDraggable(idElemento) {
@@ -4749,6 +4768,24 @@ function agregarFila(ref, lote, estado) {
 
       contenedor.classList.remove("hidden");
     }
+    function extraerLoteCadDeLlaves(qr) {
+      if (!qr) return { lote: null, caducidad: null };
+
+      // Quitamos espacios por si el lector los mete
+      const limpio = qr.replace(/\s+/g, '');
+
+      // Patrón: {REF}//{LOTE}--{CADUCIDAD}...
+      // Ej: {3030603MYB}//{S/L}--{2030-12-31}|T:30072099
+      const match = limpio.match(/\{([^}]+)\}\/\/\{([^}]+)\}--\{?([^}|]+)\}?/);
+      if (!match) {
+        return { lote: null, caducidad: null };
+      }
+
+      return {
+        lote: match[2] || null,        // S/L
+        caducidad: match[3] || null    // 2030-12-31
+      };
+    }
 
     function actualizarModoCaptura() {
       const toggle = document.getElementById("modoToggle");
@@ -5016,8 +5053,25 @@ function agregarFila(ref, lote, estado) {
 
       return null;
     }
+    function actualizarInventarioDetallado(referencia, lote, caducidad, deltaCantidad) {
+      if (!referencia || !deltaCantidad) return;
 
+      const loteKey = lote && lote.trim() ? lote.trim() : "S/L";
+      const cadKey  = caducidad && caducidad.trim() ? caducidad.trim() : "SIN_CAD";
 
+      if (!inventarioDetallado[referencia]) {
+        inventarioDetallado[referencia] = {};
+      }
+      if (!inventarioDetallado[referencia][loteKey]) {
+        inventarioDetallado[referencia][loteKey] = {};
+      }
+
+      const actual = inventarioDetallado[referencia][loteKey][cadKey] || 0;
+      inventarioDetallado[referencia][loteKey][cadKey] = actual + deltaCantidad;
+
+      // (Opcional) log para revisar qué se va guardando
+      console.log("📊 Inventario detallado actualizado:", referencia, loteKey, cadKey, "→", inventarioDetallado[referencia][loteKey][cadKey]);
+    }
     function manejarEscaneoInventario(contenido) {
       try {
         const modo = document.getElementById("modoCaptura")?.value;
@@ -5032,16 +5086,25 @@ function agregarFila(ref, lote, estado) {
           return;
         }
 
-        // 1) Sacar referencia R:
-        const datos = extraerDatosQR(contenido);
-        let referencia = datos?.referencia || extraerReferenciaPlano(contenido);
+        // 🧩 1) Obtener datos desde tu función actual
+        const datos = extraerDatosQR(contenido) || {};
+        let referencia = datos.referencia || extraerReferenciaPlano(contenido);
+        let lote       = datos.lote || null;
+        let caducidad  = datos.caducidad || null;
+
+        // 🧩 2) Si no hay lote/caducidad, intentar sacarlos del formato con llaves
+        if (!lote || !caducidad) {
+          const extra = extraerLoteCadDeLlaves(contenido);
+          if (!lote && extra.lote) lote = extra.lote;
+          if (!caducidad && extra.caducidad) caducidad = extra.caducidad;
+        }
 
         if (!referencia) {
-          mostrarModal("❌ No se encontró la referencia (R:) en el QR.", "#b91c1c");
+          mostrarModal("❌ No se encontró la referencia en el QR.", "#b91c1c");
           return;
         }
 
-        // 2) Validar que la referencia esté asignada a la unidad (igual que en agregarFilaCaptura)
+        // 🧩 3) Validar que la referencia esté asignada a la unidad (igual que antes)
         const coincide = (window.referenciasPorUnidad || []).some(r =>
           r.referencia === referencia &&
           normalizarTexto(r.unidad_medica) === normalizarTexto(unidad)
@@ -5051,7 +5114,7 @@ function agregarFila(ref, lote, estado) {
           return;
         }
 
-        // 3) Buscar la fila en la tabla de captura y sumar 1
+        // 🧩 4) Buscar la fila en la tabla de captura y sumar 1
         const filas = document.querySelectorAll("#tablaCaptura tbody tr");
         let encontrada = false;
         filas.forEach(fila => {
@@ -5060,9 +5123,13 @@ function agregarFila(ref, lote, estado) {
             const inputCantidad = fila.querySelector("input");
             if (inputCantidad) {
               const actual = parseFloat(inputCantidad.value) || 0;
-              inputCantidad.value = (actual + 1).toString();
+              const nueva  = actual + 1;
+              inputCantidad.value = nueva.toString();
               marcarComoCompletada(inputCantidad);
               encontrada = true;
+
+              // 🧩 5) Actualizar inventario detallado (ref + lote + caducidad)
+              actualizarInventarioDetallado(referencia, lote, caducidad, 1);
             }
           }
         });
@@ -5072,17 +5139,20 @@ function agregarFila(ref, lote, estado) {
           return;
         }
 
-        // 4) (Opcional) Mostrar en los campos de captura qué se escaneó
+        // (Opcional) mostrar en los inputs qué se escaneó
         const inputRef = document.getElementById("inputReferencia");
         if (inputRef) inputRef.value = referencia;
         const inputCant = document.getElementById("inputCantidad");
         if (inputCant) inputCant.value = "1";
+
+        console.log("🎯 Escaneo inventario:", { referencia, lote, caducidad });
 
       } catch (err) {
         console.error("Error en manejarEscaneoInventario:", err);
         mostrarModal("❌ Error al procesar el QR de inventario.", "#b91c1c");
       }
     }
+
 
     function agregarFilaCaptura() {
       const ref = document.getElementById("inputReferencia").value.trim();
