@@ -832,6 +832,9 @@ window.autorizacionesExceso = window.autorizacionesExceso || {};
   "C03415": "hospital central", "C03424": "HG Cuauhtemoc", "C03416": "Ginecologia Cuauhtemoc", "C03432": "CESSA Tierra Nueva", "C03431": "CS Creel", "C03428": "CS Temoris", "C03123": "HRO No. 18 SAN JUANITO", "C03430": "CS Delicias", "C03425": "HC Ojinaga", "C03417": "hr delicias", "C03434": "CS Sta. Isabel", "C03429": "CAAPS Nogales", "C03427": "CS San Felipe", "C03426": "HC Gomez Farias", "C03418": "hie chihuahua", "C03423": "HG Chihuahua", "C03128": "H.G.Z.M.F. 11", "C03130": "H.G.Z.M.F. 16", "C03129": "HGO No. 15", "C03126": "HGR No. 1", "66": "ALMACEN PARRAL", "65": "ALMACEN JUAREZ", "CUU": "ALMACEN CHIHUAHUA"
 };
 const anioSelect = document.getElementById('anioSelect');
+// Timestamps ya escaneados en este inventario
+const timestampsEscaneadosInventario = new Set();
+
 if (anioSelect) {
   const thisYear = new Date().getFullYear();
   anioSelect.innerHTML = '<option value="">Año</option>';
@@ -979,16 +982,14 @@ function iniciarScannerQR() {
         ultimaLectura = qrCodeMessage;
         tiempoUltimaLectura = ahora;
 
-        console.log("✅ QR detectado:", qrCodeMessage);
+        console.log("✅ QR detectado (bruto):", qrCodeMessage, " | modo:", modoScannerQR);
 
         if (modoScannerQR === "inventario") {
-          // Modo especial: sumar 1 a la cantidad del producto en la tabla de captura
           manejarEscaneoInventario(qrCodeMessage);
         } else {
-          // Comportamiento existente: movimientos de entrada/salida
           const inputQR = document.getElementById("inputQR");
           if (inputQR) inputQR.value = qrCodeMessage;
-          procesarQR(qrCodeMessage); // sigue ejecutando sin cerrar modal
+          procesarQR(qrCodeMessage);
         }
       },
       errorMsg => {
@@ -4644,7 +4645,17 @@ async function enviarSupabase() {
 
 //8888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888
 
+function moverFilaAlInicio(fila) {
+  try {
+    const tbody = document.querySelector("#tablaCaptura tbody");
+    if (!tbody || !fila) return;
 
+    tbody.insertBefore(fila, tbody.firstChild); // mueve al inicio
+    console.log("🔝 Fila movida al inicio:", fila);
+  } catch (e) {
+    console.error("❌ Error al mover fila al inicio:", e);
+  }
+}
 
 function agregarFila(ref, lote, estado) {
     const tabla = document.getElementById("tablaRegistros");
@@ -5031,28 +5042,51 @@ function agregarFila(ref, lote, estado) {
         return [];
       }
     }
+    function extraerTimestampPlano(qr) {
+      if (!qr) return null;
+
+      const limpio = qr
+        .replace(/["']/g, "")
+        .replace(/\*/g, "")
+        .trim();
+
+      const match = limpio.match(/T[:>]\s*([A-Za-z0-9\-]+)/i);
+      return match ? match[1].trim() : null;
+    }
 
     function extraerReferenciaPlano(qr) {
       if (!qr) return null;
 
-      // Limpieza básica (por si el lector mete asteriscos u otros símbolos)
-      const limpio = qr.replace(/\*/g, "").trim();
+      console.log("🔍 extraerReferenciaPlano() input:", qr);
 
-      // 1) Formato tipo {3030603MYB}//{S/L}--{2030-12-31}|T:30072099
-      //    → Tomamos la PRIMER referencia entre llaves { ... }
-      let matchLlaves = limpio.match(/\{([^}]+)\}/);
+      // Limpiar comillas, asteriscos u otros adornos que vienen del lector
+      const limpio = qr
+        .replace(/["']/g, "")   // quita comillas
+        .replace(/\*/g, "")     // quita asteriscos **
+        .trim();
+
+      console.log("🔍 extraerReferenciaPlano() limpio:", limpio);
+
+      // 1) Formato con llaves {3030603MYB}//{S/L}--{2030-12-31}|T:...
+      const matchLlaves = limpio.match(/\{([^}]+)\}/);
       if (matchLlaves) {
-        return matchLlaves[1].trim();
+        const ref = matchLlaves[1].trim();
+        console.log("✅ referencia por llaves:", ref);
+        return ref;
       }
 
       // 2) Formato clásico con R: o R>
       const matchR = limpio.match(/R[:>]\s*([A-Za-z0-9\-]+)/i);
       if (matchR) {
-        return matchR[1].trim();
+        const ref = matchR[1].trim();
+        console.log("✅ referencia por R:", ref);
+        return ref;
       }
 
+      console.warn("⚠️ extraerReferenciaPlano() no encontró referencia");
       return null;
     }
+
     function actualizarInventarioDetallado(referencia, lote, caducidad, deltaCantidad) {
       if (!referencia || !deltaCantidad) return;
 
@@ -5074,52 +5108,68 @@ function agregarFila(ref, lote, estado) {
     }
     function manejarEscaneoInventario(contenido) {
       try {
+        console.log("📥 manejarEscaneoInventario() contenido bruto:", contenido);
+
         const modo = document.getElementById("modoCaptura")?.value;
+        const unidad = document.getElementById("unidadCaptura")?.value;
+
+        console.log("📌 modoCaptura:", modo, " | unidadCaptura:", unidad);
+
         if (modo !== "inventario") {
           mostrarModal("⚠️ Cambia a modo INVENTARIO para usar el lector QR de inventario.", "#f97316");
           return;
         }
 
-        const unidad = document.getElementById("unidadCaptura")?.value;
         if (!unidad) {
           mostrarModal("⚠️ Selecciona una unidad antes de escanear.", "#f97316");
           return;
         }
 
-        // 🧩 1) Obtener datos desde tu función actual
+        // 1) Obtener datos con tu parser actual
         const datos = extraerDatosQR(contenido) || {};
+        console.log("🧩 extraerDatosQR() →", datos);
+
         let referencia = datos.referencia || extraerReferenciaPlano(contenido);
         let lote       = datos.lote || null;
         let caducidad  = datos.caducidad || null;
+        let timestamp  = datos.timestamp || extraerTimestampPlano(contenido);
 
-        // 🧩 2) Si no hay lote/caducidad, intentar sacarlos del formato con llaves
-        if (!lote || !caducidad) {
-          const extra = extraerLoteCadDeLlaves(contenido);
-          if (!lote && extra.lote) lote = extra.lote;
-          if (!caducidad && extra.caducidad) caducidad = extra.caducidad;
-        }
+        console.log("🎯 referencia preliminar:", referencia, "| lote:", lote, "| caducidad:", caducidad, "| timestamp:", timestamp);
 
         if (!referencia) {
           mostrarModal("❌ No se encontró la referencia en el QR.", "#b91c1c");
           return;
         }
 
-        // 🧩 3) Validar que la referencia esté asignada a la unidad (igual que antes)
-        const coincide = (window.referenciasPorUnidad || []).some(r =>
-          r.referencia === referencia &&
-          normalizarTexto(r.unidad_medica) === normalizarTexto(unidad)
-        );
-        if (!coincide) {
-          mostrarModal("❌ Esta referencia no está asignada a la unidad seleccionada.", "#b91c1c");
-          return;
+        // 2) Bloquear si el timestamp ya se escaneó antes
+        if (timestamp) {
+          console.log("⏱ timestamp detectado:", timestamp);
+          if (timestampsEscaneadosInventario.has(timestamp)) {
+            console.warn("⛔ timestamp ya escaneado:", timestamp);
+            mostrarModal("⛔ Esta etiqueta ya fue escaneada anteriormente.", "#b91c1c");
+            return;
+          }
+        } else {
+          console.warn("⚠️ QR sin timestamp, no se puede validar duplicado por T:");
         }
 
-        // 🧩 4) Buscar la fila en la tabla de captura y sumar 1
+        const referenciaNormalizada = referencia.toString().trim().toUpperCase();
+        console.log("🎯 referencia normalizada:", referenciaNormalizada);
+
+        // 3) Buscar en la tabla de captura
         const filas = document.querySelectorAll("#tablaCaptura tbody tr");
+        console.log("📊 Filas actuales en tablaCaptura:", filas.length);
+
         let encontrada = false;
-        filas.forEach(fila => {
+        const refsTabla = [];
+
+        filas.forEach((fila, idx) => {
           const refFila = fila.children[0]?.textContent.trim();
-          if (refFila === referencia) {
+          const refFilaNorm = (refFila ?? "").toString().trim().toUpperCase();
+          refsTabla.push(refFilaNorm);
+          console.log(`   • Fila ${idx}: "${refFilaNorm}" vs "${referenciaNormalizada}"`);
+
+          if (refFilaNorm === referenciaNormalizada) {
             const inputCantidad = fila.querySelector("input");
             if (inputCantidad) {
               const actual = parseFloat(inputCantidad.value) || 0;
@@ -5128,27 +5178,42 @@ function agregarFila(ref, lote, estado) {
               marcarComoCompletada(inputCantidad);
               encontrada = true;
 
-              // 🧩 5) Actualizar inventario detallado (ref + lote + caducidad)
-              actualizarInventarioDetallado(referencia, lote, caducidad, 1);
+              console.log("✅ Fila encontrada, cantidad actualizada a:", nueva);
+
+              // 🆕 Mover la fila al inicio porque proviene del escáner
+              moverFilaAlInicio(fila);
+
+              // Registrar inventario detallado
+              if (typeof actualizarInventarioDetallado === "function") {
+                actualizarInventarioDetallado(referencia, lote, caducidad, 1);
+              }
+
+              // Registrar timestamp
+              if (timestamp) {
+                timestampsEscaneadosInventario.add(timestamp);
+                console.log("⏱ timestamp registrado:", timestamp);
+              }
             }
           }
         });
 
         if (!encontrada) {
+          console.warn("⚠️ Referencia no encontrada en tablaCaptura. Unidad actual:", unidad);
+          console.log("📋 Referencias presentes en tablaCaptura:", refsTabla);
           mostrarModal("❌ Esta referencia no está en la tabla de la unidad seleccionada.", "#b91c1c");
           return;
         }
 
-        // (Opcional) mostrar en los inputs qué se escaneó
+        // (Opcional) actualizar inputs visibles
         const inputRef = document.getElementById("inputReferencia");
         if (inputRef) inputRef.value = referencia;
         const inputCant = document.getElementById("inputCantidad");
         if (inputCant) inputCant.value = "1";
 
-        console.log("🎯 Escaneo inventario:", { referencia, lote, caducidad });
+        console.log("🎯 Escaneo inventario final:", { referencia, lote, caducidad, timestamp });
 
       } catch (err) {
-        console.error("Error en manejarEscaneoInventario:", err);
+        console.error("💥 Error en manejarEscaneoInventario:", err);
         mostrarModal("❌ Error al procesar el QR de inventario.", "#b91c1c");
       }
     }
