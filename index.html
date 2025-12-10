@@ -652,13 +652,23 @@
     <label for="unidadCaptura" class="block font-semibold mb-1">Unidad asignada:</label>
     <select id="unidadCaptura" class="w-full px-4 py-2 border rounded-xl" onchange="mostrarReferenciasUnidad()"></select>
   </div>
-  <!-- Referencia -->
+    <!-- Referencia -->
   <div>
     <label class="block font-semibold mb-1">Referencia:</label>
-    <input id="inputReferencia" class="w-full px-4 py-2 border rounded-xl"
-      placeholder="Ej. 368171 o MD-VE-C22"
-      oninput="buscarReferenciaCaptura()"
-      onkeydown="if(event.key==='Enter'){ agregarFilaCaptura(); }" />
+    <div class="flex gap-2">
+      <input id="inputReferencia" class="w-full px-4 py-2 border rounded-xl"
+        placeholder="Ej. 368171 o MD-VE-C22"
+        oninput="buscarReferenciaCaptura()"
+        onkeydown="if(event.key==='Enter'){ agregarFilaCaptura(); }" />
+      <button
+        type="button"
+        id="btnQrInventario"
+        onclick="abrirModalQRInventario()"
+        class="inline-flex items-center justify-center px-3 py-2 rounded-xl border text-xl"
+        title="Escanear etiqueta con cámara (modo inventario)">
+        📷
+      </button>
+    </div>
     <div id="sugerenciasReferencia" class="absolute z-50 bg-white border rounded-xl shadow hidden"></div>
   </div>
 
@@ -829,8 +839,8 @@ function bloquearClicks(e){e.stopPropagation();e.preventDefault();}
 //   }
 // }
 
-
 let scannerActivo = false, qrScanner = null;
+let modoScannerQR = "movimientos"; // "movimientos" | "inventario"
 
 // Permitir arrastrar la ventana del lector QR
 function hacerDraggable(idElemento) {
@@ -869,7 +879,10 @@ function hacerDraggable(idElemento) {
 }
 
 // Activar cuando se abra el lector
-function abrirModalQR() {
+function abrirModalQR(modo = "movimientos") {
+  // Define si el escáner trabajará para movimientos o inventario
+  modoScannerQR = modo;
+
   const modal = document.getElementById("modalQR");
   const visor = document.getElementById("qr-reader");
 
@@ -879,8 +892,6 @@ function abrirModalQR() {
   hacerDraggable("modalQR");  // 👈 activa drag al abrir
   iniciarScannerQR();
 }
-
-
 
 function cerrarModalQR() {
   console.log("🛑 cerrarModalQR() llamado");
@@ -932,8 +943,16 @@ function iniciarScannerQR() {
         tiempoUltimaLectura = ahora;
 
         console.log("✅ QR detectado:", qrCodeMessage);
-        document.getElementById("inputQR").value = qrCodeMessage;
-        procesarQR(qrCodeMessage); // sigue ejecutando sin cerrar modal
+
+        if (modoScannerQR === "inventario") {
+          // Modo especial: sumar 1 a la cantidad del producto en la tabla de captura
+          manejarEscaneoInventario(qrCodeMessage);
+        } else {
+          // Comportamiento existente: movimientos de entrada/salida
+          const inputQR = document.getElementById("inputQR");
+          if (inputQR) inputQR.value = qrCodeMessage;
+          procesarQR(qrCodeMessage); // sigue ejecutando sin cerrar modal
+        }
       },
       errorMsg => {
         console.log("🔍 Esperando QR válido...", errorMsg);
@@ -952,6 +971,14 @@ function iniciarScannerQR() {
   }
 }
 
+function abrirModalQRInventario() {
+  const modo = document.getElementById("modoCaptura")?.value;
+  if (modo !== "inventario") {
+    mostrarModal("⚠️ El lector QR de inventario solo funciona cuando el modo está en INVENTARIO.", "#f97316");
+    return;
+  }
+  abrirModalQR("inventario");
+}
 
 function detenerScannerQR() {
   console.log("🔧 detenerScannerQR() llamado");
@@ -4947,6 +4974,79 @@ function agregarFila(ref, lote, estado) {
       } catch (e) {
         console.error("Error al obtener relaciones:", e);
         return [];
+      }
+    }
+
+    function extraerReferenciaPlano(qr) {
+      if (!qr) return null;
+      // Acepta R:XXX o R>XXX (según el formato móvil)
+      const match = qr.match(/R[:>]\s*([A-Za-z0-9\-]+)/i);
+      return match ? match[1].trim() : null;
+    }
+
+    function manejarEscaneoInventario(contenido) {
+      try {
+        const modo = document.getElementById("modoCaptura")?.value;
+        if (modo !== "inventario") {
+          mostrarModal("⚠️ Cambia a modo INVENTARIO para usar el lector QR de inventario.", "#f97316");
+          return;
+        }
+
+        const unidad = document.getElementById("unidadCaptura")?.value;
+        if (!unidad) {
+          mostrarModal("⚠️ Selecciona una unidad antes de escanear.", "#f97316");
+          return;
+        }
+
+        // 1) Sacar referencia R:
+        const datos = extraerDatosQR(contenido);
+        let referencia = datos?.referencia || extraerReferenciaPlano(contenido);
+
+        if (!referencia) {
+          mostrarModal("❌ No se encontró la referencia (R:) en el QR.", "#b91c1c");
+          return;
+        }
+
+        // 2) Validar que la referencia esté asignada a la unidad (igual que en agregarFilaCaptura)
+        const coincide = (window.referenciasPorUnidad || []).some(r =>
+          r.referencia === referencia &&
+          normalizarTexto(r.unidad_medica) === normalizarTexto(unidad)
+        );
+        if (!coincide) {
+          mostrarModal("❌ Esta referencia no está asignada a la unidad seleccionada.", "#b91c1c");
+          return;
+        }
+
+        // 3) Buscar la fila en la tabla de captura y sumar 1
+        const filas = document.querySelectorAll("#tablaCaptura tbody tr");
+        let encontrada = false;
+        filas.forEach(fila => {
+          const refFila = fila.children[0]?.textContent.trim();
+          if (refFila === referencia) {
+            const inputCantidad = fila.querySelector("input");
+            if (inputCantidad) {
+              const actual = parseFloat(inputCantidad.value) || 0;
+              inputCantidad.value = (actual + 1).toString();
+              marcarComoCompletada(inputCantidad);
+              encontrada = true;
+            }
+          }
+        });
+
+        if (!encontrada) {
+          mostrarModal("❌ Esta referencia no está en la tabla de la unidad seleccionada.", "#b91c1c");
+          return;
+        }
+
+        // 4) (Opcional) Mostrar en los campos de captura qué se escaneó
+        const inputRef = document.getElementById("inputReferencia");
+        if (inputRef) inputRef.value = referencia;
+        const inputCant = document.getElementById("inputCantidad");
+        if (inputCant) inputCant.value = "1";
+
+      } catch (err) {
+        console.error("Error en manejarEscaneoInventario:", err);
+        mostrarModal("❌ Error al procesar el QR de inventario.", "#b91c1c");
       }
     }
 
