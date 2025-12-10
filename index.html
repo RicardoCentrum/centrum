@@ -115,6 +115,21 @@
   border-radius: 12px;
   overflow: hidden;
 }
+  /* Compactar input de cantidad */
+  .cantidad-td input {
+    width: 70px;        /* compacto horizontalmente */
+    min-width: 60px;
+    text-align: center; /* más limpio */
+  }
+
+  /* Para pantallas muy chicas */
+  @media(max-width: 480px) {
+    .cantidad-td input {
+      width: 55px;
+      min-width: 50px;
+    }
+  }
+
 
   </style>
 </head>
@@ -704,7 +719,7 @@
     <input
       id="inputCantidad"
       type="number"
-      step="0.1"
+      step="0.01"
       placeholder="Cantidad"
       class="w-full px-4 py-2 border rounded-xl"
       onkeydown="if(event.key==='Enter'){ agregarFilaCaptura(); }" />
@@ -777,11 +792,11 @@
 <div id="contenedorTabla" class="overflow-x-auto max-h-[75vh] overflow-y-auto hidden mt-4">
   <table class="w-full text-sm text-left border" id="tablaCaptura">
     <thead id="tablaEncabezado" class="bg-emerald-900 text-white">
-      <tr>
-        <th class="p-2">Cantidad</th>
-        <th class="p-2">Nombre</th>
-        <th class="p-2">Referencia</th>
-        <th class="p-2">Eliminar</th>
+      <tr class="text-left">
+        <th class="w-20">Cantidad</th>
+        <th>Nombre</th>
+        <th class="w-32">Referencia</th>
+        <th class="w-16">Eliminar</th>
       </tr>
     </thead>
     <tbody class="bg-white text-black"></tbody>
@@ -5220,25 +5235,45 @@ function agregarFila(ref, lote, estado) {
 
 
     function agregarFilaCaptura() {
-      const ref = document.getElementById("inputReferencia").value.trim();
-      const cantidad = parseFloat(document.getElementById("inputCantidad").value);
+      const refInput = document.getElementById("inputReferencia");
+      const cantInput = document.getElementById("inputCantidad");
       const tipo = document.getElementById("modoCaptura").value;
       const unidad = document.getElementById("unidadCaptura").value;
 
-      if (!ref || isNaN(cantidad)) return alert("⚠️ Faltan datos");
+      const ref = refInput.value.trim();
+      const cantidad = parseFloat(cantInput.value);
+
+      if (!ref || isNaN(cantidad)) {
+        alert("⚠️ Faltan datos");
+        return;
+      }
 
       // Verificación de asignación de referencia a la unidad
       const coincide = referenciasPorUnidad.some(r =>
-        r.referencia === ref && normalizarTexto(r.unidad_medica) === normalizarTexto(unidad)
+        r.referencia === ref &&
+        normalizarTexto(r.unidad_medica) === normalizarTexto(unidad)
       );
-      if (!coincide) return alert("❌ Esta referencia no está asignada a la unidad seleccionada.");
+      if (!coincide) {
+        alert("❌ Esta referencia no está asignada a la unidad seleccionada.");
+        return;
+      }
 
       const filas = document.querySelectorAll("#tablaCaptura tbody tr");
       let encontrada = false;
+
       filas.forEach(fila => {
-        const refFila = fila.children[0].textContent.trim();
+        // 🆕 Ahora la referencia está en la columna 2: [0]=Cantidad, [1]=Nombre, [2]=Referencia
+        const celdaRef = fila.children[2];
+        if (!celdaRef) return;
+
+        const refFila = celdaRef.textContent.trim();
+        console.log("Ref fila:", refFila, "vs ref input:", ref);
+
         if (refFila === ref) {
-          const inputCantidad = fila.querySelector("input");
+          // 🆕 La cantidad está en la columna 0
+          const celdaCantidad = fila.children[0];
+          const inputCantidad = celdaCantidad ? celdaCantidad.querySelector("input") : null;
+
           if (inputCantidad) {
             inputCantidad.value = cantidad;
             marcarComoCompletada(inputCantidad);
@@ -5248,13 +5283,12 @@ function agregarFila(ref, lote, estado) {
       });
 
       if (!encontrada) {
-        mostrarModal("❌ Esta referencia no está en la tabla de la unidad seleccionada.", "#b91c1c"); // rojo fuerte
+        mostrarModal("❌ Esta referencia no está en la tabla de la unidad seleccionada.", "#b91c1c");
       }
 
-      document.getElementById("inputReferencia").value = "";
-      document.getElementById("inputCantidad").value = "";
+      refInput.value = "";
+      cantInput.value = "";
     }
-
 
     function cerrarModalNIP() {
       document.getElementById("modalNIP").classList.add("hidden");
