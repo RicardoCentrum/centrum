@@ -4819,7 +4819,41 @@ function agregarFila(ref, lote, estado) {
         caducidad: match[3] || null    // 2030-12-31
       };
     }
+    function actualizarDatosCaptura() {
+      const filas = document.querySelectorAll("#tablaCaptura tbody tr");
+      const modo = document.getElementById("modoCaptura")?.value || "inventario";
 
+      datosCaptura = [];
+
+      filas.forEach(fila => {
+        // [0] = Cantidad (input)
+        // [1] = Nombre (texto)
+        // [2] = Referencia (texto)
+        const celdaCantidad = fila.children[0];
+        const celdaNombre   = fila.children[1];
+        const celdaRef      = fila.children[2];
+
+        const inputCantidad = celdaCantidad ? celdaCantidad.querySelector("input") : null;
+
+        const cantidad  = parseFloat(inputCantidad?.value || "0");
+        const nombre    = celdaNombre?.textContent.trim() || "";
+        const referencia = celdaRef?.textContent.trim() || "";
+
+        // Log para verificar
+        console.log("📦 fila → ref:", referencia, "| nombre:", nombre, "| cantidad:", cantidad);
+
+        if (referencia && !isNaN(cantidad)) {
+          datosCaptura.push({
+            referencia,
+            nombre,
+            cantidad,
+            tipo: modo
+          });
+        }
+      });
+
+      console.log("📝 datosCaptura listos para enviar:", datosCaptura);
+    }
     function actualizarModoCaptura() {
       const toggle = document.getElementById("modoToggle");
       const texto = document.getElementById("modoTexto");
@@ -4972,7 +5006,7 @@ function agregarFila(ref, lote, estado) {
       referencias.forEach(r => {
         const fila = document.createElement("tr");
         fila.innerHTML = `
-          <td class='p-2 cantidad-td'>
+          <td class="p-2 cantidad-td">
             <input
               type="number"
               step="0.1"
@@ -4982,14 +5016,10 @@ function agregarFila(ref, lote, estado) {
               onchange="marcarComoCompletada(this)"
             />
           </td>
-          <td class='p-2'>${r.nombre || ""}</td>
-          <td class='p-2'>${r.referencia}</td>
-          <td class='p-2 text-center'>
-            <button
-              onclick='this.closest("tr").remove(); actualizarDatosCaptura()'
-              class='text-red-600'>
-              ✖
-            </button>
+          <td class="p-2 celda-nombre">${r.nombre || ""}</td>
+          <td class="p-2 celda-ref">${r.referencia}</td>
+          <td class="p-2 text-center">
+            <button onclick='this.closest("tr").remove(); actualizarDatosCaptura()' class='text-red-600'>✖</button>
           </td>
         `;
         tabla.appendChild(fila);
@@ -5186,13 +5216,13 @@ function agregarFila(ref, lote, estado) {
         const refsTabla = [];
 
         filas.forEach((fila, idx) => {
-          const refFila = fila.children[0]?.textContent.trim();
+          const refFila = fila.children[2]?.textContent.trim();
           const refFilaNorm = (refFila ?? "").toString().trim().toUpperCase();
           refsTabla.push(refFilaNorm);
           console.log(`   • Fila ${idx}: "${refFilaNorm}" vs "${referenciaNormalizada}"`);
 
           if (refFilaNorm === referenciaNormalizada) {
-            const inputCantidad = fila.querySelector("input");
+            const inputCantidad = fila.children[0]?.querySelector("input");
             if (inputCantidad) {
               const actual = parseFloat(inputCantidad.value) || 0;
               const nueva  = actual + 1;
@@ -5314,21 +5344,22 @@ function agregarFila(ref, lote, estado) {
 
     function marcarComoCompletada(input) {
       const fila = input.closest("tr");
-      const referencia = fila.children[0].textContent.trim();
-      const nombre = fila.children[1].textContent.trim();
+
+      // Nuevo orden: Cantidad | Nombre | Referencia
+      const nombre = fila.children[1]?.textContent.trim() || "";
+      const referencia = fila.children[2]?.textContent.trim() || "";
+
       const cantidad = parseFloat(input.value);
       const tipo = document.getElementById("modoCaptura").value;
 
       if (!isNaN(cantidad) && cantidad > 0) {
         fila.classList.add("completada");
 
-        // ⬇️ Si el toggle está activo, oculta inmediatamente la fila completada
         const ocultar = document.querySelector("input[type='checkbox'][onchange*='toggleFilasCompletadas']")?.checked;
         if (ocultar) fila.style.display = "none";
-
       } else {
         fila.classList.remove("completada");
-        fila.style.display = "";  // Asegura que se muestre de nuevo si se borra la cantidad
+        fila.style.display = "";
       }
 
       // Actualizar o insertar en datosCaptura
@@ -5336,11 +5367,15 @@ function agregarFila(ref, lote, estado) {
       if (existente) {
         existente.cantidad = cantidad;
         existente.tipo = tipo;
+        existente.nombre = nombre;
       } else {
-        datosCaptura.push({ referencia, nombre, cantidad, tipo });
+        // Solo guarda si hay referencia válida
+        if (referencia) datosCaptura.push({ referencia, nombre, cantidad, tipo });
       }
+
       localStorage.setItem("capturaPendiente", JSON.stringify(datosCaptura));
     }
+
     async function enviarCapturaBase() {
       if (!datosCaptura.length) return alert("No hay datos que enviar.");
 
