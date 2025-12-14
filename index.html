@@ -18,312 +18,344 @@
   <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <style>
-    :root{
-      --bg-0:#030b10;
-      --bg-1:#06161d;
-      --glass: rgba(0, 18, 22, 0.72);
-      --stroke: rgba(23,162,166,0.30);
-      --stroke-strong: rgba(23,162,166,0.40);
-      --stroke-soft: rgba(255,255,255,0.10);
-      --teal:#17a2a6;
-      --teal-2:#4dc9c6;
-      --blue:#1e40af;
-      --txt:#eaf6f7;
-      --muted: rgba(255,255,255,0.72);
-      --shadow: 0 25px 60px rgba(0,0,0,0.55);
-      --shadow-soft: 0 18px 45px rgba(0,0,0,0.35);
-      --radius: 24px;
-      --radius-sm: 16px;
-    }
+:root{
+  --bg-0:#030b10;
+  --bg-1:#06161d;
 
-    body {
-      background: url('bcg_centrum.png') no-repeat center center fixed;
-      background-size: cover;
-      background-color: #001d25;
-      font-family: 'Segoe UI', sans-serif;
-      color: var(--txt);
-      margin: 0;
-    }
+  --glass: rgba(0,18,22,.72);
+  --panel: rgba(0,18,22,.78);
+  --panel-strong: rgba(0,18,22,.82);
 
-    @media (max-width: 767px){
-      body{
-        background-size: cover;
-        background-repeat: no-repeat;
-        background-position: top center;
-        padding-top: env(safe-area-inset-top);
-      }
-    }
+  --stroke: rgba(23,162,166,.30);
+  --stroke-strong: rgba(23,162,166,.40);
+  --stroke-soft: rgba(255,255,255,.10);
 
-    /* ============ Glass Components ============ */
-    .space-panel{
-      background:
-        radial-gradient(1200px 600px at 10% 10%, rgba(23,162,166,0.25), transparent 55%),
-        radial-gradient(900px 500px at 90% 30%, rgba(30,64,175,0.25), transparent 60%),
-        rgba(0, 18, 22, 0.78);
-      border: 1px solid var(--stroke-strong);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-    }
+  --teal:#17a2a6;
+  --blue:#1e40af;
 
-    .space-card{
-      background: rgba(255,255,255,0.05);
-      border: 1px solid var(--stroke-soft);
-      border-radius: 18px;
-      box-shadow: var(--shadow-soft);
-    }
+  --txt:#eaf6f7;
+  --muted: rgba(255,255,255,.72);
 
-    .space-modal-backdrop{
-      background: rgba(0,0,0,0.72);
-      -webkit-backdrop-filter: blur(10px);
-      backdrop-filter: blur(10px);
-    }
+  --shadow: 0 25px 60px rgba(0,0,0,.55);
+  --shadow-soft: 0 18px 45px rgba(0,0,0,.35);
 
-    .space-input{
-      width: 100%;
-      background: rgba(0,0,0,0.30);
-      border: 1px solid rgba(255,255,255,0.12);
-      color: var(--txt);
-      border-radius: 14px;
-      padding: 10px 12px;
-      outline: none;
-      transition: box-shadow .12s ease, border-color .12s ease;
-    }
-    .space-input::placeholder{ color: rgba(255,255,255,0.45); }
-    .space-input:focus{
-      box-shadow: 0 0 0 2px rgba(23,162,166,0.55);
-      border-color: rgba(23,162,166,0.55);
-    }
+  --radius: 24px;
+  --radius-sm: 16px;
+}
 
-    .space-btn{
-      border-radius: 18px;
-      padding: 10px 14px;
-      font-weight: 700;
-      color: white;
-      background: linear-gradient(90deg, rgba(30,64,175,0.25), rgba(23,162,166,0.25));
-      border: 1px solid rgba(23,162,166,0.25);
-      box-shadow: 0 12px 30px rgba(0,0,0,0.35);
-      transition: transform .12s ease, opacity .12s ease;
-    }
-    .space-btn:hover{ opacity: .95; transform: translateY(-1px); }
-    .space-btn:active{ transform: translateY(0px); }
+/* =========================
+   Base
+========================= */
+body{
+  margin:0;
+  color:var(--txt);
+  font-family:'Segoe UI',sans-serif;
+  background: url('bcg_centrum.png') no-repeat center center fixed;
+  background-size:cover;
+  background-color:#001d25;
+}
 
-    .space-btn-ghost{
-      border-radius: 18px;
-      padding: 10px 14px;
-      font-weight: 700;
-      color: var(--txt);
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.10);
-      transition: background .12s ease;
-    }
-    .space-btn-ghost:hover{ background: rgba(255,255,255,0.09); }
+@media (max-width: 767px){
+  body{
+    background-position: top center;
+    padding-top: env(safe-area-inset-top);
+  }
+}
 
-    /* ✅ Modal viejo (compat) */
-    .modal{
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      padding: 18px;
-      display: none;
-      z-index: 10000;
-      background:
-        radial-gradient(900px 500px at 20% 20%, rgba(23,162,166,0.22), transparent 60%),
-        radial-gradient(700px 420px at 85% 40%, rgba(30,64,175,0.22), transparent 65%),
-        rgba(0, 18, 22, 0.85);
-      border: 1px solid rgba(23,162,166,0.35);
-      border-radius: var(--radius-sm);
-      box-shadow: var(--shadow);
-      color: var(--txt);
-      max-width: min(520px, 92vw);
-    }
+/* =========================
+   Glass Components
+========================= */
+.space-panel{
+  background:
+    radial-gradient(1200px 600px at 10% 10%, rgba(23,162,166,.25), transparent 55%),
+    radial-gradient(900px 500px at 90% 30%, rgba(30,64,175,.25), transparent 60%),
+    var(--panel);
+  border:1px solid var(--stroke-strong);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+}
 
-    /* =========================
-       ✅ Modal System (centrado, móvil friendly)
-       ========================= */
-    .space-modal{
-      position: fixed;
-      inset: 0;
-      z-index: 10000;
-      align-items: center;
-      justify-content: center;
-      padding: 14px;
-      background: rgba(0,0,0,0.72);
-      -webkit-backdrop-filter: blur(10px);
-      backdrop-filter: blur(10px);
-      display: flex;                 /* base */
-    }
-    /* 🔥 ESTA es la corrección clave:
-       Si Tailwind/tu JS quita "hidden", esto garantiza tamaño. */
-    .space-modal.hidden{ display: none !important; }
-    .space-modal:not(.hidden){ display: flex !important; }
+.space-card{
+  background:rgba(255,255,255,.05);
+  border:1px solid var(--stroke-soft);
+  border-radius:18px;
+  box-shadow:var(--shadow-soft);
+}
 
-    .space-modal__panel{
-      width: min(560px, 96vw);
-      max-height: min(92dvh, 760px);
-      overflow: auto;
-      background:
-        radial-gradient(1200px 600px at 10% 10%, rgba(23,162,166,0.25), transparent 55%),
-        radial-gradient(900px 500px at 90% 30%, rgba(30,64,175,0.25), transparent 60%),
-        rgba(0, 18, 22, 0.82);
-      border: 1px solid rgba(23,162,166,0.35);
-      border-radius: 22px;
-      box-shadow: var(--shadow);
-      color: var(--txt);
-    }
+.space-input{
+  width:100%;
+  padding:10px 12px;
+  border-radius:14px;
+  outline:none;
 
-    .space-modal__header{
-      position: sticky;
-      top: 0;
-      z-index: 1;
-      padding: 14px 16px;
-      border-bottom: 1px solid rgba(255,255,255,0.10);
-      background: rgba(0, 18, 22, 0.72);
-      -webkit-backdrop-filter: blur(10px);
-      backdrop-filter: blur(10px);
-    }
+  background:rgba(0,0,0,.30);
+  border:1px solid rgba(255,255,255,.12);
+  color:var(--txt);
 
-    .space-modal__body{ padding: 16px; }
+  transition: box-shadow .12s ease, border-color .12s ease;
+  color-scheme: dark; /* 👈 inputs nativos dark (incluye number/date) */
+}
+.space-input::placeholder{ color:rgba(255,255,255,.45); }
+.space-input:focus{
+  border-color:rgba(23,162,166,.55);
+  box-shadow:0 0 0 2px rgba(23,162,166,.55);
+}
 
-    /* =========================
-       Otros
-       ========================= */
-    #mensajeQR{
-      position: fixed;
-      top: 40%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      padding: 18px 22px;
-      font-weight: 700;
-      border-radius: 18px;
-      font-size: 18px;
-      color: var(--txt);
-      display: none;
-      z-index: 9999;
-      text-align: center;
-      max-width: min(680px, 86vw);
-      background:
-        radial-gradient(900px 500px at 15% 10%, rgba(23,162,166,0.22), transparent 60%),
-        radial-gradient(700px 420px at 90% 30%, rgba(30,64,175,0.20), transparent 65%),
-        rgba(0, 18, 22, 0.86);
-      border: 1px solid rgba(23,162,166,0.38);
-      box-shadow: 0 22px 60px rgba(0,0,0,0.55);
-      -webkit-backdrop-filter: blur(10px);
-      backdrop-filter: blur(10px);
-    }
+.space-btn{
+  border-radius:18px;
+  padding:10px 14px;
+  font-weight:700;
+  color:#fff;
 
-    .blur-fondo::before{
-      content:"";
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.70);
-      -webkit-backdrop-filter: blur(10px);
-      backdrop-filter: blur(10px);
-      z-index: -1;
-    }
+  background:linear-gradient(90deg, rgba(30,64,175,.25), rgba(23,162,166,.25));
+  border:1px solid rgba(23,162,166,.25);
+  box-shadow:0 12px 30px rgba(0,0,0,.35);
 
-    .completada{
-      background-color: rgba(16, 185, 129, 0.16);
-      border-left: 3px solid rgba(16, 185, 129, 0.55);
-    }
+  transition: transform .12s ease, opacity .12s ease;
+}
+.space-btn:hover{ opacity:.95; transform: translateY(-1px); }
+.space-btn:active{ transform: translateY(0); }
 
-    @font-face{
-      font-family: 'MagmaWave';
-      src: url('MagmawaveCaps-Bold.woff2') format('woff2');
-      font-weight: normal;
-      font-style: normal;
-    }
-    .fuente-magma{ font-family: 'MagmaWave', sans-serif; }
+.space-btn-ghost{
+  border-radius:18px;
+  padding:10px 14px;
+  font-weight:700;
+  color:var(--txt);
 
-    .modo-basurero{
-      background-image: url('blackhole.png');
-      background-size: cover;
-      background-position: center;
-      transition: background 3s ease-in-out;
-    }
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.10);
 
-    .sr-only{
-      position: absolute !important;
-      width: 1px !important;
-      height: 1px !important;
-      padding: 0 !important;
-      margin: -1px !important;
-      overflow: hidden !important;
-      clip: rect(0,0,0,0) !important;
-      white-space: nowrap !important;
-      border: 0 !important;
-    }
+  transition: background .12s ease;
+}
+.space-btn-ghost:hover{ background:rgba(255,255,255,.09); }
 
-    #qr-reader{
-      border: 1px solid rgba(23,162,166,0.45);
-      border-radius: 18px;
-      overflow: hidden;
-      background: rgba(0,0,0,0.25);
-      box-shadow: 0 18px 45px rgba(0,0,0,0.35);
-    }
+/* =========================
+   Backdrops / Modals
+========================= */
+.space-modal-backdrop{
+  background:rgba(0,0,0,.72);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
 
-    .space-file-wrap{ display: grid; gap: 10px; }
-    .space-file-input{
-      position: absolute !important;
-      width: 1px !important;
-      height: 1px !important;
-      padding: 0 !important;
-      margin: -1px !important;
-      overflow: hidden !important;
-      clip: rect(0,0,0,0) !important;
-      white-space: nowrap !important;
-      border: 0 !important;
-    }
-    .space-file-input:focus + label,
-    .space-file-input:focus-visible + label{
-      box-shadow: 0 0 0 2px rgba(23,162,166,0.55);
-      border-color: rgba(23,162,166,0.55);
-    }
-    /* =========================
-   🔢 Input cantidad compacto
-   ========================= */
-  /* ✅ Input cantidad: glass + compacto */
+/* Modal system (el que estás usando ya) */
+.space-modal{
+  position:fixed;
+  inset:0;
+  z-index:10000;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:14px;
+  background:rgba(0,0,0,.72);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.space-modal.hidden{ display:none !important; }
+
+.space-modal__panel{
+  width:min(560px, 96vw);
+  max-height:min(92dvh, 760px);
+  overflow:auto;
+
+  background:
+    radial-gradient(1200px 600px at 10% 10%, rgba(23,162,166,.25), transparent 55%),
+    radial-gradient(900px 500px at 90% 30%, rgba(30,64,175,.25), transparent 60%),
+    var(--panel-strong);
+
+  border:1px solid rgba(23,162,166,.35);
+  border-radius:22px;
+  box-shadow:var(--shadow);
+  color:var(--txt);
+}
+
+.space-modal__header{
+  position:sticky;
+  top:0;
+  z-index:1;
+  padding:14px 16px;
+  border-bottom:1px solid rgba(255,255,255,.10);
+  background:rgba(0,18,22,.72);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.space-modal__body{ padding:16px; }
+
+/* Modal viejo (compat) */
+.modal{
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  padding:18px;
+  display:none;
+  z-index:10000;
+
+  background:
+    radial-gradient(900px 500px at 20% 20%, rgba(23,162,166,.22), transparent 60%),
+    radial-gradient(700px 420px at 85% 40%, rgba(30,64,175,.22), transparent 65%),
+    rgba(0,18,22,.85);
+
+  border:1px solid rgba(23,162,166,.35);
+  border-radius:var(--radius-sm);
+  box-shadow:var(--shadow);
+  color:var(--txt);
+  max-width:min(520px, 92vw);
+}
+
+/* =========================
+   Special UI blocks
+========================= */
+#mensajeQR{
+  position:fixed;
+  top:40%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  padding:18px 22px;
+  border-radius:18px;
+  font-weight:700;
+  font-size:18px;
+  text-align:center;
+  display:none;
+  z-index:9999;
+  max-width:min(680px,86vw);
+
+  background:
+    radial-gradient(900px 500px at 15% 10%, rgba(23,162,166,.22), transparent 60%),
+    radial-gradient(700px 420px at 90% 30%, rgba(30,64,175,.20), transparent 65%),
+    rgba(0,18,22,.86);
+
+  border:1px solid rgba(23,162,166,.38);
+  box-shadow:0 22px 60px rgba(0,0,0,.55);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.blur-fondo::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  z-index:-1;
+  background:rgba(0,0,0,.70);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.completada{
+  background-color: rgba(16,185,129,.16);
+  border-left:3px solid rgba(16,185,129,.55);
+}
+
+#qr-reader{
+  border:1px solid rgba(23,162,166,.45);
+  border-radius:18px;
+  overflow:hidden;
+  background:rgba(0,0,0,.25);
+  box-shadow:0 18px 45px rgba(0,0,0,.35);
+}
+
+/* =========================
+   Accessibility / Utils
+========================= */
+.sr-only{
+  position:absolute !important;
+  width:1px !important;
+  height:1px !important;
+  padding:0 !important;
+  margin:-1px !important;
+  overflow:hidden !important;
+  clip:rect(0,0,0,0) !important;
+  white-space:nowrap !important;
+  border:0 !important;
+}
+
+/* File input styled */
+.space-file-wrap{ display:grid; gap:10px; }
+.space-file-input{
+  position:absolute !important;
+  width:1px !important;
+  height:1px !important;
+  padding:0 !important;
+  margin:-1px !important;
+  overflow:hidden !important;
+  clip:rect(0,0,0,0) !important;
+  white-space:nowrap !important;
+  border:0 !important;
+}
+.space-file-input:focus + label,
+.space-file-input:focus-visible + label{
+  box-shadow:0 0 0 2px rgba(23,162,166,.55);
+  border-color:rgba(23,162,166,.55);
+}
+
+/* =========================
+   Overrides: Cantidad compacto (number)
+========================= */
 .input-cantidad{
-  width: 72px !important;
-  min-width: 64px !important;
-  max-width: 80px !important;
+  width:72px !important;
+  min-width:64px !important;
+  max-width:80px !important;
 
-  background: rgba(0,0,0,0.35) !important;
-  color: var(--txt) !important;
-
-  border: 1px solid rgba(255,255,255,0.14) !important;
-  border-radius: 12px !important;
-
-  padding: 6px 8px !important;
-  text-align: right !important;
-
-  outline: none !important;
+  padding:6px 8px !important;
+  border-radius:12px !important;
+  text-align:right !important;
   font-variant-numeric: tabular-nums;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.25);
-}
 
-.input-cantidad::placeholder{
-  color: rgba(255,255,255,0.45) !important;
-}
+  background:rgba(0,0,0,.35) !important;
+  color:var(--txt) !important;
+  border:1px solid rgba(255,255,255,.14) !important;
 
+  outline:none !important;
+  box-shadow:0 10px 25px rgba(0,0,0,.25);
+}
+.input-cantidad::placeholder{ color:rgba(255,255,255,.45) !important; }
 .input-cantidad:focus{
-  border-color: rgba(23,162,166,0.55) !important;
-  box-shadow: 0 0 0 2px rgba(23,162,166,0.45) !important;
+  border-color:rgba(23,162,166,.55) !important;
+  box-shadow:0 0 0 2px rgba(23,162,166,.45) !important;
 }
-
-/* ✅ Que los spinners no se vean “Windows 98” */
 .input-cantidad::-webkit-outer-spin-button,
 .input-cantidad::-webkit-inner-spin-button{
-  opacity: .65;
+  opacity:.65;
   filter: invert(1);
 }
 
-.input-cantidad{
-  accent-color: var(--teal);
-  color-scheme: dark; /* 🔥 hace que el input number se comporte “dark” */
+/* =========================
+   Overrides: botones con salto en móvil
+========================= */
+.btn-wrap{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  text-align:center;
+}
+.btn-text{
+  display:inline-block;
+  line-height:1.05;
+  white-space:normal;
+}
+@media (max-width: 520px){
+  .btn-wrap{ padding:10px 12px !important; }
+  .btn-text{ max-width:10.5ch; font-size:.92rem; }
 }
 
+/* =========================
+   Fonts
+========================= */
+@font-face{
+  font-family:'MagmaWave';
+  src:url('MagmawaveCaps-Bold.woff2') format('woff2');
+  font-weight:normal;
+  font-style:normal;
+}
+.fuente-magma{ font-family:'MagmaWave', sans-serif; }
 
+.modo-basurero{
+  background-image:url('blackhole.png');
+  background-size:cover;
+  background-position:center;
+  transition: background 3s ease-in-out;
+}
 
   </style>
 </head>
@@ -561,8 +593,12 @@
     <div class="space-panel rounded-[28px] p-6 md:p-7 shadow-2xl">
 
       <div class="flex flex-wrap justify-center gap-3 mt-2">
-        <button onclick="solicitarNIP()" class="space-btn px-5 py-3 rounded-2xl">📝 Capturar Datos</button>
-        <button onclick="abrirModalReporteMensual()" class="space-btn px-5 py-3 rounded-2xl">📊 Generar Reporte</button>
+        <button onclick="solicitarNIP()" class="space-btn px-5 py-3 rounded-2xl btn-wrap">
+          📝 <span class="btn-text">Inventario/<wbr>Pruebas facturadas</span>
+        </button>
+        <button onclick="abrirModalReporteMensual()" class="space-btn px-5 py-3 rounded-2xl btn-wrap">
+          📊 <span class="btn-text">Generar<wbr>reporte</span>
+        </button>
       </div>
 
       <div class="mt-6">
