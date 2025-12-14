@@ -1,9 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#001d25">
@@ -11,15 +11,13 @@
   <link rel="icon" href="medinova.ico" type="image/x-icon" />
   <title>Medinova</title>
 
-  <!-- ✅ Scripts externos bien cerrados -->
+  <!-- ✅ Externos -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/gh/qzind/tray/qz-tray.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <style>
-    /* =========================
-       🌌 THEME TOKENS (Obsidiana / Espacial)
-       ========================= */
     :root{
       --bg-0:#030b10;
       --bg-1:#06161d;
@@ -27,45 +25,36 @@
       --stroke: rgba(23,162,166,0.30);
       --stroke-strong: rgba(23,162,166,0.40);
       --stroke-soft: rgba(255,255,255,0.10);
-
       --teal:#17a2a6;
       --teal-2:#4dc9c6;
       --blue:#1e40af;
-
       --txt:#eaf6f7;
       --muted: rgba(255,255,255,0.72);
-
       --shadow: 0 25px 60px rgba(0,0,0,0.55);
       --shadow-soft: 0 18px 45px rgba(0,0,0,0.35);
-
       --radius: 24px;
       --radius-sm: 16px;
     }
 
-    /* =========================
-       🌌 Base
-       ========================= */
     body {
       background: url('bcg_centrum.png') no-repeat center center fixed;
       background-size: cover;
       background-color: #001d25;
       font-family: 'Segoe UI', sans-serif;
       color: var(--txt);
+      margin: 0;
     }
 
     @media (max-width: 767px){
-      body {
+      body{
         background-size: cover;
         background-repeat: no-repeat;
         background-position: top center;
         padding-top: env(safe-area-inset-top);
-        margin: 0;
       }
     }
 
-    /* =========================
-       ✨ Glass Components
-       ========================= */
+    /* ============ Glass Components ============ */
     .space-panel{
       background:
         radial-gradient(1200px 600px at 10% 10%, rgba(23,162,166,0.25), transparent 55%),
@@ -129,11 +118,8 @@
     }
     .space-btn-ghost:hover{ background: rgba(255,255,255,0.09); }
 
-    /* =========================
-       ✅ Tu modal genérico (ANTES era blanco)
-       Ahora: espacial + compatible (si ya lo usas en JS)
-       ========================= */
-    .modal {
+    /* ✅ Modal viejo (compat) */
+    .modal{
       position: fixed;
       top: 50%;
       left: 50%;
@@ -141,8 +127,6 @@
       padding: 18px;
       display: none;
       z-index: 10000;
-
-      /* estética espacial */
       background:
         radial-gradient(900px 500px at 20% 20%, rgba(23,162,166,0.22), transparent 60%),
         radial-gradient(700px 420px at 85% 40%, rgba(30,64,175,0.22), transparent 65%),
@@ -155,27 +139,56 @@
     }
 
     /* =========================
-       🧷 Version info (esquina)
+       ✅ Modal System (centrado, móvil friendly)
        ========================= */
-    .version-info {
+    .space-modal{
       position: fixed;
-      bottom: 10px;
-      left: 15px;
-      background: rgba(0, 0, 0, 0.45);
-      border: 1px solid rgba(23,162,166,0.25);
-      color: rgba(220, 250, 255, 0.88);
-      font-size: 0.75rem;
-      padding: 6px 10px;
-      border-radius: 10px;
-      z-index: 9999;
-      -webkit-backdrop-filter: blur(8px);
-      backdrop-filter: blur(8px);
+      inset: 0;
+      z-index: 10000;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+      background: rgba(0,0,0,0.72);
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+      display: flex;                 /* base */
+    }
+    /* 🔥 ESTA es la corrección clave:
+       Si Tailwind/tu JS quita "hidden", esto garantiza tamaño. */
+    .space-modal.hidden{ display: none !important; }
+    .space-modal:not(.hidden){ display: flex !important; }
+
+    .space-modal__panel{
+      width: min(560px, 96vw);
+      max-height: min(92dvh, 760px);
+      overflow: auto;
+      background:
+        radial-gradient(1200px 600px at 10% 10%, rgba(23,162,166,0.25), transparent 55%),
+        radial-gradient(900px 500px at 90% 30%, rgba(30,64,175,0.25), transparent 60%),
+        rgba(0, 18, 22, 0.82);
+      border: 1px solid rgba(23,162,166,0.35);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      color: var(--txt);
     }
 
+    .space-modal__header{
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.10);
+      background: rgba(0, 18, 22, 0.72);
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+    }
+
+    .space-modal__body{ padding: 16px; }
+
     /* =========================
-       📣 Mensaje QR (toast gigante)
+       Otros
        ========================= */
-    #mensajeQR {
+    #mensajeQR{
       position: fixed;
       top: 40%;
       left: 50%;
@@ -189,7 +202,6 @@
       z-index: 9999;
       text-align: center;
       max-width: min(680px, 86vw);
-
       background:
         radial-gradient(900px 500px at 15% 10%, rgba(23,162,166,0.22), transparent 60%),
         radial-gradient(700px 420px at 90% 30%, rgba(30,64,175,0.20), transparent 65%),
@@ -200,69 +212,49 @@
       backdrop-filter: blur(10px);
     }
 
-    /* =========================
-       🌫️ Blur Fondo (manteniendo tu clase)
-       ========================= */
-    .blur-fondo::before {
-      content: "";
+    .blur-fondo::before{
+      content:"";
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.70);
+      background: rgba(0,0,0,0.70);
       -webkit-backdrop-filter: blur(10px);
       backdrop-filter: blur(10px);
       z-index: -1;
     }
 
-    /* =========================
-       ✅ Estado completada (mantengo funcionalidad, subo estética)
-       ========================= */
-    .completada {
-      background-color: rgba(16, 185, 129, 0.16); /* emerald glass */
+    .completada{
+      background-color: rgba(16, 185, 129, 0.16);
       border-left: 3px solid rgba(16, 185, 129, 0.55);
     }
 
-    /* =========================
-       🔥 Font MagmaWave (igual)
-       ========================= */
-    @font-face {
+    @font-face{
       font-family: 'MagmaWave';
       src: url('MagmawaveCaps-Bold.woff2') format('woff2');
       font-weight: normal;
       font-style: normal;
     }
-    .fuente-magma {
-      font-family: 'MagmaWave', sans-serif;
-    }
+    .fuente-magma{ font-family: 'MagmaWave', sans-serif; }
 
-    /* =========================
-       🕳️ Modo Basurero (igual)
-       ========================= */
-    .modo-basurero {
+    .modo-basurero{
       background-image: url('blackhole.png');
       background-size: cover;
       background-position: center;
       transition: background 3s ease-in-out;
     }
 
-    /* =========================
-       ♿ Accesibilidad
-       ========================= */
-    .sr-only {
+    .sr-only{
       position: absolute !important;
       width: 1px !important;
       height: 1px !important;
       padding: 0 !important;
       margin: -1px !important;
       overflow: hidden !important;
-      clip: rect(0, 0, 0, 0) !important;
+      clip: rect(0,0,0,0) !important;
       white-space: nowrap !important;
       border: 0 !important;
     }
 
-    /* =========================
-       📷 QR Reader (espacial)
-       ========================= */
-    #qr-reader {
+    #qr-reader{
       border: 1px solid rgba(23,162,166,0.45);
       border-radius: 18px;
       overflow: hidden;
@@ -270,504 +262,334 @@
       box-shadow: 0 18px 45px rgba(0,0,0,0.35);
     }
 
+    .space-file-wrap{ display: grid; gap: 10px; }
+    .space-file-input{
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      padding: 0 !important;
+      margin: -1px !important;
+      overflow: hidden !important;
+      clip: rect(0,0,0,0) !important;
+      white-space: nowrap !important;
+      border: 0 !important;
+    }
+    .space-file-input:focus + label,
+    .space-file-input:focus-visible + label{
+      box-shadow: 0 0 0 2px rgba(23,162,166,0.55);
+      border-color: rgba(23,162,166,0.55);
+    }
     /* =========================
-       📏 Cantidades (igual)
-       ========================= */
-    .cantidad-td {
-      width: 80px !important;
-      min-width: 65px !important;
-      max-width: 90px !important;
-    }
-
-    .cantidad-input {
-      width: 70px !important;
-      min-width: 60px !important;
-      max-width: 80px !important;
-      text-align: center;
-      padding-left: 4px;
-      padding-right: 4px;
-    }
-
-    @media (max-width: 480px) {
-      .cantidad-input {
-        width: 55px !important;
-        min-width: 50px !important;
-        max-width: 70px !important;
-      }
-    }
-
-    /* =========================
-       🧪 Panel Hipótesis (lo dejo como ya lo tienes)
-       ========================= */
-    .panel-hipotesis {
-      background: radial-gradient(1200px 600px at 10% 10%, rgba(23,162,166,0.25), transparent 55%),
-                  radial-gradient(900px 500px at 90% 30%, rgba(30,64,175,0.25), transparent 60%),
-                  rgba(0, 18, 22, 0.78);
-      border: 1px solid rgba(23,162,166,0.35);
-    }
-/* =========================
-   ✅ Modal System (centrado, móvil friendly)
+   🔢 Input cantidad compacto
    ========================= */
+  /* ✅ Input cantidad: glass + compacto */
+.input-cantidad{
+  width: 72px !important;
+  min-width: 64px !important;
+  max-width: 80px !important;
 
-/* Overlay universal */
-.space-modal {
-  position: fixed;
-  inset: 0;
-  z-index: 10000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 14px;
-  background: rgba(0,0,0,0.72);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  background: rgba(0,0,0,0.35) !important;
+  color: var(--txt) !important;
+
+  border: 1px solid rgba(255,255,255,0.14) !important;
+  border-radius: 12px !important;
+
+  padding: 6px 8px !important;
+  text-align: right !important;
+
+  outline: none !important;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.25);
 }
 
-/* Panel universal */
-.space-modal__panel {
-  width: min(560px, 96vw);
-  max-height: min(92dvh, 760px);
-  overflow: auto;
-
-  background:
-    radial-gradient(1200px 600px at 10% 10%, rgba(23,162,166,0.25), transparent 55%),
-    radial-gradient(900px 500px at 90% 30%, rgba(30,64,175,0.25), transparent 60%),
-    rgba(0, 18, 22, 0.82);
-
-  border: 1px solid rgba(23,162,166,0.35);
-  border-radius: 22px;
-  box-shadow: var(--shadow);
-  color: var(--txt);
+.input-cantidad::placeholder{
+  color: rgba(255,255,255,0.45) !important;
 }
 
-/* Header sticky (opcional pero GOD en móvil) */
-.space-modal__header {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  padding: 14px 16px;
-  border-bottom: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0, 18, 22, 0.72);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+.input-cantidad:focus{
+  border-color: rgba(23,162,166,0.55) !important;
+  box-shadow: 0 0 0 2px rgba(23,162,166,0.45) !important;
 }
 
-/* Body */
-.space-modal__body {
-  padding: 16px;
+/* ✅ Que los spinners no se vean “Windows 98” */
+.input-cantidad::-webkit-outer-spin-button,
+.input-cantidad::-webkit-inner-spin-button{
+  opacity: .65;
+  filter: invert(1);
 }
 
-/* Bottom sheet en móvil (si quieres ese estilo) */
-@media (max-width: 640px) {
-  .space-modal {
-    align-items: center;     /* ✅ centrado también en móvil */
-    justify-content: center;
-    padding: 14px;           /* ✅ margen para que no pegue a bordes */
-  }
-  .space-modal__panel {
-    width: min(560px, 96vw); /* ✅ igual que desktop */
-    max-height: 92dvh;       /* ✅ no se sale en móviles */
-    border-radius: 22px;     /* ✅ no bottom-sheet */
-    overflow: auto;
-  }
+.input-cantidad{
+  accent-color: var(--teal);
+  color-scheme: dark; /* 🔥 hace que el input number se comporte “dark” */
 }
+
+
 
   </style>
 </head>
 
-
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
-<script>
-  function agregarFila(ref, lote, estado) {
-    const tabla = document.getElementById("tablaRegistros");
-    const contenedor = document.getElementById("tablaContenedora");
-    contenedor.classList.remove("hidden");
-    setTimeout(() => contenedor.classList.remove("opacity-0"), 10);
-
-    const fila = document.createElement("tr");
-    fila.innerHTML = `
-      <td class="p-1">${ref}</td>
-      <td class="p-1">${lote}</td>
-      <td class="p-1">${estado}</td>
-      <td class="p-1 text-center">
-        <button onclick="eliminarFila(this)" class="text-red-300 hover:text-red-200">✖</button>
-      </td>
-    `;
-    tabla.appendChild(fila);
-  }
-</script>
-
-
-<!-- ✅ Loader (space) -->
-<div id="loaderOverlay"
-  class="fixed inset-0 z-[99999] hidden select-none flex items-center justify-center space-modal-backdrop">
-  <div class="space-panel p-6 flex items-center gap-4">
-    <img src="loader.gif" alt="Cargando..." class="w-20 h-20 pointer-events-none">
-    <div class="text-white/80">
-      <div class="fuente-magma tracking-widest text-lg">PROCESANDO</div>
-      <div class="text-xs text-white/60">Ejecutando operación…</div>
-    </div>
-  </div>
-</div>
-
-<!-- =========================
-     MODAL QR draggable (space)
-     ========================= -->
-<div id="modalQR"
-  class="fixed top-4 right-4 z-[890] hidden cursor-move w-[360px] max-w-full">
-  <div class="space-panel p-3" id="handleQR">
-    <div class="flex items-center justify-between">
-      <h2 class="text-center font-semibold text-sm text-white/80">
-        Escanea un QR
-      </h2>
-      <button onclick="cerrarModalQR()"
-        class="text-red-300 hover:text-red-200 font-bold text-xl px-2">
-        ×
-      </button>
-    </div>
-
-    <div id="qr-reader" class="w-full mt-2"></div>
-
-    <div class="mt-3 flex justify-end">
-      <button onclick="cerrarModalQR()" class="space-btn-ghost text-sm">
-        Cerrar
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- LOGO CENTRUM ARRIBA DERECHA -->
-<div class="absolute top-4 right-4 flex-col items-center text-center hidden sm:flex">
-  <h1 class="text-xs font-bold tracking-widest text-white/80 fuente-magma">In Collab with:</h1>
-  <img src="centrum.png" alt="Logo Centrum" class="h-12 mt-1 md:h-10" />
-</div>
-
-<!-- PORTADA -->
-<div class="text-center mb-10">
-  <a href="https://instagram.com/medinova.cuu" target="_blank" rel="noopener noreferrer">
-    <img src="logoportada.png" alt="Logo Medinova" class="mx-auto h-28 mb-2" />
-  </a>
-  <h1 class="text-5xl font-bold tracking-widest text-white fuente-magma">R.I.C.A.R.D.O.</h1>
-  <p class="text-base text-white/80 font-medium max-w-2xl mx-auto text-center">
-    <strong>R</strong>egistro <strong>I</strong>nteligente de <strong>C</strong>ontrol, <strong>A</strong>lmacenamiento y
-    <strong>R</strong>astreo <strong>D</strong>igital de <strong>O</strong>peraciones
-  </p>
-</div>
-
-<!-- =========================
-     Modal selección modo (space)
-     ========================= -->
-<div id="modalModo" class="fixed inset-0 z-50 hidden items-center justify-center space-modal-backdrop">
-  <div class="space-panel p-6 w-[92%] max-w-sm text-center">
-    <h2 class="text-lg font-bold mb-4 text-white/90">Selecciona el modo de operación</h2>
-    <div class="grid gap-3">
-      <button onclick="seleccionarModo('entrada')" class="space-btn w-full">📥 Entrada</button>
-      <button onclick="seleccionarModo('salida')" class="w-full rounded-2xl px-4 py-2 font-bold text-white
-        bg-gradient-to-r from-rose-900 to-red-900 border border-red-400/20 shadow-lg hover:opacity-95">
-        📤 Salida
-      </button>
-    </div>
-  </div>
-</div>
-
-<div id="mensajeQR"></div>
-
-<!-- =========================
-     Modal movimientos (space)
-     ========================= -->
-<div id="modalMovimientos" class="fixed inset-0 z-50 hidden items-center justify-center space-modal-backdrop">
-  <div class="space-panel rounded-3xl p-6 w-[92%] max-w-4xl">
-    <h2 class="text-lg font-bold mb-4 text-center text-white/90">📋 Movimientos del producto</h2>
-
-    <div class="space-card p-4 mb-4">
-      <div class="flex flex-col md:flex-row items-center justify-between gap-3">
-        <div class="flex items-center gap-2">
-          <label for="cantidadMovimientos" class="text-sm font-semibold text-white/80">Mostrar:</label>
-          <select id="cantidadMovimientos" class="space-input !w-auto !py-2">
-            <option value="20">Últimos 20</option>
-            <option value="50" selected>Últimos 50</option>
-            <option value="100">Últimos 100</option>
-            <option value="todos">Todos</option>
-          </select>
-        </div>
-
-        <div class="flex items-center gap-2">
-          <label class="text-sm font-semibold text-white/80" for="selectLote">Lote:</label>
-          <select id="selectLote" class="space-input !w-auto !py-2 text-sm"
-                  onchange="verMovimientos(filtroReferenciaGlobal)">
-            <option value="">Todos</option>
-          </select>
-        </div>
-
-        <div class="flex flex-wrap items-center gap-2">
-          <span class="text-sm font-semibold text-white/80">Entre:</span>
-
-          <label for="fechaInicio" class="sr-only">Fecha de inicio</label>
-          <input id="fechaInicio" type="date" class="space-input !w-auto !py-2" title="Fecha de inicio"/>
-
-          <span class="text-sm text-white/70">y</span>
-
-          <label for="fechaFin" class="sr-only">Fecha de fin</label>
-          <input id="fechaFin" type="date" class="space-input !w-auto !py-2" title="Fecha de fin"/>
-
-          <button onclick="verMovimientos(filtroReferenciaGlobal)" class="space-btn !px-3 !py-2 text-sm">
-            🔍 Filtrar
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div id="movimientosContenido" class="max-h-64 overflow-y-auto text-sm text-white/80 space-card p-4"></div>
-
-    <div class="text-center mt-4">
-      <button onclick="document.getElementById('modalMovimientos').classList.add('hidden')"
-              class="w-full md:w-auto rounded-2xl px-4 py-2 font-bold text-white
-              bg-gradient-to-r from-rose-900 to-red-900 border border-red-400/20 shadow-lg hover:opacity-95">
-        Cerrar
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- =========================
-     Modal cantidad (space)
-     ========================= -->
-<div id="modalCantidad" class="fixed inset-0 hidden z-50 items-center justify-center space-modal-backdrop">
-  <div class="space-panel p-6 w-[92%] max-w-sm">
-    <h2 class="text-xl font-bold mb-4 text-white text-center">¿Cuántas piezas desea retirar?</h2>
-
-    <label for="inputCantidadPiezas" class="sr-only">Cantidad a retirar</label>
-    <input id="inputCantidadPiezas" type="number" min="1"
-           class="space-input text-center text-lg font-mono"
-           placeholder="Cantidad"/>
-
-    <div class="flex justify-between gap-3 mt-4">
-      <button onclick="cerrarModalCantidad()" class="space-btn-ghost w-1/2">Cancelar</button>
-      <button onclick="confirmarCantidad()" class="space-btn w-1/2">Aceptar</button>
-    </div>
-  </div>
-</div>
-
-<!-- Aviso (toast grande) -->
-<div id="modalAviso"
-  class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 hidden z-50 max-w-lg w-[92%]">
-  <div class="space-panel p-5 text-center">
-    <div class="fuente-magma tracking-widest text-xl text-rose-200">AVISO</div>
-    <div id="modalAvisoTexto" class="mt-2 text-white/85"></div>
-  </div>
-</div>
-
-<div id="overlayColor" class="fixed inset-0 z-40 hidden transition-opacity"></div>
-
-<!-- =========================
-     Modal inventario (peligro) (space)
-     ========================= -->
-<div id="modalInventario" class="hidden fixed inset-0 z-50 items-center justify-center space-modal-backdrop">
-  <div class="space-panel p-6 max-w-md w-[92%] text-center border border-rose-400/25">
-    <h2 class="text-xl font-bold mb-4 text-rose-200">⚠️ ¡CUIDADO!</h2>
-    <p class="mb-6 leading-relaxed text-white/85">
-      Al enviar los datos a Supabase esto<br>
-      <strong class="block text-lg mt-1 text-white">REEMPLAZARÁ LA BASE DE DATOS ACTUAL</strong><br>
-      esta acción<br>
-      <strong class="block text-lg text-white">NO SE PUEDE DESHACER</strong>
-    </p>
-    <div class="flex justify-center gap-3">
-      <button onclick="document.getElementById('modalInventario').classList.add('hidden')" class="space-btn-ghost px-4 py-2">
-        Cancelar
-      </button>
-      <button onclick="enviarModoInventario()"
-        class="rounded-2xl px-4 py-2 font-bold text-white
-        bg-gradient-to-r from-rose-900 to-red-900 border border-red-400/20 shadow-lg hover:opacity-95">
-        Aceptar
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- =========================
-     Modal PIN + unidad (space)
-     ========================= -->
-<div id="modalPinUnidad" class="fixed inset-0 z-50 hidden items-center justify-center space-modal-backdrop">
-  <div class="space-panel p-6 w-[92%] max-w-md space-y-4">
-    <h2 class="text-lg font-bold text-center text-white/90">Acceso requerido</h2>
-
-    <div>
-      <label for="inputNIP" class="block text-sm font-semibold mb-1 text-white/80">NIP:</label>
-      <input id="inputNIP" type="password" maxlength="4" class="space-input" />
-    </div>
-
-    <div id="unidadDestinoGroup" class="hidden">
-      <label for="inputUnidad" class="block text-sm font-semibold mb-1 text-white/80">Clave unidad destino:</label>
-      <input id="inputUnidad" type="text" placeholder="Ej: C03128" class="space-input uppercase" />
-    </div>
-
-    <div id="remisionGroup" class="hidden">
-      <label for="inputRemision" class="block text-sm font-semibold mb-1 text-white/80">No. de remisión:</label>
-      <input id="inputRemision" type="text" placeholder="Ej: 465131" class="space-input uppercase" />
-    </div>
-
-    <div id="bloqueCargaRemision" class="hidden space-y-2">
-      <label for="inputArchivoRemision" class="block text-sm font-semibold mb-1 text-white/80">
-        Cargar archivo remisión SAP:
-      </label>
-      <input type="file" id="inputArchivoRemision"
-             class="space-input !p-2"
-             aria-label="Cargar archivo remisión SAP">
-      <div class="flex justify-center">
-        <button id="btnSubirRemision" class="space-btn px-6 py-3 text-base">
-          📤 Cargar archivo SAP
-        </button>
-      </div>
-      <div id="resultadoCargaArchivo" class="text-center font-semibold text-sm text-white/80"></div>
-    </div>
-
-    <div id="pinError" class="text-sm text-rose-200 hidden">❌ NIP o unidad no válidos.</div>
-
-    <div class="flex flex-col gap-2 mt-4">
-      <div class="flex justify-end gap-2">
-        <button onclick="cerrarModalPin()" class="space-btn-ghost px-4 py-2">
-          Cancelar
-        </button>
-        <button onclick="validarPinYUnidad()" class="space-btn px-4 py-2">
-          Confirmar
-        </button>
-      </div>
-      <button onclick="mostrarCambioNIP()" class="text-sm text-teal-200 underline hover:text-teal-100 text-center mt-2">
-        🔑 Cambiar NIP
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- =========================
-     Modal caducidad (space)
-     ========================= -->
-<div id="modalCaducidad" class="fixed inset-0 hidden z-[900] items-center justify-center space-modal-backdrop">
-  <div class="space-panel w-[95%] max-w-5xl relative max-h-[80vh] overflow-y-auto p-6">
-    <button onclick="cerrarModalCaducidad()"
-            class="absolute top-3 right-4 text-red-300 text-2xl font-bold hover:text-red-200">×</button>
-    <h2 class="text-xl font-bold mb-4 text-white/90">⚠️ Productos por caducar</h2>
-    <div id="contenidoCaducidad" class="text-sm mb-4 text-white/80"></div>
-  </div>
-</div>
-
-<!-- =========================
-     Modal cambio NIP (space)
-     ========================= -->
-<div id="modalCambioNIP" class="fixed inset-0 z-50 hidden items-center justify-center space-modal-backdrop">
-  <div class="space-panel p-6 w-[92%] max-w-md space-y-4">
-    <h2 class="text-lg font-bold text-center text-white/90">Cambiar NIP</h2>
-
-    <div>
-      <label for="nipAntiguo" class="block text-sm font-semibold mb-1 text-white/80">NIP actual:</label>
-      <input id="nipAntiguo" type="password" maxlength="4" class="space-input" />
-    </div>
-    <div>
-      <label for="nipNuevo" class="block text-sm font-semibold mb-1 text-white/80">NIP nuevo:</label>
-      <input id="nipNuevo" type="password" maxlength="4" class="space-input" />
-    </div>
-    <div>
-      <label for="nipConfirmar" class="block text-sm font-semibold mb-1 text-white/80">Confirmar nuevo NIP:</label>
-      <input id="nipConfirmar" type="password" maxlength="4" class="space-input" />
-    </div>
-
-    <div id="cambioNipError" class="text-sm text-rose-200 hidden">❌ Error en los datos ingresados.</div>
-
-    <div class="flex justify-end gap-2 mt-2">
-      <button onclick="cerrarCambioNIP()" class="space-btn-ghost px-4 py-2">Cancelar</button>
-      <button onclick="guardarNuevoNIP()" class="space-btn px-4 py-2">Guardar</button>
-    </div>
-  </div>
-</div>
 <body class="min-h-screen flex flex-col items-center justify-center text-white px-3 py-10">
 
-  <!-- CONTENEDOR PRINCIPAL (SPACE) -->
+  <!-- ✅ Loader (space) -->
+  <div id="loaderOverlay" class="fixed inset-0 z-[99999] hidden select-none flex items-center justify-center space-modal-backdrop">
+    <div class="space-panel p-6 flex items-center gap-4">
+      <img src="loader.gif" alt="Cargando..." class="w-20 h-20 pointer-events-none">
+      <div class="text-white/80">
+        <div class="fuente-magma tracking-widest text-lg">PROCESANDO</div>
+        <div class="text-xs text-white/60">Ejecutando operación…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================
+      MODAL QR draggable (space)
+      ========================= -->
+  <div id="modalQR" class="fixed top-4 right-4 z-[890] hidden cursor-move w-[360px] max-w-full">
+    <div class="space-panel p-3" id="handleQR">
+      <div class="flex items-center justify-between">
+        <h2 class="text-center font-semibold text-sm text-white/80">Escanea un QR</h2>
+        <button onclick="cerrarModalQR()" class="text-red-900 hover:text-red-600 font-bold text-xl px-2">×</button>
+      </div>
+      <div id="qr-reader" class="w-full mt-2"></div>
+      <div class="mt-3 flex justify-end">
+        <button onclick="cerrarModalQR()" class="space-btn-ghost text-sm">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOGO CENTRUM ARRIBA DERECHA -->
+  <div class="absolute top-4 right-4 flex-col items-center text-center hidden sm:flex">
+    <h1 class="text-xs font-bold tracking-widest text-white/80 fuente-magma">In Collab with:</h1>
+    <img src="centrum.png" alt="Logo Centrum" class="h-12 mt-1 md:h-10" />
+  </div>
+
+  <!-- PORTADA -->
+  <div class="text-center mb-10">
+    <a href="https://instagram.com/medinova.cuu" target="_blank" rel="noopener noreferrer">
+      <img src="logoportada.png" alt="Logo Medinova" class="mx-auto h-28 mb-2" />
+    </a>
+    <h1 class="text-5xl font-bold tracking-widest text-white fuente-magma">R.I.C.A.R.D.O.</h1>
+    <p class="text-base text-white/80 font-medium max-w-2xl mx-auto text-center">
+      <strong>R</strong>egistro <strong>I</strong>nteligente de <strong>C</strong>ontrol, <strong>A</strong>lmacenamiento y
+      <strong>R</strong>astreo <strong>D</strong>igital de <strong>O</strong>peraciones
+    </p>
+  </div>
+
+  <!-- Modal selección modo -->
+  <div id="modalModo" class="fixed inset-0 z-50 hidden items-center justify-center space-modal-backdrop">
+    <div class="space-panel p-6 w-[92%] max-w-sm text-center">
+      <h2 class="text-lg font-bold mb-4 text-white/90">Selecciona el modo de operación</h2>
+      <div class="grid gap-3">
+        <button onclick="seleccionarModo('entrada')" class="space-btn w-full">📥 Entrada</button>
+        <button onclick="seleccionarModo('salida')" class="w-full rounded-2xl px-4 py-2 font-bold text-white bg-gradient-to-r from-rose-700 to-red-900 border border-red-400/20 shadow-lg hover:opacity-95">
+          📤 Salida
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="mensajeQR"></div>
+
+  <!-- Modal movimientos -->
+  <div id="modalMovimientos" class="space-modal hidden">
+    <div class="space-panel rounded-3xl p-6 w-[92%] max-w-4xl overflow-y-auto">
+      <h2 class="text-lg font-bold mb-4 text-center text-white/90">📋 Movimientos del producto</h2>
+
+      <div class="space-card p-4 mb-4">
+        <div class="flex flex-col md:flex-row items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <label for="cantidadMovimientos" class="text-sm font-semibold text-white/80">Mostrar:</label>
+            <select id="cantidadMovimientos" class="space-input !w-auto !py-2">
+              <option value="20">Últimos 20</option>
+              <option value="50" selected>Últimos 50</option>
+              <option value="100">Últimos 100</option>
+              <option value="todos">Todos</option>
+            </select>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <label class="text-sm font-semibold text-white/80" for="selectLote">Lote:</label>
+            <select id="selectLote" class="space-input !w-auto !py-2 text-sm" onchange="verMovimientos(filtroReferenciaGlobal)">
+              <option value="">Todos</option>
+            </select>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-sm font-semibold text-white/80">Entre:</span>
+            <input id="fechaInicio" type="date" class="space-input !w-auto !py-2" title="Fecha de inicio"/>
+            <span class="text-sm text-white/70">y</span>
+            <input id="fechaFin" type="date" class="space-input !w-auto !py-2" title="Fecha de fin"/>
+            <button onclick="verMovimientos(filtroReferenciaGlobal)" class="space-btn !px-3 !py-2 text-sm">🔍 Filtrar</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="movimientosContenido" class="max-h-64 overflow-y-auto text-sm text-white/80 space-card p-4"></div>
+
+      <div class="text-center mt-4">
+        <button onclick="document.getElementById('modalMovimientos').classList.add('hidden')"
+          class="w-full md:w-auto rounded-2xl px-4 py-2 font-bold text-white bg-gradient-to-r from-rose-900 to-red-900 border border-red-400/20 shadow-lg hover:opacity-95">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal cantidad -->
+  <div id="modalCantidad" class="fixed inset-0 hidden z-50 items-center justify-center space-modal-backdrop">
+    <div class="space-panel p-6 w-[92%] max-w-sm">
+      <h2 class="text-xl font-bold mb-4 text-white text-center">¿Cuántas piezas desea retirar?</h2>
+      <input id="inputCantidadPiezas" type="number" min="1" class="space-input text-center text-lg font-mono" placeholder="Cantidad"/>
+      <div class="flex justify-between gap-3 mt-4">
+        <button onclick="cerrarModalCantidad()" class="space-btn-ghost w-1/2">Cancelar</button>
+        <button onclick="confirmarCantidad()" class="space-btn w-1/2">Aceptar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Aviso -->
+  <div id="modalAviso" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 hidden z-50 max-w-lg w-[92%]">
+    <div class="space-panel p-5 text-center">
+      <div class="fuente-magma tracking-widest text-xl text-rose-200">AVISO</div>
+      <div id="modalAvisoTexto" class="mt-2 text-white/85"></div>
+    </div>
+  </div>
+
+  <div id="overlayColor" class="fixed inset-0 z-40 hidden transition-opacity"></div>
+
+  <!-- Modal inventario -->
+  <div id="modalInventario" class="hidden fixed inset-0 z-50 items-center justify-center space-modal-backdrop">
+    <div class="space-panel p-6 max-w-md w-[92%] text-center border border-rose-400/25">
+      <h2 class="text-xl font-bold mb-4 text-rose-200">⚠️ ¡CUIDADO!</h2>
+      <p class="mb-6 leading-relaxed text-white/85">
+        Al enviar los datos a Supabase esto<br>
+        <strong class="block text-lg mt-1 text-white">REEMPLAZARÁ LA BASE DE DATOS ACTUAL</strong><br>
+        esta acción<br>
+        <strong class="block text-lg text-white">NO SE PUEDE DESHACER</strong>
+      </p>
+      <div class="flex justify-center gap-3">
+        <button onclick="document.getElementById('modalInventario').classList.add('hidden')" class="space-btn-ghost px-4 py-2">Cancelar</button>
+        <button onclick="enviarModoInventario()" class="rounded-2xl px-4 py-2 font-bold text-white bg-gradient-to-r from-rose-900 to-red-900 border border-red-400/20 shadow-lg hover:opacity-95">Aceptar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal PIN + unidad -->
+  <div id="modalPinUnidad" class="fixed inset-0 z-50 hidden items-center justify-center p-4 space-modal-backdrop">
+    <div class="space-panel rounded-3xl p-6 w-[92%] max-w-md relative space-y-4 max-h-[92dvh] overflow-y-auto">
+      <button type="button" onclick="cerrarModalPin()" class="absolute top-3 right-4 text-red-900 text-2xl font-bold hover:text-red-600" aria-label="Cerrar">×</button>
+      <h2 class="text-lg font-bold text-center text-white/90">Acceso requerido</h2>
+
+      <div>
+        <label for="inputNIP" class="block text-sm font-semibold mb-1 text-white/80">NIP:</label>
+        <input id="inputNIP" type="password" maxlength="4" inputmode="numeric" autocomplete="one-time-code" title="Ingresa tu NIP" class="space-input"/>
+      </div>
+
+      <div id="unidadDestinoGroup" class="hidden">
+        <label for="inputUnidad" class="block text-sm font-semibold mb-1 text-white/80">Clave unidad destino:</label>
+        <input id="inputUnidad" type="text" placeholder="Ej: C03128" title="Clave unidad destino" autocomplete="off" class="space-input uppercase"/>
+      </div>
+
+      <div id="remisionGroup" class="hidden">
+        <label for="inputRemision" class="block text-sm font-semibold mb-1 text-white/80">No. de remisión:</label>
+        <input id="inputRemision" type="text" placeholder="Ej: 465131" title="Número de remisión" autocomplete="off" class="space-input uppercase"/>
+      </div>
+
+      <div id="bloqueCargaRemision" class="hidden space-y-2">
+        <label for="inputArchivoRemision" class="block text-sm font-semibold mb-1 text-white/80">Cargar archivo remisión SAP:</label>
+        <div class="space-file-wrap">
+          <input type="file" id="inputArchivoRemision" class="space-file-input" accept=".xlsx"/>
+          <label for="inputArchivoRemision" class="space-btn px-5 py-3 text-center">Elegir archivo</label>
+        </div>
+        <div class="flex justify-center">
+          <button id="btnSubirRemision" type="button" class="space-btn px-6 py-3 text-base">📤 Cargar archivo SAP</button>
+        </div>
+        <div id="resultadoCargaArchivo" class="text-center font-semibold text-sm text-white/80"></div>
+      </div>
+
+      <div id="pinError" class="text-sm text-rose-200 hidden">❌ NIP o unidad no válidos.</div>
+
+      <div class="flex flex-col gap-2 mt-4">
+        <div class="flex justify-end gap-2">
+          <button type="button" onclick="cerrarModalPin()" class="space-btn-ghost px-4 py-2">Cancelar</button>
+          <button type="button" onclick="validarPinYUnidad()" class="space-btn px-4 py-2">Confirmar</button>
+        </div>
+        <button type="button" onclick="mostrarCambioNIP()" class="text-sm text-teal-200 underline hover:text-teal-100 text-center mt-2">🔑 Cambiar NIP</button>
+      </div>
+
+      <div class="h-[env(safe-area-inset-bottom)]"></div>
+    </div>
+  </div>
+
+  <!-- Modal caducidad -->
+  <div id="modalCaducidad" class="fixed inset-0 hidden z-[900] items-center justify-center space-modal-backdrop">
+    <div class="space-panel w-[95%] max-w-5xl relative max-h-[80vh] overflow-y-auto p-6">
+      <button onclick="cerrarModalCaducidad()" class="absolute top-3 right-4 text-red-900 text-2xl font-bold hover:text-red-600">×</button>
+      <h2 class="text-xl font-bold mb-4 text-white/90">⚠️ Productos por caducar</h2>
+      <div id="contenidoCaducidad" class="text-sm mb-4 text-white/80"></div>
+    </div>
+  </div>
+
+  <!-- Modal cambio NIP -->
+  <div id="modalCambioNIP" class="fixed inset-0 z-50 hidden items-center justify-center space-modal-backdrop">
+    <div class="space-panel p-6 w-[92%] max-w-md space-y-4">
+      <h2 class="text-lg font-bold text-center text-white/90">Cambiar NIP</h2>
+      <div>
+        <label for="nipAntiguo" class="block text-sm font-semibold mb-1 text-white/80">NIP actual:</label>
+        <input id="nipAntiguo" type="password" maxlength="4" class="space-input" />
+      </div>
+      <div>
+        <label for="nipNuevo" class="block text-sm font-semibold mb-1 text-white/80">NIP nuevo:</label>
+        <input id="nipNuevo" type="password" maxlength="4" class="space-input" />
+      </div>
+      <div>
+        <label for="nipConfirmar" class="block text-sm font-semibold mb-1 text-white/80">Confirmar nuevo NIP:</label>
+        <input id="nipConfirmar" type="password" maxlength="4" class="space-input" />
+      </div>
+
+      <div id="cambioNipError" class="text-sm text-rose-200 hidden">❌ Error en los datos ingresados.</div>
+
+      <div class="flex justify-end gap-2 mt-2">
+        <button onclick="cerrarCambioNIP()" class="space-btn-ghost px-4 py-2">Cancelar</button>
+        <button onclick="guardarNuevoNIP()" class="space-btn px-4 py-2">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTENEDOR PRINCIPAL -->
   <div class="w-full max-w-2xl">
     <div class="space-panel rounded-[28px] p-6 md:p-7 shadow-2xl">
 
-      <!-- Header vacío (lo dejé por si luego pones algo) -->
-      <div class="flex items-center justify-between"></div>
-
-      <!-- BOTONES PRINCIPALES -->
       <div class="flex flex-wrap justify-center gap-3 mt-2">
-        <button onclick="solicitarNIP()" class="space-btn px-5 py-3 rounded-2xl">
-          📝 Capturar Datos
-        </button>
-        <button onclick="abrirModalReporteMensual()" class="space-btn px-5 py-3 rounded-2xl">
-          📊 Generar Reporte
-        </button>
+        <button onclick="solicitarNIP()" class="space-btn px-5 py-3 rounded-2xl">📝 Capturar Datos</button>
+        <button onclick="abrirModalReporteMensual()" class="space-btn px-5 py-3 rounded-2xl">📊 Generar Reporte</button>
       </div>
 
-      <!-- BUSCADOR -->
       <div class="mt-6">
         <label for="refBusqueda" class="sr-only">Buscar por referencia</label>
-        <input
-          type="text"
-          id="refBusqueda"
-          placeholder="Buscar por referencia..."
-          class="space-input w-full text-center"
-          oninput="buscarReferencia(this.value)"
-          autocomplete="off"
-        />
+        <input type="text" id="refBusqueda" placeholder="Buscar por referencia..." class="space-input w-full text-center" oninput="buscarReferencia(this.value)" autocomplete="off"/>
         <div id="resultadoBusqueda" class="text-sm text-white/80 mt-3"></div>
       </div>
 
-      <!-- ESTADO USUARIO / MODO -->
-      <div
-        id="estadoUsuario"
-        onclick="mostrarMenuModo()"
-        class="mt-4 cursor-pointer space-card p-4 rounded-2xl hover:bg-white/10 transition"
-        role="button"
-        tabindex="0"
-      >
+      <div id="estadoUsuario" onclick="mostrarMenuModo()" class="mt-4 cursor-pointer space-card p-4 rounded-2xl hover:bg-white/10 transition" role="button" tabindex="0">
         <div class="text-base flex items-center justify-center gap-2">
-          <span id="usuarioActivo" class="text-lg font-extrabold ml-2 text-white/90">
-            Selecciona un modo para iniciar
-          </span>
+          <span id="usuarioActivo" class="text-lg font-extrabold ml-2 text-white/90">Selecciona un modo para iniciar</span>
         </div>
         <div class="mt-2 text-center">
-          <span
-            id="modoLabel"
-            class="inline-block font-bold px-3 py-1 rounded-2xl text-white bg-white/10 border border-white/10 text-sm"
-          >
-            INACTIVO
-          </span>
+          <span id="modoLabel" class="inline-block font-bold px-3 py-1 rounded-2xl text-white bg-white/10 border border-white/10 text-sm">INACTIVO</span>
         </div>
       </div>
 
-      <!-- CONTENEDOR QR -->
       <div id="contenedorQR" class="relative w-full mb-4 hidden mt-4">
         <label for="inputQR" class="sr-only">Escanea el código QR</label>
-        <input
-          type="text"
-          id="inputQR"
-          placeholder="Escanea el código QR"
-          class="space-input w-full text-center pr-12"
-          autofocus
-          autocomplete="off"
-        />
-        <button
-          type="button"
-          onclick="abrirModalQR()"
-          aria-label="Escanear QR con cámara"
-          class="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-2 text-2xl
-                 bg-white/5 hover:bg-white/10 border border-white/10 transition"
-        >
-          📷
-        </button>
+        <input type="text" id="inputQR" placeholder="Escanea el código QR" class="space-input w-full text-center pr-12" autocomplete="off"/>
+        <button type="button" onclick="abrirModalQR()" aria-label="Escanear QR con cámara" class="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-2 text-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition">📷</button>
       </div>
 
-      <!-- TABLA REMISIÓN SAP -->
       <div id="tablaRemisionSAP" class="hidden mt-6">
         <div class="flex justify-between items-center mb-3">
           <h2 class="font-bold text-sm text-white/90">🧾 Avance remisión SAP:</h2>
-          <button
-            id="btnToggleFilasValidadas"
-            class="text-sm text-teal-200 hover:text-teal-100 underline"
-          >
-            Ocultar validados
-          </button>
+          <button id="btnToggleFilasValidadas" class="text-sm text-teal-200 hover:text-teal-100 underline">Ocultar validados</button>
         </div>
 
         <div class="space-card rounded-2xl overflow-hidden border border-white/10">
@@ -785,23 +607,18 @@
         </div>
       </div>
 
-      <!-- CADUCIDAD + HIPÓTESIS -->
       <div class="text-center mt-6 space-y-3">
-        <button id="btnAlertasCaducidad"
-          class="w-full md:w-auto rounded-2xl px-5 py-3 font-semibold
-                 bg-gradient-to-r from-amber-900/60 to-yellow-900/50
-                 border border-amber-300/20 shadow-lg hover:opacity-95">
+        <button id="btnAlertasCaducidad" class="w-full md:w-auto rounded-2xl px-5 py-3 font-semibold bg-gradient-to-r from-amber-900/60 to-yellow-900/50 border border-amber-300/20 shadow-lg hover:opacity-95">
           ⚠️ Ver productos próximos a caducar
         </button>
 
         <div class="flex justify-center">
-          <button onclick="abrirModalHipotesis()" class="space-btn px-5 py-3 rounded-2xl">
+          <button type="button" onclick="abrirModalHipotesis()" class="space-btn px-5 py-3 rounded-2xl">
             🧪 Laboratorio de Hipótesis
           </button>
         </div>
       </div>
 
-      <!-- TABLA REGISTROS ESCANEOS -->
       <div id="resumenEscaneos" class="hidden mt-6 space-card p-3 rounded-2xl text-sm text-white/85"></div>
 
       <div id="tablaContenedora" class="hidden opacity-0 transition-opacity duration-300 mt-4">
@@ -815,170 +632,115 @@
                 <th class="p-2 text-center">Eliminar</th>
               </tr>
             </thead>
+            <tbody id="tablaRegistrosBody"></tbody>
           </table>
         </div>
       </div>
 
-      <button id="btnEnviarSupabase2" onclick="enviarSupabase()"
-        class="hidden mt-4 w-full bg-teal-900 text-white py-2 rounded-2xl">
+      <button id="btnEnviarSupabase2" onclick="enviarSupabase()" class="hidden mt-4 w-full bg-teal-900 text-white py-2 rounded-2xl">
         Enviar a Base de Datos
       </button>
+
     </div>
   </div>
 
   <!-- BOTÓN CERRAR SESIÓN -->
-  <button
-    id="btnCerrarSesion"
-    onclick="cerrarSesion()"
-    class="hidden fixed bottom-4 left-4 z-50 rounded-2xl px-4 py-2 text-sm font-semibold
-           bg-white/10 border border-white/15 shadow-lg hover:bg-white/15 transition"
-  >
+  <button id="btnCerrarSesion" onclick="cerrarSesion()"
+    class="hidden fixed bottom-4 left-4 z-50 rounded-2xl px-4 py-2 text-sm font-semibold bg-white/10 border border-white/15 shadow-lg hover:bg-white/15 transition">
     🔒 Cerrar sesión
   </button>
 
   <!-- BOTÓN OPCIONES USUARIO -->
-  <button
-    onclick="mostrarOpcionesAdmin()"
-    class="fixed bottom-4 right-4 z-50 rounded-full px-4 py-3 text-sm font-semibold
-           bg-white/10 border border-white/15 shadow-lg hover:bg-white/15 transition"
-  >
+  <button onclick="mostrarOpcionesAdmin()"
+    class="fixed bottom-4 right-4 z-50 rounded-full px-4 py-3 text-sm font-semibold bg-white/10 border border-white/15 shadow-lg hover:bg-white/15 transition">
     ⚙️ Opciones de usuario
   </button>
 
-  <!-- ================= MODAL REPORTE MENSUAL (SPACE) ================= -->
-  <div id="modalReporteMensual" class="fixed inset-0 z-50 hidden items-center justify-center space-modal-backdrop">
+  <!-- MODAL REPORTE MENSUAL -->
+  <div id="modalReporteMensual" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 space-modal-backdrop">
     <div class="space-panel rounded-3xl p-6 w-[92%] max-w-md relative">
-      <button onclick="cerrarModalReporteMensual()"
-        class="absolute top-3 right-4 text-red-300 text-2xl font-bold hover:text-red-200">×</button>
-
+      <button onclick="cerrarModalReporteMensual()" class="absolute top-3 right-4 text-red-900 text-2xl font-bold hover:text-red-700">×</button>
       <h2 class="text-xl font-bold text-center mb-6 text-white/90">📊 Generar reporte mensual</h2>
 
       <div class="mb-6">
         <div class="flex gap-2">
           <div class="flex-1">
             <label for="inputMesMes" class="block text-sm font-semibold mb-1 text-white/80">Mes</label>
-            <select id="inputMesMes" title="Selecciona mes" class="space-input w-full !py-2 text-base">
+            <select id="inputMesMes" class="space-input w-full !py-2 text-base">
               <option value="">Mes</option>
-              <option value="01">Enero</option>
-              <option value="02">Febrero</option>
-              <option value="03">Marzo</option>
-              <option value="04">Abril</option>
-              <option value="05">Mayo</option>
-              <option value="06">Junio</option>
-              <option value="07">Julio</option>
-              <option value="08">Agosto</option>
-              <option value="09">Septiembre</option>
-              <option value="10">Octubre</option>
-              <option value="11">Noviembre</option>
-              <option value="12">Diciembre</option>
+              <option value="01">Enero</option><option value="02">Febrero</option><option value="03">Marzo</option>
+              <option value="04">Abril</option><option value="05">Mayo</option><option value="06">Junio</option>
+              <option value="07">Julio</option><option value="08">Agosto</option><option value="09">Septiembre</option>
+              <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
             </select>
           </div>
 
           <div class="w-28">
             <label for="inputMesAnio" class="block text-sm font-semibold mb-1 text-white/80">Año</label>
-            <select id="inputMesAnio" title="Selecciona año" class="space-input w-full !py-2 text-base"></select>
+            <select id="inputMesAnio" class="space-input w-full !py-2 text-base"></select>
           </div>
         </div>
       </div>
 
       <div class="flex justify-end gap-3">
-        <button onclick="cerrarModalReporteMensual()" class="space-btn-ghost px-4 py-2 rounded-2xl">
-          Cancelar
-        </button>
-        <button onclick="generarReporteMensual()"
-          class="space-btn px-4 py-2 rounded-2xl">
-          Generar Excel
-        </button>
+        <button onclick="cerrarModalReporteMensual()" class="space-btn-ghost px-4 py-2 rounded-2xl">Cancelar</button>
+        <button onclick="generarReporteMensual()" class="space-btn px-4 py-2 rounded-2xl">Generar Excel</button>
       </div>
     </div>
   </div>
 
-  <!-- ================= MODAL OPCIONES ADMIN (SPACE) ================= -->
+  <!-- MODAL OPCIONES ADMIN -->
   <div id="modalOpcionesAdmin" class="fixed inset-0 z-50 hidden items-center justify-center space-modal-backdrop">
     <div class="space-panel p-6 rounded-3xl w-[92%] max-w-md space-y-4">
       <h2 class="text-lg font-bold text-center text-white/90">⚙️ Opciones de Usuario</h2>
-
       <div class="flex flex-col space-y-3">
-        <button onclick="cerrarModalOpcionesAdmin(); mostrarCambioNIP()"
-          class="space-btn w-full py-3 rounded-2xl">
-          🔑 Cambiar NIP
-        </button>
+        <button onclick="cerrarModalOpcionesAdmin(); mostrarCambioNIP()" class="space-btn w-full py-3 rounded-2xl">🔑 Cambiar NIP</button>
 
-        <button id="btnModificarUnidades"
-          onclick="cerrarModalOpcionesAdmin(); mostrarModalAsignarUnidades()"
-          class="space-btn w-full py-3 rounded-2xl hidden">
+        <button id="btnModificarUnidades" onclick="cerrarModalOpcionesAdmin(); mostrarModalAsignarUnidades()" class="space-btn w-full py-3 rounded-2xl hidden">
           🏥 Modificar Unidades
         </button>
 
-        <button id="btnRestablecerNIP"
-          onclick="restablecerNIPUsuario()"
-          class="w-full rounded-2xl py-3 font-semibold text-white
-                 bg-gradient-to-r from-rose-900 to-red-900 border border-red-400/20 shadow-lg hover:opacity-95 hidden">
+        <button id="btnRestablecerNIP" onclick="restablecerNIPUsuario()" class="w-full rounded-2xl py-3 font-semibold text-white bg-gradient-to-r from-rose-900 to-red-900 border border-red-400/20 shadow-lg hover:opacity-95 hidden">
           🔁 Restablecer NIP de Usuario
         </button>
 
-        <button id="btnBloqueoRemision"
-          onclick="cargarEstadoBloqueo()"
-          class="w-full rounded-2xl py-3 font-semibold text-white
-                 bg-gradient-to-r from-purple-900 to-indigo-900 border border-white/10 shadow-lg hover:opacity-95 hidden">
+        <button id="btnBloqueoRemision" onclick="cargarEstadoBloqueo()" class="w-full rounded-2xl py-3 font-semibold text-white bg-gradient-to-r from-purple-900 to-indigo-900 border border-white/10 shadow-lg hover:opacity-95 hidden">
           🔒 Cargar estado de bloqueo
         </button>
 
-        <button id="btnVerPinDinamico"
-          onclick="abrirModalPinDinamico()"
-          class="w-full rounded-2xl py-3 font-semibold text-white
-                 bg-gradient-to-r from-pink-900 to-rose-900 border border-white/10 shadow-lg hover:opacity-95 hidden">
+        <button id="btnVerPinDinamico" onclick="abrirModalPinDinamico()" class="w-full rounded-2xl py-3 font-semibold text-white bg-gradient-to-r from-pink-900 to-rose-900 border border-white/10 shadow-lg hover:opacity-95 hidden">
           📟 Ver PIN Dinámico
         </button>
       </div>
 
       <div class="text-center mt-5">
-        <button onclick="cerrarModalOpcionesAdmin()" class="space-btn-ghost w-full py-3 rounded-2xl">
-          ❌ Cerrar
-        </button>
+        <button onclick="cerrarModalOpcionesAdmin()" class="space-btn-ghost w-full py-3 rounded-2xl">❌ Cerrar</button>
       </div>
     </div>
   </div>
 
-  <!-- ================= MODAL PIN DINÁMICO (SPACE) ================= -->
+  <!-- MODAL PIN DINÁMICO -->
   <div id="modalPinDinamico" class="fixed inset-0 z-50 hidden items-center justify-center space-modal-backdrop">
     <div class="space-panel rounded-3xl p-6 max-w-sm w-[92%] text-center">
       <h2 class="text-xl font-bold mb-4 text-white/90">📟 PIN Dinámico</h2>
-
       <p class="text-sm text-white/70 mb-2">Válido por:</p>
       <div id="contadorPin" class="text-lg font-semibold text-teal-200 mb-4">--:--</div>
-
       <p class="text-sm text-white/70">PIN actual:</p>
       <div id="valorPinDinamicoSolo" class="text-4xl font-mono text-emerald-200 my-2 tracking-widest">------</div>
-
-      <button onclick="cerrarModalPinDinamico()" class="space-btn-ghost w-full py-2 rounded-2xl mt-4">
-        Cerrar
-      </button>
+      <button onclick="cerrarModalPinDinamico()" class="space-btn-ghost w-full py-2 rounded-2xl mt-4">Cerrar</button>
     </div>
   </div>
 
-  <!-- ================= MODAL PIN EXCESO (SPACE) ================= -->
+  <!-- MODAL PIN EXCESO -->
   <div id="modalPINExceso" class="hidden fixed inset-0 z-[9990] items-center justify-center space-modal-backdrop">
     <div class="space-panel p-6 rounded-3xl w-[92%] max-w-[380px] text-sm">
       <div id="contenidoPINExceso" class="space-y-3 text-white/85"></div>
 
       <div class="mt-4">
-        <label for="nipdinamico" class="block text-sm font-semibold mb-1 text-white/80">
-          NIP de autorización:
-        </label>
-        <input
-          id="nipdinamico"
-          name="pin_temporal"
-          type="text"
-          inputmode="text"
-          pattern="[0-9A-Fa-f]{6}"
-          maxlength="6"
-          minlength="6"
-          autocomplete="off"
-          class="space-input text-center font-mono text-xl tracking-widest"
-          placeholder="######"
-        />
-        <p id="pinError" class="text-rose-200 text-xs mt-2 hidden">❌ PIN incorrecto</p>
+        <label for="nipdinamico" class="block text-sm font-semibold mb-1 text-white/80">NIP de autorización:</label>
+        <input id="nipdinamico" name="pin_temporal" type="text" inputmode="text" pattern="[0-9A-Fa-f]{6}" maxlength="6" minlength="6" autocomplete="off"
+          class="space-input text-center font-mono text-xl tracking-widest" placeholder="######" />
+        <p id="pinErrorExceso" class="text-rose-200 text-xs mt-2 hidden">❌ PIN incorrecto</p>
       </div>
 
       <div class="flex justify-between gap-3 mt-5">
@@ -988,121 +750,55 @@
     </div>
   </div>
 
-  <!-- ================= NOTIFICACIÓN (si aún la usas) ================= -->
+  <!-- NOTIFICACIÓN -->
   <div id="notificacion" class="modal text-center font-bold"></div>
-<!-- ================= RESUMEN ESCANEOS + TABLA REGISTROS ================= -->
 
-<!-- Resumen escaneos -->
-<div id="resumenEscaneos"
-  class="hidden mb-3 p-2 bg-white/80 rounded-xl shadow text-sm text-gray-800">
-</div>
+  <!-- MODAL ASIGNAR UNIDADES -->
+  <div id="modalAsignarUnidades" class="fixed inset-0 z-50 hidden items-center justify-center space-modal-backdrop">
+    <div class="space-panel rounded-3xl p-6 w-[92%] max-w-xl shadow-2xl">
+      <h2 class="text-lg font-bold text-center mb-4 text-white/90">🏥 Asignar unidades a usuario</h2>
 
-<!-- Tabla -->
-<div id="tablaContenedora" class="hidden opacity-0 transition-opacity duration-300">
-  <table class="min-w-full text-sm text-left" id="tablaRegistros">
-    <thead>
-      <tr>
-        <th class="p-1">Referencia</th>
-        <th class="p-1">Lote</th>
-        <th class="p-1">Estado</th>
-        <th class="p-1 text-center">Eliminar</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</div>
+      <label for="selectUsuario" class="block text-sm font-semibold mb-2 text-white/80">Selecciona un usuario:</label>
+      <select id="selectUsuario" class="space-input w-full mb-4"></select>
 
-<button id="btnEnviarSupabase"
-  onclick="enviarSupabase()"
-  class="hidden mt-4 w-full bg-teal-900 text-white py-2 rounded-2xl">
-  Enviar a Base de Datos
-</button>
+      <div class="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto mb-4" id="listaUnidades"></div>
 
+      <div id="unidadAsignarError" class="text-sm text-rose-200 hidden mb-2">❌ Error al guardar unidades.</div>
 
-<!-- Notificación (si aún usas el estilo viejo .modal, no lo rompo) -->
-<div id="notificacion" class="modal text-center font-bold"></div>
-
-<!-- ================= MODAL ASIGNAR UNIDADES ================= -->
-<div
-  id="modalAsignarUnidades"
-  class="fixed inset-0 z-50 hidden items-center justify-center space-modal-backdrop"
->
-  <div class="space-panel rounded-3xl p-6 w-[92%] max-w-xl shadow-2xl">
-    <h2 class="text-lg font-bold text-center mb-4 text-white/90">🏥 Asignar unidades a usuario</h2>
-
-    <label for="selectUsuario" class="block text-sm font-semibold mb-2 text-white/80">
-      Selecciona un usuario:
-    </label>
-    <select id="selectUsuario" class="space-input w-full mb-4"></select>
-
-    <div
-      class="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto mb-4"
-      id="listaUnidades"
-    >
-      <!-- Aquí se generarán dinámicamente los checkboxes -->
-    </div>
-
-    <div id="unidadAsignarError" class="text-sm text-rose-200 hidden mb-2">
-      ❌ Error al guardar unidades.
-    </div>
-
-    <div class="flex justify-end gap-2">
-      <button onclick="cerrarModalAsignarUnidades()" class="space-btn-ghost px-4 py-2 rounded-2xl">
-        Cancelar
-      </button>
-      <button onclick="guardarUnidadesAsignadas()" class="space-btn px-4 py-2 rounded-2xl">
-        Guardar
-      </button>
+      <div class="flex justify-end gap-2">
+        <button onclick="cerrarModalAsignarUnidades()" class="space-btn-ghost px-4 py-2 rounded-2xl">Cancelar</button>
+        <button onclick="guardarUnidadesAsignadas()" class="space-btn px-4 py-2 rounded-2xl">Guardar</button>
+      </div>
     </div>
   </div>
-</div>
 
-<!-- Botón inventario (si lo sigues usando) -->
-<button
-  onclick="confirmarModoInventario()"
-  class="bg-red-800 hover:bg-red-900 rounded-2xl text-white font-bold py-2 px-4 hidden"
->
-  INVENTARIO
-</button>
+  <!-- MODAL NIP -->
+  <div id="modalNIP" class="space-modal hidden">
+    <div class="space-modal__panel">
+      <div class="space-modal__header flex items-center justify-between">
+        <h2 class="text-lg font-bold">🔐 Ingresa tu NIP</h2>
+        <button onclick="cerrarModalNIP()" class="text-red-900 hover:text-red-700 text-2xl font-bold">×</button>
+      </div>
 
-<!-- ================= MODAL NIP ================= -->
-<div id="modalNIP" class="space-modal hidden">
-  <div class="space-modal__panel">
-    <div class="space-modal__header flex items-center justify-between">
-      <h2 class="text-lg font-bold">🔐 Ingresa tu NIP</h2>
-      <button onclick="cerrarModalNIP()" class="text-red-200 hover:text-red-100 text-2xl font-bold">×</button>
-    </div>
-
-    <div class="space-modal__body">
-      <label for="nipInput" class="sr-only">NIP</label>
-      <input id="nipInput" type="password" placeholder="NIP" class="space-input w-full mb-3"
-             onkeydown="if(event.key==='Enter'){ validarNIP(); }" />
-      <button onclick="validarNIP()" class="space-btn w-full py-3 rounded-2xl">Ingresar</button>
-      <p id="nipError" class="text-red-300 text-sm mt-2 hidden">❌ NIP inválido.</p>
+      <div class="space-modal__body">
+        <label for="nipInput" class="sr-only">NIP</label>
+        <input id="nipInput" type="password" placeholder="NIP" class="space-input w-full mb-3"
+          onkeydown="if(event.key==='Enter'){ validarNIP(); }" />
+        <button onclick="validarNIP()" class="space-btn w-full py-3 rounded-2xl">Ingresar</button>
+        <p id="nipError" class="text-red-900 text-sm mt-2 hidden">❌ NIP inválido.</p>
+      </div>
     </div>
   </div>
-</div>
 
-
-<!-- Botón opciones usuario (lo dejo por si este fragmento vive aquí) -->
-<button
-  onclick="mostrarOpcionesAdmin()"
-  class="fixed bottom-4 right-4 z-50 rounded-full px-4 py-3 text-sm font-semibold
-         bg-white/10 border border-white/15 shadow-lg hover:bg-white/15 transition"
->
-  ⚙️ Opciones de usuario
-</button>
-
-<!-- ================= MODAL CAPTURA ================= -->
+  <!-- MODAL CAPTURA -->
+  <!-- ================= MODAL CAPTURA (COMPLETO) ================= -->
 <div id="modalCaptura" class="fixed inset-0 hidden z-50 items-center justify-center blur-fondo">
   <div class="space-panel rounded-3xl p-6 w-[95%] max-w-6xl max-h-[95vh] overflow-auto shadow-2xl">
 
     <div class="flex justify-between items-center mb-4">
       <h2 class="text-xl font-bold text-white/90">📋 Captura de Inventario / Pruebas Facturadas</h2>
       <button onclick="cerrarModalCaptura()"
-        class="text-red-300 font-bold text-2xl hover:text-red-200"
-        aria-label="Cerrar"
-      >×</button>
+        class="text-red-900 font-bold text-2xl hover:text-red-600" aria-label="Cerrar">×</button>
     </div>
 
     <!-- GRID PRINCIPAL -->
@@ -1111,34 +807,29 @@
       <!-- Modo -->
       <div class="w-full space-card p-4 rounded-2xl border border-white/10 bg-white/5">
         <label class="block font-semibold mb-2 text-white/80">Modo:</label>
-        <div class="flex items-center justify-between gap-2">
-          <span id="modoTexto" class="font-bold text-sm text-emerald-200">
-            🟢 Inventario
-          </span>
-            <label for="modoToggle" class="inline-flex items-center cursor-pointer" title="Modo captura">
-              <input
-                type="checkbox"
-                id="modoToggle"
-                class="sr-only peer"
-                onchange="actualizarModoCaptura()"
-                aria-label="Cambiar modo de captura"
-              />
 
-              <div class="w-14 h-7 bg-emerald-900/80 rounded-full peer-checked:bg-rose-900/80 relative transition border border-white/10">
-                <div class="w-6 h-6 bg-white rounded-full absolute top-0.5 left-0.5 peer-checked:translate-x-full transition-transform"></div>
-              </div>
-            </label>
-        <input type="hidden" id="modoCaptura" value="inventario">
+        <div class="flex items-center justify-between gap-2">
+          <span id="modoTexto" class="font-bold text-sm text-emerald-200">🟢 Inventario</span>
+
+          <label for="modoToggle" class="inline-flex items-center cursor-pointer" title="Modo captura">
+            <input type="checkbox" id="modoToggle" class="sr-only peer"
+                   onchange="actualizarModoCaptura()" aria-label="Cambiar modo de captura"/>
+            <div class="w-14 h-7 bg-emerald-900/80 rounded-full peer-checked:bg-rose-900/80 relative transition border border-white/10">
+              <div class="w-6 h-6 bg-white rounded-full absolute top-0.5 left-0.5 peer-checked:translate-x-full transition-transform"></div>
+            </div>
+          </label>
+
+          <input type="hidden" id="modoCaptura" value="inventario">
+        </div>
       </div>
 
       <!-- Unidad -->
       <div class="w-full">
         <label for="unidadCaptura" class="block font-semibold mb-1 text-white/80">Unidad asignada:</label>
-        <select
-          id="unidadCaptura"
-          class="space-input w-full"
-          onchange="mostrarReferenciasUnidad()"
-        ></select>
+        <select id="unidadCaptura"
+                class="space-input w-full"
+                onchange="mostrarReferenciasUnidad()">
+        </select>
       </div>
 
       <!-- Referencia -->
@@ -1146,31 +837,25 @@
         <label for="inputReferencia" class="block font-semibold mb-1 text-white/80">Referencia:</label>
 
         <div class="flex gap-2">
-          <input
-            id="inputReferencia"
-            class="space-input w-full"
-            placeholder="Ej. 368171 o MD-VE-C22"
-            oninput="buscarReferenciaCaptura()"
-            onkeydown="if(event.key==='Enter'){ agregarFilaCaptura(); }"
-            autocomplete="off"
-          />
+          <input id="inputReferencia"
+                 class="space-input w-full"
+                 placeholder="Ej. 368171 o MD-VE-C22"
+                 oninput="buscarReferenciaCaptura()"
+                 onkeydown="if(event.key==='Enter'){ agregarFilaCaptura?.(); }"
+                 autocomplete="off"/>
 
-          <button
-            type="button"
-            id="btnQrInventario"
-            onclick="abrirModalQRInventario()"
-            class="inline-flex items-center justify-center px-3 py-2 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition text-xl"
-            title="Escanear etiqueta con cámara (modo inventario)"
-            aria-label="Escanear con cámara"
-          >
+          <button type="button" id="btnQrInventario"
+                  onclick="abrirModalQRInventario?.()"
+                  class="inline-flex items-center justify-center px-3 py-2 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition text-xl"
+                  title="Escanear etiqueta con cámara (modo inventario)"
+                  aria-label="Escanear con cámara">
             📷
           </button>
         </div>
 
-        <div
-          id="sugerenciasReferencia"
-          class="absolute z-50 mt-2 w-full hidden rounded-2xl border border-white/10 bg-black/70 backdrop-blur-xl shadow-2xl overflow-hidden"
-        ></div>
+        <div id="sugerenciasReferencia"
+             class="absolute z-50 mt-2 w-full hidden rounded-2xl border border-white/10 bg-black/70 backdrop-blur-xl shadow-2xl overflow-hidden">
+        </div>
       </div>
 
       <!-- Cantidad -->
@@ -1180,19 +865,20 @@
           id="inputCantidad"
           type="number"
           step="0.1"
-          placeholder="Cantidad"
-          class="space-input w-full"
+          min="0"
+          max="999.9"
+          inputmode="decimal"
+          class="cantidad-input input-cantidad"
+          placeholder="0.0"
           onkeydown="if(event.key==='Enter'){ agregarFilaCaptura(); }"
         />
       </div>
 
       <!-- Botón agregar -->
       <div class="w-full flex items-end">
-        <button
-          id="btnAgregarCaptura"
-          onclick="agregarFilaCaptura()"
-          class="space-btn w-full py-3 rounded-2xl"
-        >
+        <button id="btnAgregarCaptura"
+                onclick="agregarFilaCaptura?.()"
+                class="space-btn w-full py-3 rounded-2xl">
           Agregar
         </button>
       </div>
@@ -1202,39 +888,42 @@
     <div class="flex flex-wrap md:flex-nowrap items-center justify-between mt-5 w-full gap-4">
 
       <div class="flex items-center gap-2 flex-shrink-0">
-        <input type="checkbox" onchange="toggleFilasCompletadas(this.checked)" id="checkboxFilas" class="accent-teal-500" />
+        <input type="checkbox" onchange="toggleFilasCompletadas?.(this.checked)"
+               id="checkboxFilas" class="accent-teal-500" />
         <label for="checkboxFilas" class="text-sm text-white/80">Ocultar filas completadas</label>
       </div>
 
       <div class="flex items-center gap-2 flex-wrap md:flex-nowrap flex-grow justify-start">
         <div class="min-w-[120px]">
           <label for="mesCaptura" class="text-sm font-semibold text-white/80">Mes:</label>
-          <select id="mesCaptura" name="mesCaptura" title="Mes de captura" class="space-input w-full !py-2 text-sm"></select>
+          <select id="mesCaptura" name="mesCaptura" title="Mes de captura"
+                  class="space-input w-full !py-2 text-sm"></select>
         </div>
         <div class="min-w-[120px]">
           <label for="anioCaptura" class="text-sm font-semibold text-white/80">Año:</label>
-          <select id="anioCaptura" name="anioCaptura" title="Año de captura" class="space-input w-full !py-2 text-sm"></select>
+          <select id="anioCaptura" name="anioCaptura" title="Año de captura"
+                  class="space-input w-full !py-2 text-sm"></select>
         </div>
       </div>
 
       <div class="min-w-[220px]">
-        <label for="archivoCaptura" class="text-sm font-semibold text-white/80 text-center block">
-          📄 Precargar archivo:
-        </label>
-        <input
-          type="file"
-          id="archivoCaptura"
-          accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
-          class="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80"
-          onchange="precargarArchivoCaptura()"
-        >
+        <label class="text-sm font-semibold text-white/80 text-center block">📄 Precargar archivo:</label>
+
+        <div class="mt-1 flex items-center gap-2">
+          <input type="file" id="archivoCaptura"
+                 accept=".csv, .xlsx, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+                 class="hidden"
+                 onchange="precargarArchivoCaptura()" />
+          <label for="archivoCaptura" class="space-btn px-4 py-2 rounded-2xl cursor-pointer">Elegir archivo</label>
+          <span id="archivoCapturaNombre" class="text-xs text-white/70 truncate max-w-[180px]">Ningún archivo</span>
+        </div>
       </div>
 
       <div class="flex items-center gap-2 flex-shrink-0">
         <label for="toggleTipoCaptura" class="text-sm font-semibold text-white/80">Tipo:</label>
         <div class="flex items-center gap-2">
           <label class="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" id="toggleTipoCaptura" class="sr-only" onchange="actualizarTextoTipoCaptura()">
+            <input type="checkbox" id="toggleTipoCaptura" class="sr-only" onchange="actualizarTextoTipoCaptura?.()">
             <div id="fondoToggleTipo" class="w-14 h-7 bg-white/10 rounded-full transition-colors duration-300 border border-white/10"></div>
             <div class="absolute left-0.5 top-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-300" id="circuloToggleTipo"></div>
           </label>
@@ -1243,11 +932,9 @@
       </div>
 
       <div class="flex-shrink-0">
-        <button
-          id="btnEnviarCaptura"
-          onclick="enviarCapturaBase()"
-          class="space-btn px-5 py-3 rounded-2xl whitespace-nowrap"
-        >
+        <button id="btnEnviarCaptura"
+                onclick="enviarCapturaBase?.()"
+                class="space-btn px-5 py-3 rounded-2xl whitespace-nowrap">
           📤 Enviar
         </button>
       </div>
@@ -1272,120 +959,119 @@
 
   </div>
 </div>
+<!-- ================= FIN MODAL CAPTURA ================= -->
 
-
-<!-- ================= MODAL LABORATORIO DE HIPÓTESIS ================= -->
-<div id="modalHipotesis" class="fixed inset-0 z-[9999] hidden items-center justify-center bg-black/70 backdrop-blur-sm">
-  <div class="panel-hipotesis w-[95%] max-w-5xl rounded-3xl p-6 text-white shadow-2xl">
-
-    <div class="flex items-start justify-between gap-4">
-      <div>
-        <h2 class="text-2xl font-bold fuente-magma tracking-wider">
-          Laboratorio de Hipótesis
-        </h2>
-        <p class="text-sm text-white/70 mt-1">
-          Pregunta libre → IA genera plan → evidencia + conclusión auditable.
-        </p>
-      </div>
-      <button onclick="cerrarModalHipotesis()" class="text-red-300 hover:text-red-200 text-2xl font-bold">
-        ×
-      </button>
-    </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-6">
-
-      <!-- Panel de entrada -->
-      <div class="rounded-2xl p-4 bg-white/5 border border-white/10">
-
-        <label class="text-sm font-semibold text-white/80">
-          Pregunta / hipótesis
-        </label>
-
-        <textarea
-          id="hipotesisPregunta"
-          class="mt-2 w-full min-h-[140px] p-3 rounded-2xl bg-black/30 border border-white/10 focus:outline-none focus:ring-2 focus:ring-teal-500"
-          placeholder="Ej: En invierno se incrementan las pruebas efectivas en C03128 vs resto del año."
-        ></textarea>
-
-        <div class="grid grid-cols-2 gap-3 mt-4">
-          <div>
-            <label class="text-xs text-white/70">Unidad (opcional)</label>
-            <input
-              id="hipotesisLab"
-              class="mt-1 w-full p-2 rounded-xl bg-black/30 border border-white/10"
-              placeholder="C03128"
-            >
-          </div>
-          <div>
-            <label class="text-xs text-white/70">Referencia (opcional)</label>
-            <input
-              id="hipotesisRef"
-              class="mt-1 w-full p-2 rounded-xl bg-black/30 border border-white/10"
-              placeholder="GLU-001"
-            >
-          </div>
+  <!-- ================= MODAL LABORATORIO DE HIPÓTESIS ================= -->
+  <div id="modalHipotesis" class="space-modal hidden">
+    <div class="space-modal__panel w-[96%] max-w-5xl rounded-3xl text-white shadow-2xl max-h-[92dvh] overflow-hidden border border-white/10">
+      <div class="flex items-start justify-between gap-4 p-5 border-b border-white/10">
+        <div class="min-w-0">
+          <h2 class="text-2xl font-bold fuente-magma tracking-wider">Laboratorio de Hipótesis</h2>
+          <p class="text-sm text-white/70 mt-1 break-words">Pregunta libre → IA / Plan científico → evidencia + conclusión auditable.</p>
         </div>
 
-        <div class="grid grid-cols-2 gap-3 mt-3">
-          <div>
-            <label for="hipotesisDesde" class="text-xs text-white/70">
-              Desde
-            </label>
-            <input
-              id="hipotesisDesde"
-              type="date"
-              class="mt-1 w-full p-2 rounded-xl bg-black/30 border border-white/10"
-            >
-          </div>
-
-          <div>
-            <label for="hipotesisHasta" class="text-xs text-white/70">
-              Hasta
-            </label>
-            <input
-              id="hipotesisHasta"
-              type="date"
-              class="mt-1 w-full p-2 rounded-xl bg-black/30 border border-white/10"
-            >
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between mt-4">
-          <label class="text-xs text-white/70 flex items-center gap-2">
-            <input id="hipotesisDemo" type="checkbox" class="accent-teal-500">
-            Modo demo (usa datos ficticios)
-          </label>
-
-          <button
-            onclick="ejecutarHipotesisIA()"
-            class="px-4 py-2 rounded-2xl bg-gradient-to-r from-blue-900 to-teal-900 hover:opacity-90 shadow-lg font-semibold"
-          >
-            🚀 Ejecutar
-          </button>
-        </div>
-
-        <div id="hipotesisStatus" class="text-xs text-white/70 mt-3"></div>
+        <button type="button" onclick="cerrarModalHipotesis()"
+          class="shrink-0 w-10 h-10 grid place-items-center rounded-2xl bg-white/5 border border-white/10 text-red-900 hover:text-red-700 text-2xl font-bold"
+          aria-label="Cerrar">×</button>
       </div>
 
-      <!-- Panel reporte -->
-      <div class="lg:col-span-2 rounded-2xl p-4 bg-white/5 border border-white/10 overflow-y-auto max-h-[70vh]">
-        <div id="hipotesisSalida" class="space-y-4">
-          <div class="text-white/60 text-sm">
-            Aquí se mostrará:
-            <span class="text-white">
-              H0/H1, método, supuestos, estadístico, p-value, tamaño de efecto,
-              CI, conclusiones y recomendación operativa.
-            </span>
-          </div>
-        </div>
-      </div>
+      <div class="p-5 overflow-y-auto max-h-[calc(92dvh-84px)]">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
+          <div class="rounded-2xl p-4 bg-white/5 border border-white/10">
+            <label class="text-sm font-semibold text-white/80">Pregunta / hipótesis</label>
+
+            <textarea id="hipotesisPregunta"
+              class="mt-2 w-full min-h-[140px] p-3 rounded-2xl bg-black/30 border border-white/10 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              placeholder="Ej: En invierno se incrementan las pruebas efectivas en C03128 vs resto del año."></textarea>
+
+            <div class="mt-3 flex gap-2">
+              <button type="button" onclick="ejecutarPreguntaLibreIA()"
+                class="flex-1 px-4 py-2 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10 font-semibold">💬 Preguntar</button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mt-4">
+              <div>
+                <label class="text-xs text-white/70" for="hipotesisLab">Unidad (opcional)</label>
+                <input id="hipotesisLab" class="mt-1 w-full p-2 rounded-xl bg-black/30 border border-white/10" placeholder="C03128" />
+              </div>
+              <div>
+                <label class="text-xs text-white/70" for="hipotesisRef">Referencia (opcional)</label>
+                <input id="hipotesisRef" class="mt-1 w-full p-2 rounded-xl bg-black/30 border border-white/10" placeholder="GLU-001" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mt-3">
+              <div>
+                <label for="hipotesisDesde" class="text-xs text-white/70">Desde</label>
+                <input id="hipotesisDesde" type="date" class="mt-1 w-full p-2 rounded-xl bg-black/30 border border-white/10" />
+              </div>
+              <div>
+                <label for="hipotesisHasta" class="text-xs text-white/70">Hasta</label>
+                <input id="hipotesisHasta" type="date" class="mt-1 w-full p-2 rounded-xl bg-black/30 border border-white/10" />
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between mt-4">
+              <label class="text-xs text-white/70 flex items-center gap-2">
+                <input id="hipotesisDemo" type="checkbox" class="accent-teal-500">
+                Modo demo
+              </label>
+              <div id="hipotesisStatus" class="text-xs text-white/70"></div>
+            </div>
+          </div>
+
+          <div class="lg:col-span-2 rounded-2xl p-4 bg-white/5 border border-white/10">
+            <div id="hipotesisSalida" class="space-y-4">
+              <div class="text-white/60 text-sm">
+                Aquí se mostrará el chat libre o el reporte científico (H0/H1, método, supuestos, etc.).
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="h-[env(safe-area-inset-bottom)]"></div>
+      </div>
     </div>
   </div>
-</div>
-<!-- ================= FIN MODAL HIPÓTESIS ================= -->
 
-<script>
+  <!-- ================= Scripts locales ================= -->
+  <script>
+    // // ✅ Tabla registros: ahora agrega en <tbody> (correcto)
+    // function agregarFila(ref, lote, estado){
+    //   const contenedor = document.getElementById("tablaContenedora");
+    //   const tbody = document.getElementById("tablaRegistrosBody");
+    //   if (!tbody) return;
+
+    //   contenedor.classList.remove("hidden");
+    //   setTimeout(() => contenedor.classList.remove("opacity-0"), 10);
+
+    //   const fila = document.createElement("tr");
+    //   fila.innerHTML = `
+    //     <td class="p-2">${ref ?? ""}</td>
+    //     <td class="p-2">${lote ?? ""}</td>
+    //     <td class="p-2">${estado ?? ""}</td>
+    //     <td class="p-2 text-center">
+    //       <button type="button" onclick="eliminarFila(this)" class="text-red-900 hover:text-red-600">✖</button>
+    //     </td>
+    //   `;
+    //   tbody.appendChild(fila);
+    // }
+
+    // function eliminarFila(btn){
+    //   const tr = btn?.closest("tr");
+    //   if (tr) tr.remove();
+    // }
+
+    // // ✅ Fix rápido: cuando abras/cierres el modal hipótesis, usa hidden (y ya queda con tamaño)
+    // function abrirModalHipotesis(){
+    //   document.getElementById("modalHipotesis")?.classList.remove("hidden");
+    // }
+    // function cerrarModalHipotesis(){
+    //   document.getElementById("modalHipotesis")?.classList.add("hidden");
+    // }
+
 /* ================= MODAL HIPÓTESIS ================= */
 const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo";
 const VALIDAR_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/validar_qr";
@@ -1504,20 +1190,101 @@ let modoScannerQR = "movimientos"; // "movimientos" | "inventario"
 // Inventario detallado por referencia / lote / caducidad
 // inventarioDetallado[referencia][lote][caducidad] = cantidad
 let inventarioDetallado = {};
-function abrirModalHipotesis(){
+function abrirModalHipotesis() {
+  console.log("🧪 [HIPOTESIS] abrirModalHipotesis()");
   const m = document.getElementById("modalHipotesis");
-  if(!m){ console.error("❌ No existe #modalHipotesis"); return; }
+  if (!m) return console.error("❌ [HIPOTESIS] No existe #modalHipotesis");
+
   m.classList.remove("hidden");
-  m.classList.add("flex");
+
+  const rect = m.getBoundingClientRect();
+  console.log("✅ [HIPOTESIS] Modal abierto rect:", rect);
+
+  const textarea = document.getElementById("hipotesisPregunta");
+  textarea?.focus();
 }
 
-function cerrarModalHipotesis(){
+function cerrarModalHipotesis() {
+  console.log("❌ [HIPOTESIS] cerrarModalHipotesis()");
   const m = document.getElementById("modalHipotesis");
-  if(!m){ console.error("❌ No existe #modalHipotesis"); return; }
+  if (!m) return console.error("❌ [HIPOTESIS] No existe #modalHipotesis");
   m.classList.add("hidden");
-  m.classList.remove("flex");
 }
 
+
+async function ejecutarPreguntaLibreIA(){
+  const status = document.getElementById("hipotesisStatus");
+  const out = document.getElementById("hipotesisSalida");
+  const pregunta = document.getElementById("hipotesisPregunta")?.value?.trim();
+
+  if(!pregunta){
+    status.textContent = "⚠️ Escribe una pregunta primero.";
+    return;
+  }
+
+  const context = JSON.stringify({
+    lab_id: document.getElementById("hipotesisLab")?.value?.trim() || null,
+    referencia: document.getElementById("hipotesisRef")?.value?.trim() || null,
+    desde: document.getElementById("hipotesisDesde")?.value || null,
+    hasta: document.getElementById("hipotesisHasta")?.value || null,
+    demo: !!document.getElementById("hipotesisDemo")?.checked
+  });
+
+  console.log("[HYP][CHAT] enviar", { pregunta_len: pregunta.length });
+
+  status.textContent = "💬 Consultando IA…";
+  const ans = await preguntarIA(pregunta, context);
+
+  if(!ans){
+    status.textContent = "❌ No hubo respuesta.";
+    return;
+  }
+
+  status.textContent = "✅ Listo.";
+  out.innerHTML = `
+    <div class="rounded-2xl p-4 bg-black/25 border border-white/10">
+      <div class="text-xs text-white/60 mb-2">🧑‍💻 Tú</div>
+      <div class="text-sm text-white/90 whitespace-pre-wrap">${pregunta}</div>
+    </div>
+
+    <div class="rounded-2xl p-4 bg-white/5 border border-white/10">
+      <div class="text-xs text-white/60 mb-2">🤖 IA</div>
+      <div class="text-sm text-white/90 whitespace-pre-wrap">${String(ans).replaceAll("<","&lt;").replaceAll(">","&gt;")}</div>
+    </div>
+  `;
+}
+
+async function preguntarIA(question, context = "") {
+  const requestId = crypto.randomUUID();
+  const t0 = performance.now();
+
+  console.log(`[AI][${requestId}] UI_SEND q_len=${(question||"").length}`);
+
+  try {
+    mostrarModal("🧠 Procesando…", "#0ea5e9");
+
+    const r = await fetch("/api/ai/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, context }),
+    });
+
+    const data = await r.json();
+
+    if (!r.ok || data?.error) {
+      console.log(`[AI][${requestId}] UI_FAIL status=${r.status} err=${data?.error}`);
+      mostrarModal(`❌ ${data?.error || "Error al consultar IA"}`, "#991b1b");
+      return null;
+    }
+
+    console.log(`[AI][${requestId}] UI_OK ms=${Math.round(performance.now() - t0)} ans_len=${(data.answer||"").length}`);
+    return data.answer;
+  } catch (e) {
+    console.log(`[AI][${requestId}] UI_EXC ms=${Math.round(performance.now() - t0)} err=${e?.message}`);
+    mostrarModal("❌ Error de red / servidor", "#991b1b");
+    return null;
+  }
+}
 
 async function ejecutarHipotesisIA(){
   const status = document.getElementById("hipotesisStatus");
@@ -1597,6 +1364,11 @@ function renderHipotesisReporte(r){
     </div>
   `;
 }
+window.abrirModalHipotesis = abrirModalHipotesis;
+window.cerrarModalHipotesis = cerrarModalHipotesis;
+window.ejecutarPreguntaLibreIA = ejecutarPreguntaLibreIA;
+window.ejecutarHipotesisIA = ejecutarHipotesisIA;
+
 // Permitir arrastrar la ventana del lector QR
 function hacerDraggable(idElemento) {
   const el = document.getElementById(idElemento);
@@ -1821,62 +1593,104 @@ function bloquearEscaneoCritico(opciones = {}) {
 
 
 async function validarPinYUnidad() {
-  const nip = document.getElementById("inputNIP").value.trim();
-  nipAdmin = nip;
-  const unidad = document.getElementById("inputUnidad").value.trim().toUpperCase();
-  const esSalida = modoSeleccionado === "salida";
-  let remision = null;
+  const TAG = "[PIN]";
 
-  const remisionRaw = document.getElementById("inputRemision")?.value.trim().toLowerCase();
-  const unidadRaw = document.getElementById("inputUnidad")?.value.trim().toLowerCase();
+  const elNip = document.getElementById("inputNIP");
+  const elUnidad = document.getElementById("inputUnidad");
+  const elRemision = document.getElementById("inputRemision");
+  const elPinError = document.getElementById("pinError");
+  const modalPin = document.getElementById("modalPinUnidad");
+
+  const nip = (elNip?.value || "").trim();
+  nipAdmin = nip;
+
+  const unidad = (elUnidad?.value || "").trim().toUpperCase();
+  const esSalida = (modoSeleccionado === "salida");
+
+  const remisionRaw = (elRemision?.value || "").trim().toLowerCase();
+  const unidadRaw = (elUnidad?.value || "").trim().toLowerCase();
   const esBasurero = (modoSeleccionado === "salida" && unidadRaw === "eliminar" && remisionRaw === "etiqueta");
 
-  if (esBasurero) {
-  usuario = "Basurero";
-  unidadSeleccionada = "Eliminar";
-  modo = "salida";
+  console.log(`${TAG} iniciar`, { modoSeleccionado, esSalida, nipLen: nip.length, unidad, remisionRaw });
 
-  document.getElementById("modalPinUnidad").classList.add("hidden");
-  document.getElementById("usuarioActivo").innerHTML = `
-    🕳️ <strong>MODO ELIMINACIÓN ACTIVADO</strong><br>
-     <strong>Eliminar</strong><br>
-     <strong>Etiqueta</strong>
-  `;
-
-  actualizarBotonModo("Salida", "bg-black", "🕳️");
-  document.body.classList.add("modo-basurero");
-
-  // 👇 Mostrar el contenedor QR e input explícitamente
-  const contenedorQR = document.getElementById("contenedorQR");
-  const btnEnviar = document.getElementById("btnEnviarSupabase");
-  const inputQR = document.getElementById("inputQR");
-
-  if (contenedorQR) contenedorQR.classList.remove("hidden");
-  if (btnEnviar) btnEnviar.classList.remove("hidden");
-  if (inputQR) {
-    inputQR.classList.remove("hidden");
-    inputQR.value = "";
-    inputQR.focus();
+  // Limpia error visible
+  if (elPinError) {
+    elPinError.classList.add("hidden");
+    elPinError.textContent = "";
   }
 
-  return;
-}
+  // ========== MODO BASURERO ==========
+  if (esBasurero) {
+    console.log(`${TAG} modo basurero ACTIVADO`);
+
+    usuario = "Basurero";
+    unidadSeleccionada = "Eliminar";
+    modo = "salida";
+    remisionActual = "Etiqueta"; // opcional para que todo quede consistente
+
+    // cerrar modal bien
+    if (modalPin) {
+      modalPin.classList.add("hidden");
+      modalPin.classList.remove("flex");
+    }
+
+    const usuarioActivoEl = document.getElementById("usuarioActivo");
+    if (usuarioActivoEl) {
+      usuarioActivoEl.innerHTML = `
+        🕳️ <strong>MODO ELIMINACIÓN ACTIVADO</strong><br>
+        <strong>Eliminar</strong><br>
+        <strong>Etiqueta</strong>
+      `;
+    }
+
+    actualizarBotonModo("Salida", "bg-black", "🕳️");
+    document.body.classList.add("modo-basurero");
+
+    // UI QR
+    const contenedorQR = document.getElementById("contenedorQR");
+    const btnEnviar = document.getElementById("btnEnviarSupabase");
+    const inputQR = document.getElementById("inputQR");
+
+    contenedorQR?.classList.remove("hidden");
+    btnEnviar?.classList.remove("hidden");
+
+    if (inputQR) {
+      inputQR.classList.remove("hidden");
+      inputQR.value = "";
+      inputQR.focus();
+    }
+
+    // botón cerrar sesión
+    document.getElementById("btnCerrarSesion")?.classList.remove("hidden");
+    return;
+  }
+
+  // ========== VALIDACIONES PREVIAS (SALIDA) ==========
+  let remision = null;
 
   if (esSalida) {
-    remision = document.getElementById("inputRemision").value.trim();
+    remision = (elRemision?.value || "").trim();
+    console.log(`${TAG} salida -> remision`, remision);
+
     const bloqueoActivo = await consultarEstadoBloqueo();
+    console.log(`${TAG} bloqueoActivo`, bloqueoActivo);
 
     if (bloqueoActivo && !remision) {
-      document.getElementById("pinError").textContent = "❌ Debes cargar la remisión para continuar.";
-      document.getElementById("pinError").classList.remove("hidden");
+      if (elPinError) {
+        elPinError.textContent = "❌ Debes cargar la remisión para continuar.";
+        elPinError.classList.remove("hidden");
+      }
       return;
     }
   }
 
   remisionActual = remision;
 
+  // ========== SI HAY REMISIÓN, INTENTA CARGAR PENDIENTE ==========
   if (esSalida && remision) {
     try {
+      console.log(`${TAG} buscando remisión pendiente`, remision);
+
       const resPendiente = await fetch(
         `https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/remisiones_pendientes?select=*`,
         {
@@ -1888,15 +1702,15 @@ async function validarPinYUnidad() {
       );
 
       const todasRemisiones = await resPendiente.json();
-      console.log("📋 Remisiones encontradas:", todasRemisiones.map(r => r.numero_remision));
+      console.log(`${TAG} remisiones encontradas`, (todasRemisiones || []).map(r => r.numero_remision));
 
       const remisionNormalizada = remision.trim();
-      const datosPendientes = todasRemisiones.filter(r =>
-        (r.numero_remision || "").replaceAll('"', '').trim() === remisionNormalizada
+      const datosPendientes = (todasRemisiones || []).filter(r =>
+        (r.numero_remision || "").replaceAll('"', "").trim() === remisionNormalizada
       );
 
-      console.log("🔍 Remisión buscada:", remisionNormalizada);
-      console.log("📋 Datos encontrados para esa remisión:", datosPendientes);
+      console.log(`${TAG} remision buscada`, remisionNormalizada);
+      console.log(`${TAG} pendientes match`, datosPendientes);
 
       if (datosPendientes.length > 0) {
         avanceRemision = {};
@@ -1910,17 +1724,19 @@ async function validarPinYUnidad() {
           };
         }
 
-        console.log("✅ avanceRemision cargado:", avanceRemision);
+        console.log(`${TAG} avanceRemision cargado`, avanceRemision);
         actualizarTablaRemisionSAP();
         mostrarModal("📤 Remisión previa cargada automáticamente", "#0ea5e9");
       }
-
     } catch (err) {
-      console.error("❌ Error al cargar remisión previa:", err);
+      console.error(`${TAG} error al cargar remisión previa`, err);
     }
   }
 
+  // ========== VALIDAR NIP (SUPABASE FUNCTION) ==========
   try {
+    console.log(`${TAG} validando nip...`);
+
     const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/validar_nip", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1928,92 +1744,116 @@ async function validarPinYUnidad() {
     });
 
     const data = await res.json();
-    const unidadesLista = typeof data.unidades === "string"
+    console.log(`${TAG} respuesta validar_nip`, data);
+
+    const unidadesLista = typeof data?.unidades === "string"
       ? data.unidades.split(",").map(u => u.trim().toUpperCase())
-      : Array.isArray(data.unidades)
-        ? data.unidades
+      : Array.isArray(data?.unidades)
+        ? data.unidades.map(u => String(u).trim().toUpperCase())
         : [];
 
-    if (!data || !data.nombre || (esSalida && !unidadesLista.includes(unidad))) {
-      document.getElementById("pinError").textContent = "❌ Verifica NIP o unidad.";
-      document.getElementById("pinError").classList.remove("hidden");
+    const unidadValidaParaSalida = !esSalida || unidadesLista.includes(unidad);
+
+    if (!data || !data.nombre || !unidadValidaParaSalida) {
+      if (elPinError) {
+        elPinError.textContent = "❌ Verifica NIP o unidad.";
+        elPinError.classList.remove("hidden");
+      }
+      console.warn(`${TAG} acceso denegado`, { tieneNombre: !!data?.nombre, unidadValidaParaSalida, unidad, unidadesLista });
       return;
     }
 
+    // Set globals
     usuario = data.nombre;
-    window.usuario = usuario; // ✅ Asegura que esté disponible globalmente
+    window.usuario = usuario;
+
     esAdmin = data.es_admin;
-    usuarioAdmin = esAdmin === true;
+    usuarioAdmin = (esAdmin === true);
     window.usuarioEsAdmin = usuarioAdmin;
 
     if (usuarioAdmin) {
-      window.nombreAdmin = usuario; // ✅ Requerido para generar PIN dinámico
-      console.log("✅ Admin detectado:", window.nombreAdmin);
+      window.nombreAdmin = usuario;
+      console.log(`${TAG} admin detectado`, window.nombreAdmin);
     } else {
       window.nombreAdmin = null;
     }
 
     unidadSeleccionada = esSalida ? unidad : null;
-    document.getElementById("modalPinUnidad").classList.add("hidden");
-
-    const nombreUnidad = unidadesDestino[unidad] || "Unidad desconocida";
-
-    if (modoSeleccionado === "entrada") {
-      document.getElementById("usuarioActivo").textContent = usuario;
-    } else if (modoSeleccionado === "salida") {
-      document.getElementById("usuarioActivo").innerHTML = `
-        ${usuario} → ${unidad} ${nombreUnidad}<br>
-        No. de Remisión: <strong>${remisionActual}</strong>
-      `;
-    } else {
-      document.getElementById("usuarioActivo").textContent = "Selecciona un modo para iniciar";
-    }
-
     modo = modoSeleccionado;
 
-    const btnInventario = document.querySelector('button[onclick="confirmarModoInventario()"]');
-    if (modo === "entrada" && btnInventario) {
-      btnInventario.classList.remove("hidden");
-    } else if (btnInventario) {
-      btnInventario.classList.add("hidden");
+    // cerrar modal bien
+    if (modalPin) {
+      modalPin.classList.add("hidden");
+      modalPin.classList.remove("flex");
     }
 
+    // UI estado usuario
+    const usuarioActivoEl = document.getElementById("usuarioActivo");
+    const nombreUnidad = (typeof unidadesDestino === "object" && unidadesDestino?.[unidad]) ? unidadesDestino[unidad] : "Unidad desconocida";
+
+    if (usuarioActivoEl) {
+      if (modoSeleccionado === "entrada") {
+        usuarioActivoEl.textContent = usuario;
+      } else if (modoSeleccionado === "salida") {
+        usuarioActivoEl.innerHTML = `
+          ${usuario} → ${unidad} ${nombreUnidad}<br>
+          No. de Remisión: <strong>${remisionActual || "—"}</strong>
+        `;
+      } else {
+        usuarioActivoEl.textContent = "Selecciona un modo para iniciar";
+      }
+    }
+
+    // Botón inventario
+    const btnInventario = document.querySelector('button[onclick="confirmarModoInventario()"]');
+    if (modo === "entrada") btnInventario?.classList.remove("hidden");
+    else btnInventario?.classList.add("hidden");
+
+    // Botón modo
     const texto = modo;
-    const color = modo === "entrada" ? "bg-green-700"
-                : modo === "salida" ? "bg-red-700"
+    const color = (modo === "entrada") ? "bg-green-700"
+                : (modo === "salida") ? "bg-red-900"
                 : "bg-gray-500";
-    const icono = modo === "entrada" ? "📥"
-                : modo === "salida" ? "📤"
+    const icono = (modo === "entrada") ? "📥"
+                : (modo === "salida") ? "📤"
                 : "🔒";
 
     actualizarBotonModo(texto.charAt(0).toUpperCase() + texto.slice(1), color, icono);
+
+    console.log(`${TAG} modo activado`, { usuario, modo, unidadSeleccionada, remisionActual });
     notificar(`Modo ${modo.toUpperCase()} activado`, "#003f40");
 
-
-      } catch (e) {
-        document.getElementById("pinError").textContent = "❌ Error de conexión.";
-        document.getElementById("pinError").classList.remove("hidden");
-      }
-
-      const contenedorQR = document.getElementById("contenedorQR");
-      const btnEnviar = document.getElementById("btnEnviarSupabase");
-
-      if (!modo || modo === "inactivo") {
-        if (contenedorQR) contenedorQR.classList.add("hidden");
-        if (btnEnviar) btnEnviar.classList.add("hidden");
-      } else {
-        if (contenedorQR) contenedorQR.classList.remove("hidden");
-        if (btnEnviar) btnEnviar.classList.remove("hidden");
-             enfocarInputQR();  // ✅ Aquí forzamos el enfoque al lector de QR
-        // ✅ Mostrar u ocultar botón de cerrar sesión
-        const btnCerrar = document.getElementById("btnCerrarSesion");
-        if (modo && modo !== "inactivo") {
-          btnCerrar.classList.remove("hidden");
-        } else {
-          btnCerrar.classList.add("hidden");
-        }
-      }
+  } catch (e) {
+    console.error(`${TAG} error conexión validar_nip`, e);
+    if (elPinError) {
+      elPinError.textContent = "❌ Error de conexión.";
+      elPinError.classList.remove("hidden");
     }
+    return;
+  } finally {
+    // ========== UI QR + Botón enviar + Cerrar sesión (siempre consistente) ==========
+    const contenedorQR = document.getElementById("contenedorQR");
+    const btnEnviar = document.getElementById("btnEnviarSupabase");
+    const btnCerrar = document.getElementById("btnCerrarSesion");
+
+    const activo = !!modo && modo !== "inactivo";
+
+    console.log(`${TAG} finally UI`, { activo, modo });
+
+    if (!activo) {
+      contenedorQR?.classList.add("hidden");
+      btnEnviar?.classList.add("hidden");
+      btnCerrar?.classList.add("hidden");
+    } else {
+      contenedorQR?.classList.remove("hidden");
+      btnEnviar?.classList.remove("hidden");
+      btnCerrar?.classList.remove("hidden");
+      // focus lector QR
+      if (typeof enfocarInputQR === "function") enfocarInputQR();
+    }
+  }
+}
+
 
 
 function abrirModalPinDinamico() {
@@ -3540,7 +3380,7 @@ async function procesarExtraccionConValidacion(ref, unidadDestino, cantidadSolic
         <li><strong>Dotación mensual:</strong> ${cantidadPermitida}</li>
         <li><strong>Consumido actual:</strong> ${consumoActual}</li>
         <li><strong>Solicitado ahora:</strong> ${cantidadSolicitada}</li>
-        <li class="text-red-700"><strong>Total proyectado:</strong> ${consumoProyectado} (excede)</li>
+        <li class="text-red-900"><strong>Total proyectado:</strong> ${consumoProyectado} (excede)</li>
       </ul>
       <p class="mt-3 text-sm">🔐 Se ha generado un PIN dinámico. Solicítalo a un administrador para continuar.</p>
     `;
@@ -4010,7 +3850,7 @@ function mostrarMenuModo() {
         </h2>
         <button
           onclick="this.closest('.modal-modo').remove()"
-          class="text-red-300 hover:text-red-200 text-xl font-bold">
+          class="text-red-900 hover:text-red-600 text-xl font-bold">
           ×
         </button>
       </div>
@@ -4022,7 +3862,7 @@ function mostrarMenuModo() {
           onclick="solicitarPinModo('entrada', this)"
           class="rounded-2xl py-3 font-semibold text-white shadow-lg
                  bg-gradient-to-r from-green-900/80 to-emerald-700/60
-                 hover:from-green-800/80 hover:to-emerald-600/60
+                 hover:from-green-700/80 hover:to-emerald-900/60
                  transition backdrop-blur">
           📥 Modo Entrada
         </button>
@@ -4032,7 +3872,7 @@ function mostrarMenuModo() {
           onclick="solicitarPinModo('salida', this)"
           class="rounded-2xl py-3 font-semibold text-white shadow-lg
                  bg-gradient-to-r from-red-900/80 to-rose-700/60
-                 hover:from-red-800/80 hover:to-rose-600/60
+                 hover:from-red-900/80 hover:to-rose-900/60
                  transition backdrop-blur">
           📤 Modo Salida
         </button>
@@ -4062,29 +3902,55 @@ function mostrarMenuModo() {
 let nipAdmin = null;
 
 function solicitarPinModo(tipo, boton) {
-  const modalAnterior = boton.closest('.modal-modo');
+  // --- LOGS ---
+  console.log("[UI][modo] solicitarPinModo()", { tipo });
+
+  // Cierra el menú flotante de modo (si existe)
+  const modalAnterior = boton?.closest?.(".modal-modo");
   if (modalAnterior) modalAnterior.remove();
+
+  // Estado
   modoSeleccionado = tipo;
   unidadSeleccionada = null;
-  document.getElementById("inputNIP").value = "";
-  document.getElementById("inputUnidad").value = "";
-  document.getElementById("inputRemision").value = "";
-  document.getElementById("pinError").classList.add("hidden");
 
+  // Inputs
+  const inputNIP = document.getElementById("inputNIP");
+  const inputUnidad = document.getElementById("inputUnidad");
+  const inputRemision = document.getElementById("inputRemision");
+  const pinError = document.getElementById("pinError");
+
+  if (inputNIP) inputNIP.value = "";
+  if (inputUnidad) inputUnidad.value = "";
+  if (inputRemision) inputRemision.value = "";
+  if (pinError) pinError.classList.add("hidden");
+
+  // Grupos
   const unidadGroup = document.getElementById("unidadDestinoGroup");
   const remisionGroup = document.getElementById("remisionGroup");
   const bloqueCargaRemision = document.getElementById("bloqueCargaRemision");
 
   const esSalida = (tipo === "salida");
+  if (unidadGroup) unidadGroup.classList.toggle("hidden", !esSalida);
+  if (remisionGroup) remisionGroup.classList.toggle("hidden", !esSalida);
+  if (bloqueCargaRemision) bloqueCargaRemision.classList.toggle("hidden", !esSalida);
 
-  unidadGroup.classList.toggle("hidden", !esSalida);
-  remisionGroup.classList.toggle("hidden", !esSalida);
-  bloqueCargaRemision.classList.toggle("hidden", !esSalida);
+  // Mostrar modal SIEMPRE centrado (hidden -> flex)
+  const modal = document.getElementById("modalPinUnidad");
+  if (!modal) {
+    console.warn("[UI][modo] No existe #modalPinUnidad");
+    return;
+  }
 
-  document.getElementById("modalPinUnidad").classList.remove("hidden");
-  document.getElementById("inputNIP").focus();
+  modal.classList.remove("hidden");
+  modal.classList.add("flex"); // ✅ CLAVE para que items-center/justify-center funcionen
 
+  // Focus seguro (después de pintar)
+  requestAnimationFrame(() => {
+    inputNIP?.focus?.();
+    console.log("[UI][modo] modalPinUnidad abierto", { esSalida });
+  });
 }
+
 
 
 // 🔑 Manejador general de Enter para todos los campos:
@@ -4312,7 +4178,7 @@ function actualizarBotonModo(texto, claseColor, icono) {
     if (btn) {
       btn.classList.add(
         "bg-gradient-to-r", "from-rose-900/80", "to-red-800/60",
-        "hover:from-rose-800/80", "hover:to-red-700/60",
+        "hover:from-rose-800/80", "hover:to-red-900/60",
         "shadow-rose-500/20"
       );
     }
@@ -4537,7 +4403,7 @@ function verForecast(referencia, nombre = "", fabricante = "") {
         <button type="button" id="btnCerrarForecast"
           class="shrink-0 w-10 h-10 grid place-items-center rounded-2xl
                  bg-white/5 border border-white/10
-                 text-red-200 hover:text-red-100 text-2xl font-bold">
+                 text-red-900 hover:text-red-700 text-2xl font-bold">
           ×
         </button>
       </div>
@@ -5611,7 +5477,7 @@ function actualizarTablaRegistros() {
       <td class="p-1">${qr.timestamp || ""}</td>
 
       <td class="p-1 text-center">
-        <button onclick="eliminarFila(this)" class="bg-red-500 hover:bg-red-700 text-white px-2 rounded-xl">X</button>
+        <button onclick="eliminarFila(this)" class="bg-red-600 hover:bg-red-900 text-white px-2 rounded-xl">X</button>
       </td>
     `;
     tabla.appendChild(fila);
@@ -5930,8 +5796,31 @@ function agregarFila(ref, lote, estado) {
 
     function cargarUnidades() {
       const unidadSelect = document.getElementById("unidadCaptura");
-      unidadSelect.innerHTML = unidadesAsignadas.map(u => `<option value="${u}">${u}</option>`).join("");
+
+      if (!unidadSelect) {
+        console.error("❌ cargarUnidades(): #unidadCaptura no existe. (ModalCaptura incompleto o IDs borrados)");
+        return;
+      }
+
+      if (!Array.isArray(unidadesAsignadas)) {
+        console.error("❌ cargarUnidades(): unidadesAsignadas no es arreglo:", unidadesAsignadas);
+        unidadSelect.innerHTML = `<option value="">(Error: unidades inválidas)</option>`;
+        return;
+      }
+
+      if (unidadesAsignadas.length === 0) {
+        console.warn("⚠️ cargarUnidades(): usuario sin unidades asignadas");
+        unidadSelect.innerHTML = `<option value="">(Sin unidades asignadas)</option>`;
+        return;
+      }
+
+      unidadSelect.innerHTML =
+        `<option value="">Selecciona unidad…</option>` +
+        unidadesAsignadas.map(u => `<option value="${u}">${u}</option>`).join("");
+
+      console.log("✅ cargarUnidades(): OK", unidadesAsignadas);
     }
+
 
     async function cargarReferencias() {
       const totalMaximo = 10000; // Límite máximo si se espera que la tabla crezca más
@@ -5989,7 +5878,7 @@ function agregarFila(ref, lote, estado) {
 
       sugerencias.slice(0, 10).forEach(s => {
         const div = document.createElement("div");
-        div.className = "px-4 py-2 hover:bg-gray-100 cursor-pointer";
+        div.className = "px-4 py-2 hover:bg-white/10 cursor-pointer";
         div.textContent = `${s.referencia} - ${s.nombre || ''}`;
         div.onclick = () => {
           document.getElementById("inputReferencia").value = s.referencia;
@@ -6104,74 +5993,86 @@ function agregarFila(ref, lote, estado) {
     }
 
     async function precargarArchivoCaptura() {
-      const input = document.getElementById("archivoCaptura");
-      const archivo = input.files[0];
-      if (!archivo) return;
+    const input = document.getElementById("archivoCaptura");
+    const archivo = input?.files?.[0];
 
-      try {
-        const datos = await archivo.arrayBuffer();
-        const workbook = XLSX.read(datos, { type: "array" });
-        const hoja = workbook.Sheets[workbook.SheetNames[0]];
-        const filas = XLSX.utils.sheet_to_json(hoja);
+    // Nombre del archivo (UI)
+    const nombre = document.getElementById("archivoCapturaNombre");
+    if (nombre) nombre.textContent = archivo ? archivo.name : "Ningún archivo";
 
-        if (!filas.length) return alert("❌ El archivo está vacío.");
-
-        const unidad = document.getElementById("unidadCaptura").value;
-        const tabla = document.querySelector("#tablaCaptura tbody");
-        tabla.innerHTML = "";
-        datosCaptura = [];
-
-        filas.forEach(row => {
-          const referencia = row.referencia || row.Referencia || row["Número de artículo"];
-          const nombre = row.nombre || row.Nombre || row["Descripción del artículo"];
-          const cantidad = parseFloat(row.cantidad || row.Cantidad || row["Cantidad Inventario"]);
-
-          if (!referencia || isNaN(cantidad)) return;
-
-          const tr = document.createElement("tr");
-          tr.classList.add("completada");
-
-          // 🔁 MISMO ORDEN QUE mostrarReferenciasUnidad:
-          // Cantidad | Nombre | Referencia | Eliminar
-          tr.innerHTML = `
-            <td class="p-2 cantidad-td">
-              <input
-                type="number"
-                step="0.1"
-                min="0"
-                value="${cantidad}"
-                class="cantidad-input border rounded-lg text-right"
-                onchange="marcarComoCompletada(this)"
-              />
-            </td>
-            <td class="p-2">${nombre || ""}</td>
-            <td class="p-2">${referencia}</td>
-            <td class="p-2 text-center">
-              <button
-                onclick='this.closest("tr").remove(); actualizarDatosCaptura()'
-                class="text-red-600">
-                ✖
-              </button>
-            </td>
-          `;
-          tabla.appendChild(tr);
-
-          datosCaptura.push({
-            referencia,
-            nombre,
-            cantidad,
-            tipo: document.getElementById("modoCaptura").value
-          });
-        });
-
-        document.getElementById("contenedorTabla").classList.remove("hidden");
-        localStorage.setItem("capturaPendiente", JSON.stringify(datosCaptura));
-        mostrarModal("✅ Archivo cargado correctamente", "#065f46");
-      } catch (err) {
-        console.error("❌ Error al leer archivo:", err);
-        mostrarModal("❌ Error al leer archivo", "#991b1b");
-      }
+    if (!archivo) {
+      mostrarModal("⚠️ Selecciona un archivo .csv o .xlsx", "#f59e0b");
+      return;
     }
+
+    try {
+      const datos = await archivo.arrayBuffer();
+      const workbook = XLSX.read(datos, { type: "array" });
+      const hoja = workbook.Sheets[workbook.SheetNames[0]];
+      const filas = XLSX.utils.sheet_to_json(hoja);
+
+      if (!filas.length) {
+        mostrarModal("❌ El archivo está vacío.", "#991b1b");
+        return;
+      }
+
+      const tabla = document.querySelector("#tablaCaptura tbody");
+      tabla.innerHTML = "";
+      datosCaptura = [];
+
+      filas.forEach(row => {
+        const referencia = row.referencia || row.Referencia || row["Número de artículo"];
+        const nombre = row.nombre || row.Nombre || row["Descripción del artículo"];
+        const cantidad = parseFloat(row.cantidad || row.Cantidad || row["Cantidad Inventario"]);
+
+        if (!referencia || isNaN(cantidad)) return;
+
+        const tr = document.createElement("tr");
+        tr.classList.add("completada");
+
+        tr.innerHTML = `
+          <td class="p-2 cantidad-td">
+            <input
+              type="number"
+              step="0.1"
+              min="0"
+              max="999.9"
+              value="${cantidad}"
+              inputmode="decimal"
+              class="cantidad-input input-cantidad"
+              onchange="marcarComoCompletada(this)"
+            />
+          </td>
+          <td class="p-2">${nombre || ""}</td>
+          <td class="p-2">${referencia}</td>
+          <td class="p-2 text-center">
+            <button
+              onclick='this.closest("tr").remove(); actualizarDatosCaptura()'
+              class="text-rose-300 hover:text-rose-200">
+              ✖
+            </button>
+          </td>
+        `;
+        tabla.appendChild(tr);
+
+        datosCaptura.push({
+          referencia,
+          nombre,
+          cantidad,
+          tipo: document.getElementById("modoCaptura").value
+        });
+      });
+
+      document.getElementById("contenedorTabla").classList.remove("hidden");
+      localStorage.setItem("capturaPendiente", JSON.stringify(datosCaptura));
+      mostrarModal("✅ Archivo cargado correctamente", "#065f46");
+
+    } catch (err) {
+      console.error("❌ Error al leer archivo:", err);
+      mostrarModal("❌ Error al leer archivo", "#991b1b");
+    }
+  }
+
 
 
     function mostrarReferenciasUnidad() {
@@ -6211,8 +6112,10 @@ function agregarFila(ref, lote, estado) {
               type="number"
               step="0.1"
               min="0"
-              placeholder="0"
-              class="cantidad-input border rounded-lg text-right"
+              max="999.9"
+              inputmode="decimal"
+              placeholder="0.0"
+              class="cantidad-input input-cantidad"
               onchange="marcarComoCompletada(this)"
             />
           </td>
@@ -6761,33 +6664,48 @@ document.addEventListener("keydown", function(e) {
 });
 
 // Abre el modal y prepara el selector:
-window.abrirModalReporteMensual = function() {
+window.abrirModalReporteMensual = function () {
   console.log("🟢 abrirModalReporteMensual ejecutado");
+
   const modal = document.getElementById("modalReporteMensual");
-  if (modal) {
-    inicializarSelectorMesAnio();
-    modal.classList.remove("hidden");
-    console.log("✅ Modal de reporte mensual abierto correctamente");
-  } else {
+  if (!modal) {
     console.error("❌ No se encontró el modalReporteMensual");
+    return;
   }
+
+  // ✅ Fuerza centrado SIEMPRE (por si en el HTML faltó flex)
+  modal.classList.add("flex", "items-center", "justify-center");
+  modal.classList.remove("hidden");
+
+  // (Opcional pero recomendado) padding para móviles
+  modal.classList.add("p-4");
+
+  inicializarSelectorMesAnio();
+
+  console.log("✅ Modal de reporte mensual abierto correctamente");
 };
 
-window.cerrarModalReporteMensual = function() {
+window.cerrarModalReporteMensual = function () {
   console.log("🔒 Cerrando modal de reporte");
-  document.getElementById("modalReporteMensual")?.classList.add("hidden");
+  const modal = document.getElementById("modalReporteMensual");
+  if (!modal) return;
+
+  modal.classList.add("hidden");
+  // puedes dejar estas puestas siempre, pero si quieres limpiar:
+  // modal.classList.remove("flex", "items-center", "justify-center");
 };
 
-window.generarReporteMensual = async function() {
+window.generarReporteMensual = async function () {
   console.log("🚀 Iniciando generación de reporte");
 
-  // Usamos los nuevos selects:
-  const mes = document.getElementById('inputMesMes')?.value;
-  const anio = document.getElementById('inputMesAnio')?.value;
+  const mes = document.getElementById("inputMesMes")?.value;
+  const anio = document.getElementById("inputMesAnio")?.value;
+
   if (!mes || !anio) {
     mostrarModal("⚠️ Selecciona mes y año", "#f59e0b");
     return;
   }
+
   cerrarModalReporteMensual();
   mostrarModal("⏳ Generando reporte...", "#0ea5e9");
 
@@ -6896,25 +6814,51 @@ window.generarReporteMensual = async function() {
   }
 };
 
-
-
-
-
 document.getElementById("btnSubirRemision").addEventListener("click", async () => {
-  const archivo = document.getElementById("inputArchivoRemision")?.files[0];
+  const archivo = document.getElementById("inputArchivoRemision")?.files?.[0];
   const numeroRemision = document.getElementById("inputRemision")?.value.trim();
   const unidadDestino = document.getElementById("inputUnidad")?.value.trim();
   const nip = document.getElementById("inputNIP")?.value.trim();
   const resultado = document.getElementById("resultadoCargaArchivo");
 
-  // Limpia estado anterior
-  resultado.textContent = "";
-  resultado.classList.remove("text-green-600", "text-red-600");
+  console.log("📤 Cargar remisión SAP → click");
 
-  if (!archivo) return alert("Selecciona un archivo .xlsx");
-  if (!numeroRemision) return alert("Escribe el número de remisión");
-  if (!unidadDestino) return alert("Especifica la unidad destino");
-  if (!nip) return alert("Ingresa tu NIP");
+  // Limpia estado anterior
+  if (resultado) {
+    resultado.textContent = "";
+    resultado.classList.remove("text-green-600", "text-red-600");
+  }
+
+  // ✅ Validaciones con modal (no alert)
+  if (!archivo) {
+    console.warn("❌ No se seleccionó archivo");
+    mostrarModal("❌ Selecciona un archivo .xlsx", "#7f1d1d");
+    return;
+  }
+
+  if (!archivo.name.toLowerCase().endsWith(".xlsx")) {
+    console.warn("❌ Archivo inválido:", archivo.name);
+    mostrarModal("❌ El archivo debe ser .xlsx", "#7f1d1d");
+    return;
+  }
+
+  if (!numeroRemision) {
+    console.warn("❌ Falta número de remisión");
+    mostrarModal("❌ Escribe el número de remisión", "#7f1d1d");
+    return;
+  }
+
+  if (!unidadDestino) {
+    console.warn("❌ Falta unidad destino");
+    mostrarModal("❌ Especifica la unidad destino", "#7f1d1d");
+    return;
+  }
+
+  if (!nip) {
+    console.warn("❌ Falta NIP");
+    mostrarModal("❌ Ingresa tu NIP", "#7f1d1d");
+    return;
+  }
 
   const formData = new FormData();
   formData.append("file", archivo);
@@ -6922,29 +6866,45 @@ document.getElementById("btnSubirRemision").addEventListener("click", async () =
   formData.append("unidad_destino", unidadDestino);
   formData.append("usuario_carga", nip);
 
+  console.log("📦 FormData listo:", {
+    archivo: archivo.name,
+    numeroRemision,
+    unidadDestino,
+    usuario: nip
+  });
+
   try {
-    const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/cargar_remision_sap", {
-      method: "POST",
-      body: formData
-    });
+    const res = await fetch(
+      "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/cargar_remision_sap",
+      { method: "POST", body: formData }
+    );
 
     const texto = await res.text();
+    console.log("📨 Respuesta servidor:", res.status, texto);
 
     if (res.ok) {
-      resultado.classList.add("text-green-600");
-      resultado.textContent = `✅ ${texto}`;
-      await cargarTablaRemisionSAP(numeroRemision); // muestra y sincroniza la tabla
-    } else {
-      resultado.classList.add("text-red-600");
-      resultado.textContent = `❌ Error: ${texto}`;
-    }
+      if (resultado) resultado.classList.add("text-green-600");
+      if (resultado) resultado.textContent = `✅ ${texto}`;
 
+      mostrarModal("✅ Remisión cargada correctamente", "#065f46");
+
+      await cargarTablaRemisionSAP(numeroRemision); // sync tabla
+    } else {
+      if (resultado) resultado.classList.add("text-red-600");
+      if (resultado) resultado.textContent = `❌ Error: ${texto}`;
+
+      mostrarModal(`❌ Error al cargar remisión`, "#7f1d1d");
+    }
   } catch (e) {
-    resultado.classList.add("text-red-600");
-    resultado.textContent = "❌ Error en la comunicación con el servidor.";
-    console.error("❌ Error:", e);
+    console.error("❌ Error comunicación SAP:", e);
+
+    if (resultado) resultado.classList.add("text-red-600");
+    if (resultado) resultado.textContent = "❌ Error en la comunicación con el servidor.";
+
+    mostrarModal("❌ Error de conexión con el servidor", "#7f1d1d");
   }
 });
+
 
 
 
