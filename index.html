@@ -597,7 +597,7 @@ body{
           📝 <span class="btn-text">Inventario/<wbr>Pruebas facturadas</span>
         </button>
         <button onclick="abrirModalReporteMensual()" class="space-btn px-5 py-3 rounded-2xl btn-wrap">
-          📊 <span class="btn-text">Generar<wbr>reporte</span>
+          📊 <span class="btn-text">Generar <wbr>reporte</span>
         </button>
       </div>
 
@@ -1074,41 +1074,8 @@ body{
 
   <!-- ================= Scripts locales ================= -->
   <script>
-    // // ✅ Tabla registros: ahora agrega en <tbody> (correcto)
-    // function agregarFila(ref, lote, estado){
-    //   const contenedor = document.getElementById("tablaContenedora");
-    //   const tbody = document.getElementById("tablaRegistrosBody");
-    //   if (!tbody) return;
-
-    //   contenedor.classList.remove("hidden");
-    //   setTimeout(() => contenedor.classList.remove("opacity-0"), 10);
-
-    //   const fila = document.createElement("tr");
-    //   fila.innerHTML = `
-    //     <td class="p-2">${ref ?? ""}</td>
-    //     <td class="p-2">${lote ?? ""}</td>
-    //     <td class="p-2">${estado ?? ""}</td>
-    //     <td class="p-2 text-center">
-    //       <button type="button" onclick="eliminarFila(this)" class="text-red-900 hover:text-red-600">✖</button>
-    //     </td>
-    //   `;
-    //   tbody.appendChild(fila);
-    // }
-
-    // function eliminarFila(btn){
-    //   const tr = btn?.closest("tr");
-    //   if (tr) tr.remove();
-    // }
-
-    // // ✅ Fix rápido: cuando abras/cierres el modal hipótesis, usa hidden (y ya queda con tamaño)
-    // function abrirModalHipotesis(){
-    //   document.getElementById("modalHipotesis")?.classList.remove("hidden");
-    // }
-    // function cerrarModalHipotesis(){
-    //   document.getElementById("modalHipotesis")?.classList.add("hidden");
-    // }
-
-/* ================= MODAL HIPÓTESIS ================= */
+//#region constantes
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo";
 const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo";
 const VALIDAR_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/validar_qr";
 const API_URL = "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/registrar_qr";
@@ -1140,19 +1107,21 @@ let avanceRemision = {}; // { '10309546||252450': { nombre, lote, escaneados, to
 let ocultarValidados = false;
 let intervaloPin = null;
 let intervaloCuentaRegresiva = null;
+let scannerActivo = false, qrScanner = null;
+let modoScannerQR = "movimientos"; // "movimientos" | "inventario"
+let inventarioDetallado = {};
 window.autorizacionesExceso = window.autorizacionesExceso || {};
-    const unidadesDestino = {
+const unidadesDestino = {
   "C03442": "C.S. GALEANA", "C03441": "C.S. HIDALGO", "C03438": "C.S. NUEVO CASAS GRANDES", "C03443": "CAAPS ANAPRA", "C03439": "CESSA COLINAS", "C03440": "CESSA ZARAGOZA", "C03435": "H.C. NUEVO CASAS GRANDES", "C03436": "HIE JUAREZ",
   "C03420": "HOSPITAL DE LA MUJER CD JUAREZ", "C03419": "HOSPITAL GENERAL CD JUAREZ", "C03127": "HGZ 6", "C03131": "HGS 22", "C03135": "HGR 02", "C03133": "HGZ UMAA 35", "C03134": "HGR 66", "C03448": "C.S. GUACHOCHI", "C03447": "C.S. JIMENEZ", "C03446": "H. GPE Y CALVO", "C03132": "H.G.Z.M.F. 23", "C03122": "H.R.O. No. 26", "C03124": "H.R.O. No. 36", "C03445": "HOSPITAL CAMARGO", "C03421": "HOSPITAL DE JIMENEZ", "C03422": "HOSPITAL GINECOLOGIA PARRAL", "C03444": "HOSPITAL PARRAL", "C03451": "CESSA ALDAMA", "C03433": "CESSA MADERA",
   "C03415": "HOSPITAL CENTRAL", "C03424": "HG CUAUHTEMOC", "C03416": "HGO CUAUHTEMOC", "C03432": "CESSA TIERRA NUEVA", "C03431": "CS CREEL", "C03428": "CS TEMORIS", "C03123": "HRO No. 18 SAN JUANITO", "C03430": "C.S. DELICIAS", "C03425": "H.C. OJINAGA", "C03417": "H.R. DELICIAS", "C03434": "C.S. SANTA ISABEL", "C03429": "CAAPS NOGALES", "C03427": "C.S. SAN FELIPE", "C03426": "H.C. GOMEZ FARIAS", "C03418": "HIE CHIHUAHUA", "C03423": "H.G. DR. SALVADOR ZUBIRAN", "C03128": "H.G.Z.M.F. 11", "C03130": "H.G.Z.M.F. 16", "C03129": "HGO No. 15", "C03126": "HGR No. 1", "66": "ALMACEN PARRAL", "65": "ALMACEN JUAREZ", "CUU": "ALMACEN CHIHUAHUA"
 };
-    const unidadesFijas = {
+const unidadesFijas = {
   "C03442": "CS Galeana", "C03441": "C.S. HIDALGO", "C03438": "CS Casas Grandes", "C03443": "CAAPS ANAPRA", "C03439": "CESSA Colinas", "C03440": "CESSA Zaragoza", "C03435": "HC Casas Grandes", "C03436": "HIE Cd. Juarez",
   "C03420": "hospital de la mujer", "C03419": "hg cd. juarez", "C03127": "HGZ 6", "C03131": "HGS 22", "C03135": "HGR 02", "C03133": "HGZ UMAA 35", "C03134": "HGR 66", "C03448": "CAAPS Guachochi", "C03447": "CS Jimenez", "C03446": "HC Guadalupe y Calvo", "C03132": "H.G.Z.M.F. 23", "C03122": "H.R.O. No. 26", "C03124": "H.R.O. No. 36", "C03445": "HG Camargo", "C03421": "hr jimenez", "C03422": "Ginecologia Parral", "C03444": "HG Parral", "C03451": "CESSA Aldama", "C03433": "CESSA Madera",
   "C03415": "hospital central", "C03424": "HG Cuauhtemoc", "C03416": "Ginecologia Cuauhtemoc", "C03432": "CESSA Tierra Nueva", "C03431": "CS Creel", "C03428": "CS Temoris", "C03123": "HRO No. 18 SAN JUANITO", "C03430": "CS Delicias", "C03425": "HC Ojinaga", "C03417": "hr delicias", "C03434": "CS Sta. Isabel", "C03429": "CAAPS Nogales", "C03427": "CS San Felipe", "C03426": "HC Gomez Farias", "C03418": "hie chihuahua", "C03423": "HG Chihuahua", "C03128": "H.G.Z.M.F. 11", "C03130": "H.G.Z.M.F. 16", "C03129": "HGO No. 15", "C03126": "HGR No. 1", "66": "ALMACEN PARRAL", "65": "ALMACEN JUAREZ", "CUU": "ALMACEN CHIHUAHUA"
 };
 const anioSelect = document.getElementById('anioSelect');
-// Timestamps ya escaneados en este inventario
 const timestampsEscaneadosInventario = new Set();
 // ✅ sort súper defensivo para Chart.js v4
 const safeLegendSort = (a, b, third) => {
@@ -1170,7 +1139,6 @@ const safeLegendSort = (a, b, third) => {
 
   return oa - ob;
 };
-
 if (anioSelect) {
   const thisYear = new Date().getFullYear();
   anioSelect.innerHTML = '<option value="">Año</option>';
@@ -1190,42 +1158,9 @@ function escapeHtml(str) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
-
+//#endregion
 //88888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888
-
-// async function conectarQZ() {
-//   try {
-//     await qz.websocket.connect();
-//     console.log("✅ Conectado a QZ Tray");
-//   } catch (err) {
-//     console.error("❌ Error al conectar con QZ Tray:", err);
-//     alert("No se pudo conectar con QZ Tray. ¿Está abierto?");
-//   }
-// }
-// conectarQZ();
-
-// async function imprimirEtiquetaZebra(zpl) {
-//   try {
-//     if (!qz.websocket.isActive()) {
-//       await qz.websocket.connect();
-//     }
-
-//     // Configuración de la impresora (debe tener el mismo nombre que en Windows)
-//     const config = qz.configs.create("Zebra GC420d");  // ⚠️ cambia el nombre si es distinto
-
-//     // Enviar el ZPL a la impresora
-//     await qz.print(config, [zpl]);
-//     console.log("✅ Etiqueta enviada a la impresora");
-//   } catch (err) {
-//     console.error("❌ Error al imprimir:", err);
-//   }
-// }
-
-let scannerActivo = false, qrScanner = null;
-let modoScannerQR = "movimientos"; // "movimientos" | "inventario"
-// Inventario detallado por referencia / lote / caducidad
-// inventarioDetallado[referencia][lote][caducidad] = cantidad
-let inventarioDetallado = {};
+//#region Modulo Hipotesis
 function abrirModalHipotesis() {
   console.log("🧪 [HIPOTESIS] abrirModalHipotesis()");
   const m = document.getElementById("modalHipotesis");
@@ -1247,7 +1182,6 @@ function cerrarModalHipotesis() {
   m.classList.add("hidden");
 }
 
-
 async function ejecutarPreguntaLibreIA(){
   const status = document.getElementById("hipotesisStatus");
   const out = document.getElementById("hipotesisSalida");
@@ -1258,23 +1192,41 @@ async function ejecutarPreguntaLibreIA(){
     return;
   }
 
-  const context = JSON.stringify({
+  const requestId = crypto.randomUUID();
+
+  const contextObj = {
     lab_id: document.getElementById("hipotesisLab")?.value?.trim() || null,
     referencia: document.getElementById("hipotesisRef")?.value?.trim() || null,
     desde: document.getElementById("hipotesisDesde")?.value || null,
     hasta: document.getElementById("hipotesisHasta")?.value || null,
     demo: !!document.getElementById("hipotesisDemo")?.checked
+  };
+
+  const payload = {
+    mode: "chat",
+    question: pregunta,
+    context: JSON.stringify(contextObj),
+    ui_request_id: requestId
+  };
+
+  // 🔥 AUDIT UI
+  uiLog(requestId, "HYP_CHAT_UI_SEND", {
+    endpoint: "new_hipotesis",
+    question_len: pregunta.length,
+    context: contextObj
   });
 
-  console.log("[HYP][CHAT] enviar", { pregunta_len: pregunta.length });
-
   status.textContent = "💬 Consultando IA…";
-  const ans = await preguntarIA(pregunta, context);
+
+  const ans = await preguntarIA(payload);
 
   if(!ans){
     status.textContent = "❌ No hubo respuesta.";
+    uiLog(requestId, "HYP_CHAT_UI_NO_ANSWER", {}, "error");
     return;
   }
+
+  uiLog(requestId, "HYP_CHAT_UI_RENDER", { answer_len: String(ans).length });
 
   status.textContent = "✅ Listo.";
   out.innerHTML = `
@@ -1285,38 +1237,86 @@ async function ejecutarPreguntaLibreIA(){
 
     <div class="rounded-2xl p-4 bg-white/5 border border-white/10">
       <div class="text-xs text-white/60 mb-2">🤖 IA</div>
-      <div class="text-sm text-white/90 whitespace-pre-wrap">${String(ans).replaceAll("<","&lt;").replaceAll(">","&gt;")}</div>
+      <div class="text-sm text-white/90 whitespace-pre-wrap">${
+        String(ans).replaceAll("<","&lt;").replaceAll(">","&gt;")
+      }</div>
     </div>
   `;
 }
 
-async function preguntarIA(question, context = "") {
-  const requestId = crypto.randomUUID();
-  const t0 = performance.now();
 
-  console.log(`[AI][${requestId}] UI_SEND q_len=${(question||"").length}`);
+function uiLog(requestId, stage, meta = {}, level = "info") {
+  const entry = { ts: new Date().toISOString(), requestId, scope:"UI", stage, level, meta };
+  console[level === "error" ? "error" : "log"]("[AUDIT]", entry);
+
+  // Opcional: persistir logs UI en localStorage para debug rápido
+  const key = "audit_ui_logs";
+  const arr = JSON.parse(localStorage.getItem(key) || "[]");
+  arr.push(entry);
+  localStorage.setItem(key, JSON.stringify(arr.slice(-300))); // guarda últimos 300
+}
+
+async function preguntarIA(payload) {
+  const requestId = payload?.ui_request_id || crypto.randomUUID();
+  const t0 = performance.now();
 
   try {
     mostrarModal("🧠 Procesando…", "#0ea5e9");
 
-    const r = await fetch("/api/ai/ask", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question, context }),
+    uiLog(requestId, "HYP_API_HTTP_SEND", {
+      url: "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/new_hipotesis",
+      payload_preview: {
+        mode: payload.mode,
+        question_len: (payload.question || "").length,
+        context_len: (payload.context || "").length
+      }
     });
 
-    const data = await r.json();
+    const r = await fetch(
+      "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/new_hipotesis",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": SUPABASE_ANON_KEY,
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+          "X-Client-Request-Id": requestId
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await r.json().catch(() => ({}));
+
+    uiLog(requestId, "HYP_API_HTTP_RECV", {
+      status: r.status,
+      ok: r.ok,
+      ms: Math.round(performance.now() - t0),
+      keys: Object.keys(data || {})
+    });
 
     if (!r.ok || data?.error) {
-      console.log(`[AI][${requestId}] UI_FAIL status=${r.status} err=${data?.error}`);
+      uiLog(requestId, "HYP_API_ERROR", {
+        status: r.status,
+        error: data?.error || "Error al consultar IA",
+        raw: data
+      }, "error");
+
       mostrarModal(`❌ ${data?.error || "Error al consultar IA"}`, "#991b1b");
       return null;
     }
 
-    console.log(`[AI][${requestId}] UI_OK ms=${Math.round(performance.now() - t0)} ans_len=${(data.answer||"").length}`);
-    return data.answer;
+    // ✅ modo chat: esperamos data.answer (texto)
+    const answer = data?.answer ?? null;
+
+    uiLog(requestId, "HYP_API_OK", {
+      ms: Math.round(performance.now() - t0),
+      answer_len: (answer || "").length
+    });
+
+    return answer;
   } catch (e) {
-    console.log(`[AI][${requestId}] UI_EXC ms=${Math.round(performance.now() - t0)} err=${e?.message}`);
+    uiLog(requestId, "HYP_API_EXCEPTION", { message: e?.message }, "error");
     mostrarModal("❌ Error de red / servidor", "#991b1b");
     return null;
   }
@@ -1326,36 +1326,54 @@ async function ejecutarHipotesisIA(){
   const status = document.getElementById("hipotesisStatus");
   const out = document.getElementById("hipotesisSalida");
   const pregunta = document.getElementById("hipotesisPregunta").value.trim();
+
   if(!pregunta){
-    status.textContent = "⚠️ Escribe una pregunta/hipótesis primero.";
+    status.textContent = "⚠️ Escribe una hipótesis primero.";
     return;
   }
 
+  const requestId = crypto.randomUUID();
+
   const payload = {
-    pregunta,
-    lab_id: document.getElementById("hipotesisLab").value.trim() || null,
-    referencia: document.getElementById("hipotesisRef").value.trim() || null,
-    desde: document.getElementById("hipotesisDesde").value || null,
-    hasta: document.getElementById("hipotesisHasta").value || null,
-    demo: document.getElementById("hipotesisDemo").checked
+    mode: "reporte",
+    question: pregunta,
+    context: JSON.stringify({
+      lab_id: document.getElementById("hipotesisLab").value.trim() || null,
+      referencia: document.getElementById("hipotesisRef").value.trim() || null,
+      desde: document.getElementById("hipotesisDesde").value || null,
+      hasta: document.getElementById("hipotesisHasta").value || null,
+      demo: document.getElementById("hipotesisDemo").checked
+    }),
+    ui_request_id: requestId
   };
 
   try{
     mostrarLoader(true);
-    status.textContent = "🧠 Analizando… (IA → plan científico → ejecución)";
+    status.textContent = "🧪 Generando reporte científico…";
     out.innerHTML = "";
 
-    const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/hypothesis_lab", {
-      method: "POST",
-      headers: { "Content-Type":"application/json" },
-      body: JSON.stringify(payload)
-    });
+    const res = await fetch(
+      "https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/new_hipotesis",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": SUPABASE_ANON_KEY,
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+          "X-Client-Request-Id": requestId
+        },
+        body: JSON.stringify(payload)
+      }
+    );
 
     const data = await res.json();
-    if(!res.ok) throw new Error(data?.error || "Error ejecutando hipótesis");
 
-    status.textContent = "✅ Listo. Reporte generado.";
-    out.innerHTML = renderHipotesisReporte(data);
+    if(!res.ok || data?.error){
+      throw new Error(data?.error || "Error generando reporte");
+    }
+
+    status.textContent = "✅ Reporte generado.";
+    out.innerHTML = renderHipotesisReporte(data.reporte);
 
   }catch(err){
     console.error(err);
@@ -1404,7 +1422,7 @@ window.abrirModalHipotesis = abrirModalHipotesis;
 window.cerrarModalHipotesis = cerrarModalHipotesis;
 window.ejecutarPreguntaLibreIA = ejecutarPreguntaLibreIA;
 window.ejecutarHipotesisIA = ejecutarHipotesisIA;
-
+//#endregion Modulo Hipotesis
 // Permitir arrastrar la ventana del lector QR
 function hacerDraggable(idElemento) {
   const el = document.getElementById(idElemento);
@@ -7402,8 +7420,7 @@ async function detectarAdminDesdePIN(pinIngresado) {
   return null;
 }
 
-
-
+//#region Basurero
 async function procesarBasurero(datos) {
   if (!datos || !datos.referencia || !datos.lote || !datos.timestamp) {
     mostrarModal("❌ Código inválido para eliminar", "#6b7280");
@@ -7470,7 +7487,8 @@ async function procesarBasurero(datos) {
     mostrarModal("❌ Error de red", "#dc2626");
   }
 }
-
+//#endregion
+//#region Cerrar Sesion
 function cerrarSesion() {
   // 🔁 Limpiar estados
   usuario = null;
@@ -7505,7 +7523,7 @@ function cerrarSesion() {
   // ✅ Mostrar confirmación
   mostrarModal("🔒 Sesión cerrada", "#6b7280");
 }
-
+//#endregion
 
 
   </script>
