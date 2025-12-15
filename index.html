@@ -100,6 +100,71 @@ body{
   border-color:rgba(23,162,166,.55);
   box-shadow:0 0 0 2px rgba(23,162,166,.55);
 }
+/* ===== Caducidad: tabla glass bonita ===== */
+.cadu-table-wrap{
+  overflow-x: auto;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.22);
+}
+.cadu-table{
+  width: 100%;
+  min-width: 640px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12.5px;
+  color: rgba(255,255,255,0.88);
+}
+.cadu-table thead th{
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  font-size: 11px;
+  color: rgba(255,255,255,0.70);
+  background: rgba(255,255,255,0.06);
+  border-bottom: 1px solid rgba(255,255,255,0.10);
+  padding: 10px 12px;
+}
+.cadu-table tbody td{
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  vertical-align: top;
+}
+.cadu-table tbody tr:nth-child(odd){ background: rgba(255,255,255,0.02); }
+.cadu-table tbody tr:hover{ background: rgba(255,255,255,0.05); }
+
+.cadu-pill{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 11px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.06);
+}
+.cadu-pill--danger{
+  background: rgba(244,63,94,0.14);
+  border-color: rgba(244,63,94,0.30);
+  color: rgba(255,255,255,0.92);
+}
+.cadu-pill--warn{
+  background: rgba(245,158,11,0.14);
+  border-color: rgba(245,158,11,0.30);
+}
+.cadu-pill--ok{
+  background: rgba(16,185,129,0.14);
+  border-color: rgba(16,185,129,0.30);
+}
+.cadu-sub{
+  display:block;
+  color: rgba(255,255,255,0.58);
+  font-size: 11px;
+  margin-top: 2px;
+}
 
 .space-btn{
   border-radius:18px;
@@ -362,16 +427,32 @@ body{
 
 <body class="min-h-screen flex flex-col items-center justify-center text-white px-3 py-10">
 
-  <!-- ✅ Loader (space) -->
-  <div id="loaderOverlay" class="fixed inset-0 z-[99999] hidden select-none flex items-center justify-center space-modal-backdrop">
-    <div class="space-panel p-6 flex items-center gap-4">
-      <img src="loader.gif" alt="Cargando..." class="w-20 h-20 pointer-events-none">
-      <div class="text-white/80">
-        <div class="fuente-magma tracking-widest text-lg">PROCESANDO</div>
-        <div class="text-xs text-white/60">Ejecutando operación…</div>
+<!-- ✅ Loader (space) -->
+<div id="loaderOverlay"
+     class="fixed inset-0 z-[99999] hidden select-none flex items-center justify-center space-modal-backdrop">
+  <div id="loaderPanel"
+       class="space-panel p-6 flex items-center gap-4 w-[min(370px,92vw)]">
+    <img src="loader.gif" alt="Cargando..." class="w-20 h-20 pointer-events-none">
+    <div class="text-white/80 flex-1 min-w-0">
+      <div class="fuente-magma tracking-widest text-lg">
+        PROCESANDO
+      </div>
+
+      <!-- 🔒 Status con ancho fijo (no brinca con los "...") -->
+      <div id="loaderStatus"
+           class="text-xs text-white/60 inline-block w-[28ch] whitespace-nowrap font-mono">
+        Ejecutando operación…
+      </div>
+
+      <!-- ✅ Ticker: si aparece, no cambia la altura porque reservamos espacio -->
+      <div id="loaderTicker"
+           class="hidden mt-3 text-[11px] bg-black/30 border border-white/10
+                  rounded-xl p-2 space-y-1 max-h-36 min-h-[90px] overflow-y-auto font-mono">
       </div>
     </div>
   </div>
+</div>
+
 
   <!-- =========================
       MODAL QR draggable (space)
@@ -688,7 +769,7 @@ body{
 
   <!-- BOTÓN OPCIONES USUARIO -->
   <button onclick="mostrarOpcionesAdmin()"
-    class="fixed bottom-4 right-4 z-50 rounded-full px-4 py-3 text-sm font-semibold bg-white/10 border border-white/15 shadow-lg hover:bg-white/15 transition">
+    class=" bottom-4 right-4 z-50 rounded-full px-4 py-3 text-sm font-semibold bg-white/10 border border-white/15 shadow-lg hover:bg-white/15 transition">
     ⚙️ Opciones de usuario
   </button>
 
@@ -726,7 +807,7 @@ body{
   </div>
 
   <!-- MODAL OPCIONES ADMIN -->
-  <div id="modalOpcionesAdmin" class="fixed inset-0 z-50 hidden items-center justify-center space-modal-backdrop">
+  <div id="modalOpcionesAdmin" class="fixed inset-0 z-50 hidden flex items-center justify-center space-modal-backdrop">
     <div class="space-panel p-6 rounded-3xl w-[92%] max-w-md space-y-4">
       <h2 class="text-lg font-bold text-center text-white/90">⚙️ Opciones de Usuario</h2>
       <div class="flex flex-col space-y-3">
@@ -1146,7 +1227,10 @@ if (anioSelect) {
     anioSelect.innerHTML += `<option value="${y}">${y}</option>`;
   }
 }
-function mostrarLoader(delay=1500){const o=document.getElementById("loaderOverlay");o&&o.classList.remove("hidden");document.body.style.overflow="hidden";window.addEventListener("keydown",bloquearTeclas,true);window.addEventListener("mousedown",bloquearClicks,true);}
+//#endregion Constanes==============================================================================================================
+
+//#region funciones auxiliares =====================================================================================================
+function mostrarLoader(show=true){const el = document.getElementById("loaderOverlay");if(!el) return;el.classList.toggle("hidden", !show);}
 function ocultarLoader(){const o=document.getElementById("loaderOverlay");o&&o.classList.add("hidden");document.body.style.overflow="";window.removeEventListener("keydown",bloquearTeclas,true);window.removeEventListener("mousedown",bloquearClicks,true);}
 function bloquearTeclas(e){if(!(e.key==="F5"||e.key==="Escape")){e.stopPropagation();e.preventDefault();}}
 function bloquearClicks(e){e.stopPropagation();e.preventDefault();}
@@ -1158,7 +1242,150 @@ function escapeHtml(str) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
-//#endregion
+function loaderReset(){
+  const ticker = document.getElementById("loaderTicker");
+  const status = document.getElementById("loaderStatus");
+
+  if (status) {
+    status.textContent = "Ejecutando operación…";
+  }
+
+  if (ticker) {
+    ticker.innerHTML = "";
+    ticker.classList.add("hidden"); // 👈 vuelve a modo clásico
+  }
+}
+function loaderPush(message){
+  const ticker = document.getElementById("loaderTicker");
+  if(!ticker) return;
+
+  // 🔥 Primera vez que se usa → expandimos loader
+  if(ticker.classList.contains("hidden")){
+    ticker.classList.remove("hidden");
+  }
+
+  const line = document.createElement("div");
+  line.textContent = "• " + message;
+  ticker.appendChild(line);
+
+  ticker.scrollTop = ticker.scrollHeight;
+}
+function loaderSetStatus(text){
+  const el = document.getElementById("loaderStatus");
+  if(el) el.textContent = text;
+}
+function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+function startLoaderProgress(steps, delayMs = 900){
+  let stopped = false;
+
+  (async () => {
+    for (const step of steps){
+      if (stopped) break;
+
+      // step puede ser string o {status, push}
+      if (typeof step === "string") {
+        loaderPush(step);
+      } else {
+        if (step.status) loaderSetStatus(step.status);
+        if (step.push) loaderPush(step.push);
+      }
+
+      await sleep(delayMs);
+    }
+
+    // Si sigue vivo y se acabaron steps, deja un “heartbeat” suave
+    let dots = 0;
+    while (!stopped) {
+      dots = (dots + 1) % 4;
+      loaderSetStatus(`🧠 Procesando${".".repeat(dots)}`);
+      await sleep(700);
+    }
+  })();
+
+  return () => { stopped = true; };
+}
+function startLoaderStatusFlow(steps, msStep = 850) {
+  // steps: [{text, mode}] mode: "once" | "dots"
+  let i = 0;
+  let dotsTimer = null;
+  let stepTimer = null;
+  let cancelled = false;
+
+  const stopDots = () => {
+    if (dotsTimer) clearInterval(dotsTimer);
+    dotsTimer = null;
+  };
+
+  const setDots = (base) => {
+    stopDots();
+    let k = 0;
+    loaderSetStatus(base);
+    dotsTimer = setInterval(() => {
+      if (cancelled) return;
+      k = (k + 1) % 4; // "", ".", "..", "..."
+      loaderSetStatus(base + ".".repeat(k));
+    }, 350);
+  };
+
+  const runStep = () => {
+    if (cancelled) return;
+    stopDots();
+
+    const s = steps[i] || steps[steps.length - 1];
+    if (!s) return;
+
+    if (s.mode === "dots") setDots(s.text);
+    else loaderSetStatus(s.text);
+
+    i++;
+    if (i < steps.length) {
+      stepTimer = setTimeout(runStep, msStep);
+    }
+  };
+
+  runStep();
+
+  return () => {
+    cancelled = true;
+    stopDots();
+    if (stepTimer) clearTimeout(stepTimer);
+    stepTimer = null;
+  };
+}
+function startThinkingTicker(statusEl){
+  const t0 = Date.now();
+  const msgs = [
+    "🧠 Analizando evidencia…",
+    "📊 Cruzando consumos vs pruebas…",
+    "🧪 Evaluando hipótesis…",
+    "🧾 Redactando conclusión…"
+  ];
+  let i = 0;
+
+  statusEl.textContent = msgs[0];
+  const id = setInterval(() => {
+    const s = Math.floor((Date.now() - t0) / 1000);
+    statusEl.textContent = `${msgs[i % msgs.length]} (${s}s)`;
+    i++;
+  }, 1200);
+
+  return () => clearInterval(id);
+}
+function sanitizeHipotesisOutputForUser(text) {
+  let s = String(text ?? "");
+
+  // Caso 1: bloque de markdown json
+  s = s.replace(/```json[\s\S]*?```/gi, "").trim();
+
+  // Caso 2: desde "5) JSON final" hasta el final
+  s = s.replace(/\n?5\)\s*JSON\s*final[\s\S]*$/i, "").trim();
+
+  // Caso 3: desde "JSON final" hasta el final (por si cambia numeración)
+  s = s.replace(/\n?JSON\s*final[\s\S]*$/i, "").trim();
+
+  return s;
+}
+//#endregion funciones auxiliares
 //88888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888
 //#region Modulo Hipotesis
 function abrirModalHipotesis() {
@@ -1180,35 +1407,6 @@ function cerrarModalHipotesis() {
   const m = document.getElementById("modalHipotesis");
   if (!m) return console.error("❌ [HIPOTESIS] No existe #modalHipotesis");
   m.classList.add("hidden");
-}
-function escapeHtml(s) {
-  return String(s ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
-}
-
-/**
- * Elimina la sección "5) JSON final..." del texto.
- * Soporta:
- *  - "5) JSON final con: ..."
- *  - "5) JSON final"
- *  - "JSON final"
- *  - bloque ```json ... ```
- */
-function sanitizeHipotesisOutputForUser(text) {
-  let s = String(text ?? "");
-
-  // Caso 1: bloque de markdown json
-  s = s.replace(/```json[\s\S]*?```/gi, "").trim();
-
-  // Caso 2: desde "5) JSON final" hasta el final
-  s = s.replace(/\n?5\)\s*JSON\s*final[\s\S]*$/i, "").trim();
-
-  // Caso 3: desde "JSON final" hasta el final (por si cambia numeración)
-  s = s.replace(/\n?JSON\s*final[\s\S]*$/i, "").trim();
-
-  return s;
 }
 
 async function ejecutarPreguntaLibreIA(){
@@ -1238,60 +1436,72 @@ async function ejecutarPreguntaLibreIA(){
     ui_request_id: requestId
   };
 
-  // 🔥 AUDIT UI — inicio
-  uiLog(requestId, "HYP_CHAT_UI_SEND", {
-    endpoint: "new_hipotesis",
-    question_len: pregunta.length,
-    context: contextObj
-  });
-
-  status.textContent = "🧠 Analizando hipótesis…";
-  mostrarLoader(true); // ✅ PRENDE loader
-  out.classList.add("opacity-50"); // feedback visual opcional
+  // ✅ Estas son las ÚNICAS que se detienen en finally
+  let stopLoaderFlow = null;
+  let stopTicker = null;
 
   try {
-    const ansRaw = await preguntarIA(payload);
+    mostrarLoader(true);
+    loaderReset();
 
+    const flow = [
+      { text: "🧠 Analizando hipótesis", mode: "once" },
+      { text: "📌 Validando contexto", mode: "once" },
+      { text: contextObj.lab_id ? `🏥 Unidad ${contextObj.lab_id}` : "🏥 Unidad no especificada", mode: "once" },
+      { text: contextObj.referencia ? `🧾 Ref ${contextObj.referencia}` : "🧾 Ref no especificada", mode: "once" },
+      { text: "🔎 Consultando Supabase", mode: "once" },
+      { text: "📊 Armando evidencia", mode: "once" },
+      { text: "🧩 Preparando prompt auditable", mode: "once" },
+      { text: "🚀 Enviando a IA", mode: "once" },
+      { text: "🤖 Esperando respuesta de la IA", mode: "dots" },
+    ];
+
+    // ✅ OJO: NO uses "let" aquí. Solo asigna.
+    stopLoaderFlow = startLoaderStatusFlow(flow, 850);
+
+    // ✅ Si quieres, deja este ticker SOLO en el status del modal (no el loader)
+    stopTicker = startThinkingTicker(status);
+
+    out.classList.add("opacity-50");
+    status.textContent = "💬 Consultando IA…";
+
+    const ansRaw = await preguntarIA(payload);
     if(!ansRaw){
       status.textContent = "❌ No hubo respuesta.";
-      uiLog(requestId, "HYP_CHAT_UI_NO_ANSWER", {}, "error");
       return;
     }
 
     const ansUser = sanitizeHipotesisOutputForUser(ansRaw);
-
-    uiLog(requestId, "HYP_CHAT_UI_RENDER", {
-      answer_len_raw: String(ansRaw).length,
-      answer_len_user: String(ansUser).length,
-      removed_json_final: String(ansRaw).length !== String(ansUser).length
-    });
-
     status.textContent = "✅ Listo.";
 
     out.innerHTML = `
       <div class="rounded-2xl p-4 bg-black/25 border border-white/10">
         <div class="text-xs text-white/60 mb-2">🧑‍💻 Tú</div>
-        <div class="text-sm text-white/90 whitespace-pre-wrap">
-          ${escapeHtml(pregunta)}
-        </div>
+        <div class="text-sm text-white/90 whitespace-pre-wrap">${escapeHtml(pregunta)}</div>
       </div>
 
       <div class="rounded-2xl p-4 bg-white/5 border border-white/10">
         <div class="text-xs text-white/60 mb-2">🤖 IA</div>
-        <div class="text-sm text-white/90 whitespace-pre-wrap">
-          ${escapeHtml(ansUser)}
-        </div>
+        <div class="text-sm text-white/90 whitespace-pre-wrap">${escapeHtml(ansUser)}</div>
       </div>
     `;
+
   } catch (err) {
     console.error(err);
     status.textContent = "❌ Error al procesar la hipótesis.";
-    uiLog(requestId, "HYP_CHAT_UI_EXCEPTION", { error: err?.message }, "error");
   } finally {
-    mostrarLoader(false);        // ✅ APAGA loader SIEMPRE
+    // ✅ Detén loops SIEMPRE
+    if (typeof stopTicker === "function") stopTicker();
+    if (typeof stopLoaderFlow === "function") stopLoaderFlow();
+
+    // ✅ Cierra tu loader como siempre
+    ocultarLoader();
+
     out.classList.remove("opacity-50");
+    localStorage.removeItem("hyp_pending");
   }
 }
+
 
 function uiLog(requestId, stage, meta = {}, level = "info") {
   const entry = { ts: new Date().toISOString(), requestId, scope:"UI", stage, level, meta };
@@ -1396,7 +1606,7 @@ async function ejecutarHipotesisIA(){
   };
 
   try{
-    mostrarLoader(true);
+    mostrarLoader();
     status.textContent = "🧪 Generando reporte científico…";
     out.innerHTML = "";
 
@@ -1427,7 +1637,7 @@ async function ejecutarHipotesisIA(){
     console.error(err);
     status.textContent = "❌ " + (err.message || "Error");
   }finally{
-    mostrarLoader(false);
+    ocultarLoader();
   }
 }
 
@@ -1470,6 +1680,12 @@ window.abrirModalHipotesis = abrirModalHipotesis;
 window.cerrarModalHipotesis = cerrarModalHipotesis;
 window.ejecutarPreguntaLibreIA = ejecutarPreguntaLibreIA;
 window.ejecutarHipotesisIA = ejecutarHipotesisIA;
+window.addEventListener("beforeunload", (e) => {
+  const pending = localStorage.getItem("hyp_pending");
+  if (!pending) return;
+  e.preventDefault();
+  e.returnValue = "";
+});
 //#endregion Modulo Hipotesis
 // Permitir arrastrar la ventana del lector QR
 function hacerDraggable(idElemento) {
@@ -2033,8 +2249,8 @@ async function mostrarOpcionesAdmin() {
   }
 }
 
-function cerrarModalOpcionesAdmin() {
-  document.getElementById("modalOpcionesAdmin").classList.add("hidden");
+function cerrarModalOpcionesAdmin(){
+  document.getElementById("modalOpcionesAdmin")?.classList.add("hidden");
 }
 
 function eliminarFila(boton) {
@@ -6693,65 +6909,126 @@ function calcularDiasRestantes(fecha) {
 async function mostrarAlertasCaducidad() {
   console.log("▶ Iniciando mostrarAlertasCaducidad()");
 
-  try {
-    const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos?select=referencia,nombre,fabricante,lote,caducidad,cantidad", {
-      headers: {
-        "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NjQyNzE2NiwiZXhwIjoyMDYyMDAzMTY2fQ.jTu9cMjOgTsvHgNaW5V1mZQM6VqSE55kASVijuCsGaE",
-        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NjQyNzE2NiwiZXhwIjoyMDYyMDAzMTY2fQ.jTu9cMjOgTsvHgNaW5V1mZQM6VqSE55kASVijuCsGaE"
-      }
-    });
+  const cont = document.getElementById("contenidoCaducidad");
+  const modal = document.getElementById("modalCaducidad");
 
-    console.log("✅ Fetch ejecutado");
+  try {
+    // Loader opcional si lo tienes
+    if (typeof mostrarLoader === "function") mostrarLoader(true);
+
+    const res = await fetch(
+      "https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos?select=referencia,nombre,fabricante,lote,caducidad,cantidad",
+      {
+        headers: {
+          "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo",            // 👈 NO uses service_role en frontend
+          "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo"
+        }
+      }
+    );
+
+    console.log("✅ Fetch ejecutado", res.status);
 
     const data = await res.json();
-
     console.log("✅ Respuesta recibida:", data);
 
     if (!Array.isArray(data)) {
-      console.error("❌ ERROR: La respuesta no es un array. Respuesta completa:", data);
+      console.error("❌ ERROR: La respuesta no es un array:", data);
+      cont.innerHTML = `<div class="space-card p-4 rounded-2xl border border-white/10 text-white/80">
+        ❌ Respuesta inválida del servidor.
+      </div>`;
+      modal.classList.remove("hidden");
       return;
     }
 
     const proximos = data
       .map(p => ({ ...p, diasRestantes: calcularDiasRestantes(p.caducidad) }))
-      .filter(p => p.diasRestantes <= 30)
+      .filter(p => Number.isFinite(p.diasRestantes) && p.diasRestantes <= 30)
       .sort((a, b) => a.diasRestantes - b.diasRestantes);
 
-    console.log("🔎 Productos próximos a caducar:", proximos);
-
-    const cont = document.getElementById("contenidoCaducidad");
-
     if (!proximos.length) {
-      cont.innerHTML = "<p class='text-center text-green-700 font-bold'>✅ No hay productos próximos a caducar</p>";
-      console.log("🟢 No hay productos próximos a caducar");
-      document.getElementById("modalCaducidad").classList.remove("hidden");
+      cont.innerHTML = `
+        <div class="space-card p-5 rounded-2xl border border-white/10 text-center">
+          <div class="text-emerald-200 font-extrabold">✅ No hay productos próximos a caducar</div>
+          <div class="text-xs text-white/60 mt-1">Rango: próximos 30 días</div>
+        </div>
+      `;
+      modal.classList.remove("hidden");
       return;
     }
 
-    let html = "<table class='w-full text-sm text-left border'><thead class='bg-yellow-100'><tr><th class='p-2'>Referencia</th><th class='p-2'>Lote</th><th class='p-2'>Caducidad</th><th class='p-2'>Días restantes</th></tr></thead><tbody>";
+    const pill = (dias) => {
+      if (dias <= 7) return `<span class="cadu-pill cadu-pill--danger">⛔ URGENTE · ${dias} días</span>`;
+      if (dias <= 15) return `<span class="cadu-pill cadu-pill--warn">⚠️ PRONTO · ${dias} días</span>`;
+      return `<span class="cadu-pill cadu-pill--ok">✅ OK · ${dias} días</span>`;
+    };
 
-    proximos.forEach(p => {
-      html += `<tr>
-        <td class='p-2'>${p.referencia}</td>
-        <td class='p-2'>${p.lote}</td>
-        <td class='p-2'>${formatearCaducidad(p.caducidad)}</td>
-        <td class='p-2 text-center'>${p.diasRestantes}</td>
-      </tr>`;
-    });
+    const esc = (v) => (typeof escapeHtml === "function")
+      ? escapeHtml(v)
+      : String(v ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
 
-    html += "</tbody></table>";
-    cont.innerHTML = html;
+    const header = `
+      <div class="space-card p-4 rounded-2xl border border-white/10 mb-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="font-extrabold text-white/90">⚠️ Productos próximos a caducar</div>
+          <div class="text-xs text-white/60">${proximos.length} encontrados (≤ 30 días)</div>
+        </div>
+        <div class="text-xs text-white/60 mt-1">
+          En móvil puedes deslizar horizontalmente la tabla.
+        </div>
+      </div>
+    `;
 
-    console.log("🟢 Preparando para mostrar el modal");
-    document.getElementById("modalCaducidad").classList.remove("hidden");
-    console.log("✅ Modal abierto");
+    let rows = "";
+    for (const p of proximos) {
+      rows += `
+        <tr>
+          <td>
+            <div class="font-bold text-white/90">${esc(p.referencia)}</div>
+            <span class="cadu-sub">${esc(p.nombre || "")}</span>
+            <span class="cadu-sub">${esc(p.fabricante || "")}</span>
+          </td>
+          <td class="whitespace-nowrap">${esc(p.lote || "S/L")}</td>
+          <td class="whitespace-nowrap">${esc(formatearCaducidad(p.caducidad))}</td>
+          <td class="whitespace-nowrap">${pill(p.diasRestantes)}</td>
+          <td class="whitespace-nowrap text-right">${esc(p.cantidad ?? "")}</td>
+        </tr>
+      `;
+    }
 
+    cont.innerHTML = `
+      ${header}
+      <div class="cadu-table-wrap">
+        <table class="cadu-table">
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th>Lote</th>
+              <th>Caducidad</th>
+              <th>Estado</th>
+              <th class="text-right">Cantidad</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+
+    modal.classList.remove("hidden");
   } catch (err) {
     console.error("❌ Error cargando productos urgentes:", err);
-    document.getElementById("contenidoCaducidad").innerHTML = "<p class='text-red-600'>Error al cargar datos</p>";
-    document.getElementById("modalCaducidad").classList.remove("hidden");
+    cont.innerHTML = `
+      <div class="space-card p-5 rounded-2xl border border-rose-400/20 bg-rose-900/20 text-white/85">
+        ❌ Error al cargar datos. Revisa conexión o permisos.
+        <div class="text-xs text-white/60 mt-1">${String(err?.message || err)}</div>
+      </div>
+    `;
+    modal.classList.remove("hidden");
+  } finally {
+    if (typeof ocultarLoader === "function") ocultarLoader();
+    else if (typeof mostrarLoader === "function") mostrarLoader(false);
   }
 }
+
     // Asignar el evento al botón una vez cargue todo
     document.addEventListener("DOMContentLoaded", function() {
       document.getElementById("btnAlertasCaducidad").addEventListener("click", mostrarAlertasCaducidad);
