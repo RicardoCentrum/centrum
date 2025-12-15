@@ -1181,6 +1181,35 @@ function cerrarModalHipotesis() {
   if (!m) return console.error("❌ [HIPOTESIS] No existe #modalHipotesis");
   m.classList.add("hidden");
 }
+function escapeHtml(s) {
+  return String(s ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+/**
+ * Elimina la sección "5) JSON final..." del texto.
+ * Soporta:
+ *  - "5) JSON final con: ..."
+ *  - "5) JSON final"
+ *  - "JSON final"
+ *  - bloque ```json ... ```
+ */
+function sanitizeHipotesisOutputForUser(text) {
+  let s = String(text ?? "");
+
+  // Caso 1: bloque de markdown json
+  s = s.replace(/```json[\s\S]*?```/gi, "").trim();
+
+  // Caso 2: desde "5) JSON final" hasta el final
+  s = s.replace(/\n?5\)\s*JSON\s*final[\s\S]*$/i, "").trim();
+
+  // Caso 3: desde "JSON final" hasta el final (por si cambia numeración)
+  s = s.replace(/\n?JSON\s*final[\s\S]*$/i, "").trim();
+
+  return s;
+}
 
 async function ejecutarPreguntaLibreIA(){
   const status = document.getElementById("hipotesisStatus");
@@ -1209,41 +1238,60 @@ async function ejecutarPreguntaLibreIA(){
     ui_request_id: requestId
   };
 
-  // 🔥 AUDIT UI
+  // 🔥 AUDIT UI — inicio
   uiLog(requestId, "HYP_CHAT_UI_SEND", {
     endpoint: "new_hipotesis",
     question_len: pregunta.length,
     context: contextObj
   });
 
-  status.textContent = "💬 Consultando IA…";
+  status.textContent = "🧠 Analizando hipótesis…";
+  mostrarLoader(true); // ✅ PRENDE loader
+  out.classList.add("opacity-50"); // feedback visual opcional
 
-  const ans = await preguntarIA(payload);
+  try {
+    const ansRaw = await preguntarIA(payload);
 
-  if(!ans){
-    status.textContent = "❌ No hubo respuesta.";
-    uiLog(requestId, "HYP_CHAT_UI_NO_ANSWER", {}, "error");
-    return;
+    if(!ansRaw){
+      status.textContent = "❌ No hubo respuesta.";
+      uiLog(requestId, "HYP_CHAT_UI_NO_ANSWER", {}, "error");
+      return;
+    }
+
+    const ansUser = sanitizeHipotesisOutputForUser(ansRaw);
+
+    uiLog(requestId, "HYP_CHAT_UI_RENDER", {
+      answer_len_raw: String(ansRaw).length,
+      answer_len_user: String(ansUser).length,
+      removed_json_final: String(ansRaw).length !== String(ansUser).length
+    });
+
+    status.textContent = "✅ Listo.";
+
+    out.innerHTML = `
+      <div class="rounded-2xl p-4 bg-black/25 border border-white/10">
+        <div class="text-xs text-white/60 mb-2">🧑‍💻 Tú</div>
+        <div class="text-sm text-white/90 whitespace-pre-wrap">
+          ${escapeHtml(pregunta)}
+        </div>
+      </div>
+
+      <div class="rounded-2xl p-4 bg-white/5 border border-white/10">
+        <div class="text-xs text-white/60 mb-2">🤖 IA</div>
+        <div class="text-sm text-white/90 whitespace-pre-wrap">
+          ${escapeHtml(ansUser)}
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    console.error(err);
+    status.textContent = "❌ Error al procesar la hipótesis.";
+    uiLog(requestId, "HYP_CHAT_UI_EXCEPTION", { error: err?.message }, "error");
+  } finally {
+    mostrarLoader(false);        // ✅ APAGA loader SIEMPRE
+    out.classList.remove("opacity-50");
   }
-
-  uiLog(requestId, "HYP_CHAT_UI_RENDER", { answer_len: String(ans).length });
-
-  status.textContent = "✅ Listo.";
-  out.innerHTML = `
-    <div class="rounded-2xl p-4 bg-black/25 border border-white/10">
-      <div class="text-xs text-white/60 mb-2">🧑‍💻 Tú</div>
-      <div class="text-sm text-white/90 whitespace-pre-wrap">${pregunta}</div>
-    </div>
-
-    <div class="rounded-2xl p-4 bg-white/5 border border-white/10">
-      <div class="text-xs text-white/60 mb-2">🤖 IA</div>
-      <div class="text-sm text-white/90 whitespace-pre-wrap">${
-        String(ans).replaceAll("<","&lt;").replaceAll(">","&gt;")
-      }</div>
-    </div>
-  `;
 }
-
 
 function uiLog(requestId, stage, meta = {}, level = "info") {
   const entry = { ts: new Date().toISOString(), requestId, scope:"UI", stage, level, meta };
