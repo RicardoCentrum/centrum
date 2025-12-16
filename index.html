@@ -1192,6 +1192,9 @@ let scannerActivo = false, qrScanner = null;
 let modoScannerQR = "movimientos"; // "movimientos" | "inventario"
 let inventarioDetallado = {};
 window.autorizacionesExceso = window.autorizacionesExceso || {};
+window.FORECAST_DEFAULT_HORIZON = 6;  // 👈 Default 6 meses
+window.FORECAST_DEFAULT_MERMA_PCT = 5; // 👈 Merma default
+window.FORECAST_DEFAULT_MODELO = "auto"; // auto | arimax | xgboost | ensemble
 const unidadesDestino = {
   "C03442": "C.S. GALEANA", "C03441": "C.S. HIDALGO", "C03438": "C.S. NUEVO CASAS GRANDES", "C03443": "CAAPS ANAPRA", "C03439": "CESSA COLINAS", "C03440": "CESSA ZARAGOZA", "C03435": "H.C. NUEVO CASAS GRANDES", "C03436": "HIE JUAREZ",
   "C03420": "HOSPITAL DE LA MUJER CD JUAREZ", "C03419": "HOSPITAL GENERAL CD JUAREZ", "C03127": "HGZ 6", "C03131": "HGS 22", "C03135": "HGR 02", "C03133": "HGZ UMAA 35", "C03134": "HGR 66", "C03448": "C.S. GUACHOCHI", "C03447": "C.S. JIMENEZ", "C03446": "H. GPE Y CALVO", "C03132": "H.G.Z.M.F. 23", "C03122": "H.R.O. No. 26", "C03124": "H.R.O. No. 36", "C03445": "HOSPITAL CAMARGO", "C03421": "HOSPITAL DE JIMENEZ", "C03422": "HOSPITAL GINECOLOGIA PARRAL", "C03444": "HOSPITAL PARRAL", "C03451": "CESSA ALDAMA", "C03433": "CESSA MADERA",
@@ -4587,11 +4590,16 @@ function agregarFila(ref, lote, estado) {
 
 </script>
 <script>
+  //#region 888888888888888888888888888888888888888888888888888888888888888888 FORECAST 88888888888888888888888888888888888888888888888888888888888888888888888888888888888888888
 // ====================== REGRESIÓN + FORECAST (CORREGIDO Y COHERENTE) ======================
 
-// Instancias globales (evita ReferenceError por scope)
+// ✅ EDITA AQUÍ el horizonte default (6 meses)
+window.FORECAST_DEFAULT_HORIZON = 6;  // 👈 Default 6 meses
+window.FORECAST_DEFAULT_MERMA_PCT = 5; // 👈 Merma default
+window.FORECAST_DEFAULT_MODELO = "auto"; // auto | arimax | xgboost | ensemble
+// Instancias globales de charts
 window.graficaForecastInstance = window.graficaForecastInstance || null;
-window.graficaRegresionInstance = window.graficaRegresionInstance || null;
+window.graficaForecastProInstance = window.graficaForecastProInstance || null;
 
 // ---------- Utils ----------
 function escapeHtml(str) {
@@ -4609,8 +4617,6 @@ function wait2Frames() {
 
 async function ensureChartJs() {
   if (window.Chart) return true;
-
-  // UMD global para que exista window.Chart
   await new Promise((resolve, reject) => {
     const s = document.createElement("script");
     s.src = "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js";
@@ -4618,74 +4624,23 @@ async function ensureChartJs() {
     s.onerror = reject;
     document.head.appendChild(s);
   });
-
   return !!window.Chart;
 }
 
-// Mantiene canvas con tamaño real (Chart.js odia 0px)
 function fixCanvasSize(id, h = 320) {
   const c = document.getElementById(id);
   if (!c) return;
   c.style.display = "block";
   c.style.width = "100%";
-  c.style.height = h + "px";
-  c.height = h; // fuerza alto interno
+  c.style.height = `${h}px`;
+  c.height = h;
 }
 
-// ---------- Matemáticas ----------
-function calcularRegresionLineal(x, y) {
-  const n = x.length;
-  if (!n || n !== y.length) return { pendiente: 0, intercepto: 0 };
-
-  const sumX = x.reduce((a, b) => a + b, 0);
-  const sumY = y.reduce((a, b) => a + b, 0);
-  const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
-  const sumX2 = x.reduce((sum, xi) => sum + xi * xi, 0);
-
-  const den = n * sumX2 - sumX * sumX;
-  if (!den) return { pendiente: 0, intercepto: sumY / n };
-
-  const pendiente = (n * sumXY - sumX * sumY) / den;
-  const intercepto = (sumY - pendiente * sumX) / n;
-
-  return { pendiente, intercepto };
-}
-
-function calcularR2(x, y, pendiente, intercepto) {
-  if (!x?.length || x.length !== y.length) return 0;
-  const yMedia = y.reduce((a, b) => a + b, 0) / y.length;
-  const ssTot = y.reduce((sum, yi) => sum + Math.pow(yi - yMedia, 2), 0);
-  const ssRes = y.reduce((sum, yi, i) => sum + Math.pow(yi - (pendiente * x[i] + intercepto), 2), 0);
-  return ssTot === 0 ? 0 : 1 - ssRes / ssTot;
-}
-
-/// ---------- UI: Modal Forecast ----------
+// ---------- UI: Modal Forecast PRO ----------
 function verForecast(referencia, nombre = "", fabricante = "") {
   const anterior = document.getElementById("modalForecast");
   if (anterior) anterior.remove();
 
-  // helpers locales
-  const escapeHtml = (s) =>
-    String(s ?? "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-
-  const wait2Frames = () =>
-    new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-
-  const fixCanvasSize = (id, h = 320) => {
-    const c = document.getElementById(id);
-    if (!c) return;
-    c.style.display = "block";
-    c.style.width = "100%";
-    c.style.height = `${h}px`;
-    c.height = h; // evita 0-height internos
-  };
-
-  // lock scroll (móvil se siente pro)
   document.documentElement.classList.add("overflow-hidden");
   document.body.classList.add("overflow-hidden");
 
@@ -4706,11 +4661,11 @@ function verForecast(referencia, nombre = "", fabricante = "") {
       relative
     ">
 
-      <!-- Header fijo -->
+      <!-- Header -->
       <div class="flex items-start justify-between gap-4 pb-3 border-b border-white/10">
         <div class="min-w-0">
           <h2 class="text-xl sm:text-2xl font-bold fuente-magma tracking-wider">
-            Forecast & Estadísticas
+            Forecast PRO
           </h2>
           <p class="text-xs sm:text-sm text-white/70 mt-1 break-words">
             <span class="text-white/90 font-semibold">${escapeHtml(nombre || referencia)}</span>
@@ -4726,49 +4681,62 @@ function verForecast(referencia, nombre = "", fabricante = "") {
         </button>
       </div>
 
-      <!-- Body scrolleable -->
-      <div class="pt-4 overflow-y-auto pr-1
-                  max-h-[calc(92dvh-76px)] sm:max-h-[calc(95vh-96px)]">
+      <!-- Tabs -->
+      <div class="mt-3 sticky top-0 z-20 bg-black/60 backdrop-blur-md rounded-2xl border border-white/10">
+        <div class="flex gap-2 p-2 overflow-x-auto">
+          ${["resumen","modelos","escenarios","evidencia","entregas","logs"].map((k,i)=>`
+            <button type="button"
+              class="tab-btn ${i===0?"bg-white/10 text-white":"bg-white/5 text-white/70"} px-3 py-2 rounded-2xl border border-white/10 hover:bg-white/10 whitespace-nowrap"
+              data-tab="${k}">
+              ${({
+                resumen:"📌 Resumen",
+                modelos:"🧠 Modelos",
+                escenarios:"🧪 Escenarios",
+                evidencia:"🧾 Evidencia",
+                entregas:"📦 Entregas",
+                logs:"🧷 Logs"
+              })[k]}
+            </button>
+          `).join("")}
+        </div>
+      </div>
 
-        <!-- Controls -->
+      <!-- Body -->
+      <div class="pt-4 overflow-y-auto pr-1 max-h-[calc(92dvh-150px)] sm:max-h-[calc(95vh-170px)]">
+
+        <!-- Controls (comunes) -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 items-end">
           <div class="rounded-2xl p-4 bg-white/5 border border-white/10">
-            <label for="unidadForecast" class="block text-sm font-semibold text-white/80">
-              Unidad
-            </label>
+            <label class="block text-sm font-semibold text-white/80">Unidad</label>
             <select id="unidadForecast"
               class="mt-2 w-full px-3 py-2 rounded-2xl bg-black/30 border border-white/10
                      text-white focus:outline-none focus:ring-2 focus:ring-teal-500">
-              <option value="TOTAL">Total (Almacén CUU)</option>
+              <option value="TOTAL">Total (suma de consumo)</option>
             </select>
-            <p class="text-xs text-white/50 mt-2">
-              Tip: cambia unidad para recalcular el pronóstico.
-            </p>
+            <p class="text-xs text-white/50 mt-2">Cambia unidad para recalcular.</p>
           </div>
 
-          <div class="lg:col-span-2 rounded-2xl p-4 bg-white/5 border border-white/10">
-            <div class="flex flex-wrap gap-2 justify-start lg:justify-end">
-              <button type="button" onclick="exportarRegresionExcel()"
-                class="px-4 py-2 rounded-2xl font-semibold shadow-lg
-                       bg-gradient-to-r from-emerald-700/80 to-teal-800/60
-                       hover:opacity-90 border border-white/10">
-                📤 Excel
-              </button>
+          <div class="rounded-2xl p-4 bg-white/5 border border-white/10">
+            <label class="block text-sm font-semibold text-white/80">Horizonte</label>
+            <select id="horizonForecast"
+              class="mt-2 w-full px-3 py-2 rounded-2xl bg-black/30 border border-white/10 text-white">
+              <option value="3">3 meses</option>
+              <option value="6" selected>6 meses</option>
+              <option value="12">12 meses</option>
+            </select>
+            <p class="text-xs text-white/50 mt-2">Default: ${Number(window.FORECAST_DEFAULT_HORIZON ?? 6)} meses.</p>
+          </div>
 
-              <button type="button" onclick="exportarRegresionPDF()"
-                class="px-4 py-2 rounded-2xl font-semibold shadow-lg
-                       bg-gradient-to-r from-rose-700/80 to-red-800/60
-                       hover:opacity-90 border border-white/10">
-                🖨️ PDF
-              </button>
-
-              <button type="button" onclick="descargarReporteForecast()"
-                class="px-4 py-2 rounded-2xl font-semibold shadow-lg
-                       bg-gradient-to-r from-purple-900/80 to-indigo-900/60
-                       hover:opacity-90 border border-white/10">
-                📦 Reporte Global
-              </button>
-            </div>
+          <div class="rounded-2xl p-4 bg-white/5 border border-white/10">
+            <label class="block text-sm font-semibold text-white/80">Modelo</label>
+            <select id="modeloForecast"
+              class="mt-2 w-full px-3 py-2 rounded-2xl bg-black/30 border border-white/10 text-white">
+              <option value="auto" selected>Auto (recomendado)</option>
+              <option value="arimax">ARIMAX</option>
+              <option value="xgboost">XGBoost</option>
+              <option value="ensemble">Ensemble</option>
+            </select>
+            <p class="text-xs text-white/50 mt-2">Puedes comparar sin romper nada.</p>
           </div>
         </div>
 
@@ -4777,29 +4745,90 @@ function verForecast(referencia, nombre = "", fabricante = "") {
                  bg-black/30 border border-amber-300/30 text-amber-100">
         </div>
 
-        <!-- Charts -->
-        <div class="mt-4 grid grid-cols-1 gap-4">
-          <div class="rounded-2xl p-4 bg-white/5 border border-white/10">
-            <p class="text-sm text-white/70 mb-2">📊 Consumo histórico (resumen)</p>
-            <div class="relative w-full h-[260px] sm:h-[320px]">
-              <canvas id="graficaForecast" class="block w-full h-full"></canvas>
+        <!-- TAB: RESUMEN -->
+        <section id="tab-resumen" class="tab-section mt-4">
+          <div id="kpisForecast" class="grid grid-cols-2 lg:grid-cols-6 gap-3"></div>
+
+          <div class="mt-4 grid grid-cols-1 gap-4">
+            <div class="rounded-2xl p-4 bg-white/5 border border-white/10">
+              <p class="text-sm text-white/70 mb-2">📊 Consumo histórico</p>
+              <div class="relative w-full h-[260px] sm:h-[320px]">
+                <canvas id="graficaForecast" class="block w-full h-full"></canvas>
+              </div>
             </div>
-          </div>
 
-          <div class="rounded-2xl p-4 bg-white/5 border border-white/10">
-            <p class="text-sm text-white/70 mb-2">📈 Pronóstico</p>
-            <div class="relative w-full h-[300px] sm:h-[360px]">
-              <canvas id="graficaForecastLinea" class="block w-full h-full"></canvas>
+            <div class="rounded-2xl p-4 bg-white/5 border border-white/10">
+              <p class="text-sm text-white/70 mb-2">🔮 Pronóstico (p10 - p50 - p90)</p>
+              <div class="relative w-full h-[300px] sm:h-[360px]">
+                <canvas id="graficaForecastPro" class="block w-full h-full"></canvas>
+              </div>
             </div>
-          </div>
 
+            <div id="accionForecast" class="rounded-2xl p-4 bg-black/30 border border-white/10"></div>
+          </div>
+        </section>
+
+        <!-- TAB: MODELOS -->
+        <section id="tab-modelos" class="tab-section mt-4 hidden">
           <div class="rounded-2xl p-4 bg-white/5 border border-white/10">
-            <p class="text-sm text-white/70 mb-2">📋 Tabla</p>
-            <div id="tablaForecast" class="text-sm max-h-[360px] overflow-y-auto"></div>
+            <p class="text-sm text-white/70 mb-2">📈 Métricas</p>
+            <div id="metricasForecast" class="grid grid-cols-1 sm:grid-cols-3 gap-3"></div>
+            <div class="mt-4 text-xs text-white/60" id="explicabilidadForecast"></div>
           </div>
-        </div>
+        </section>
 
-        <!-- safe-area -->
+        <!-- TAB: ESCENARIOS -->
+        <section id="tab-escenarios" class="tab-section mt-4 hidden">
+          <div class="rounded-2xl p-4 bg-white/5 border border-white/10">
+            <p class="text-sm text-white/70 mb-3">🧪 Simulación rápida</p>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label class="text-xs text-white/60">Merma (%)</label>
+                <input id="mermaForecast" type="number" value="5" min="0" max="50"
+                  class="mt-1 w-full px-3 py-2 rounded-2xl bg-black/30 border border-white/10 text-white"/>
+              </div>
+              <div>
+                <label class="text-xs text-white/60">Factor volumen (%)</label>
+                <input id="factorVolForecast" type="number" value="0" min="-100" max="200"
+                  class="mt-1 w-full px-3 py-2 rounded-2xl bg-black/30 border border-white/10 text-white"/>
+              </div>
+              <div class="flex items-end">
+                <button id="btnSimularForecast" type="button"
+                  class="w-full px-4 py-2 rounded-2xl font-semibold bg-white/10 border border-white/10 hover:bg-white/15">
+                  ⚡ Simular
+                </button>
+              </div>
+            </div>
+            <p class="text-xs text-white/50 mt-3">
+              *Factor volumen: -35 significa recorte 35%. 0 = sin evento.
+            </p>
+          </div>
+        </section>
+
+        <!-- TAB: EVIDENCIA -->
+        <section id="tab-evidencia" class="tab-section mt-4 hidden">
+          <div class="rounded-2xl p-4 bg-white/5 border border-white/10">
+            <p class="text-sm text-white/70 mb-3">🧾 Evidencia usada</p>
+            <div id="evidenciaForecast" class="space-y-3"></div>
+          </div>
+        </section>
+
+        <!-- TAB: ENTREGAS -->
+        <section id="tab-entregas" class="tab-section mt-4 hidden">
+          <div class="rounded-2xl p-4 bg-white/5 border border-white/10">
+            <p class="text-sm text-white/70 mb-3">📦 Plan de entrega</p>
+            <div id="tablaEntregasForecast" class="text-sm"></div>
+          </div>
+        </section>
+
+        <!-- TAB: LOGS -->
+        <section id="tab-logs" class="tab-section mt-4 hidden">
+          <div class="rounded-2xl p-4 bg-white/5 border border-white/10">
+            <p class="text-sm text-white/70 mb-3">🧷 Logs</p>
+            <div id="logsForecast" class="text-xs text-white/70 whitespace-pre-wrap"></div>
+          </div>
+        </section>
+
         <div class="h-[env(safe-area-inset-bottom)]"></div>
       </div>
     </div>
@@ -4815,18 +4844,48 @@ function verForecast(referencia, nombre = "", fabricante = "") {
   };
 
   modal.querySelector("#btnCerrarForecast")?.addEventListener("click", cerrar);
-
-  function handleEsc(e) {
-    if (e.key === "Escape") cerrar();
-  }
+  function handleEsc(e) { if (e.key === "Escape") cerrar(); }
   document.addEventListener("keydown", handleEsc);
+  modal.addEventListener("click", (e) => { if (e.target === modal) cerrar(); });
 
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal) cerrar();
+  // Tabs handler
+  modal.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const tab = btn.dataset.tab;
+      modal.querySelectorAll(".tab-btn").forEach(b => {
+        b.classList.remove("bg-white/10","text-white");
+        b.classList.add("bg-white/5","text-white/70");
+      });
+      btn.classList.add("bg-white/10","text-white");
+      btn.classList.remove("bg-white/5","text-white/70");
+
+      modal.querySelectorAll(".tab-section").forEach(sec => sec.classList.add("hidden"));
+      modal.querySelector(`#tab-${tab}`)?.classList.remove("hidden");
+    });
   });
 
+  // Init defaults
+  const horizonSel = modal.querySelector("#horizonForecast");
+  if (horizonSel) horizonSel.value = String(Number(window.FORECAST_DEFAULT_HORIZON ?? 6));
+
+  // Listeners refresh
+  const selectUnidad = modal.querySelector("#unidadForecast");
+  const selectModelo = modal.querySelector("#modeloForecast");
+  const btnSim = modal.querySelector("#btnSimularForecast");
+
+  const refresh = async () => {
+    await cargarForecastPro(referencia);
+  };
+
+  selectUnidad?.addEventListener("change", refresh);
+  selectModelo?.addEventListener("change", refresh);
+  horizonSel?.addEventListener("change", refresh);
+
+  btnSim?.addEventListener("click", refresh);
+
+  // Load
   (async () => {
-    const ok = typeof ensureChartJs === "function" ? await ensureChartJs() : !!window.Chart;
+    const ok = await ensureChartJs();
     if (!ok) {
       const alerta = document.getElementById("alertaForecast");
       if (alerta) {
@@ -4835,23 +4894,13 @@ function verForecast(referencia, nombre = "", fabricante = "") {
       }
       return;
     }
-
-    // deja que el navegador calcule tamaños reales (móvil)
     await wait2Frames();
-
-    // asegura canvas con altura real ANTES de crear charts
     fixCanvasSize("graficaForecast", 320);
-    fixCanvasSize("graficaForecastLinea", 360);
+    fixCanvasSize("graficaForecastPro", 360);
 
-    // tu pipeline (único)
-    await cargarDatosForecastEdge(referencia);
-
-    // si tu app necesita esta función extra, déjala, pero NO dupliques cargas
-    if (typeof alCambiarUnidadForecast === "function") {
-      await alCambiarUnidadForecast(referencia);
-    }
+    await cargarForecastPro(referencia);
   })().catch((err) => {
-    console.error("Forecast error:", err);
+    console.error("Forecast PRO error:", err);
     const alerta = document.getElementById("alertaForecast");
     if (alerta) {
       alerta.classList.remove("hidden");
@@ -4861,236 +4910,704 @@ function verForecast(referencia, nombre = "", fabricante = "") {
 }
 window.verForecast = verForecast;
 
-
-// ---------- Data + Chart: Consumo ----------
-async function cargarDatosForecastEdge(ref) {
-  console.groupCollapsed("📊 [Forecast] cargarDatosForecastEdge");
+// ---------- Data + UI: Forecast PRO ----------
+async function cargarForecastPro(ref) {
+  console.groupCollapsed("📊 [Forecast PRO] cargarForecastPro");
   console.log("ref =", ref);
 
-  const select = document.getElementById("unidadForecast");
-  const canvas = document.getElementById("graficaForecast");
-  const tabla  = document.getElementById("tablaForecast");
+  const selectUnidad = document.getElementById("unidadForecast");
   const alerta = document.getElementById("alertaForecast");
 
-  if (!select || !canvas || !tabla || !alerta) {
-    console.warn("⚠️ [Forecast] faltan elementos del DOM", { select, canvas, tabla, alerta });
+  const horizon = Number(document.getElementById("horizonForecast")?.value ?? (window.FORECAST_DEFAULT_HORIZON ?? 6));
+  const modelo  = String(document.getElementById("modeloForecast")?.value ?? "auto");
+  const mermaPct = Number(document.getElementById("mermaForecast")?.value ?? 5);
+  const factorVol = Number(document.getElementById("factorVolForecast")?.value ?? 0);
+
+  if (!selectUnidad || !alerta) {
+    console.warn("⚠️ [Forecast PRO] faltan elementos del DOM");
     console.groupEnd();
     return;
   }
 
-  const ctx = canvas.getContext("2d");
-
   try {
-    const url = `https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/forecast_producto?ref=${encodeURIComponent(ref)}`;
+    alerta.classList.add("hidden");
+    alerta.textContent = "";
+
+    // 1) Traer datos PRO desde Edge Function (SIN V2)
+    const url = `https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/forecast_producto` +
+      `?ref=${encodeURIComponent(ref)}` +
+      `&unidad=${encodeURIComponent(selectUnidad.value || "TOTAL")}` +
+      `&horizon=${encodeURIComponent(horizon)}` +
+      `&modelo=${encodeURIComponent(modelo)}` +
+      `&merma_pct=${encodeURIComponent(mermaPct)}` +
+      `&factor_vol_pct=${encodeURIComponent(factorVol)}`;
+
     console.log("fetch =", url);
 
     const res = await fetch(url);
-    const consumoData = await res.json();
 
-    console.log("respuesta =", consumoData);
+    // Si falla HTTP, lee texto crudo y muéstralo
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(`HTTP ${res.status}: ${txt || "sin cuerpo"}`);
+    }
 
-    if (consumoData?.error) throw new Error(consumoData.error);
+    const data = await res.json().catch(() => ({}));
+    console.log("respuesta =", data);
 
-    const todasUnidades = Object.keys(consumoData.consumo || {}).sort();
-    console.log("unidades detectadas =", todasUnidades);
+    // Siempre pinta el JSON crudo en Logs (para que nunca sea “pantalla en blanco”)
+    const logsEl = document.getElementById("logsForecast");
+    if (logsEl) {
+      logsEl.innerHTML = `<pre class="whitespace-pre-wrap bg-white/5 border border-white/10 rounded-2xl p-3">
+    ${escapeHtml(JSON.stringify(data, null, 2))}
+    </pre>`;
+    }
 
-    // Sin datos
-    if (!todasUnidades.length) {
-      if (window.graficaForecastInstance) {
-        window.graficaForecastInstance.destroy();
-        window.graficaForecastInstance = null;
-      }
-      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-      tabla.innerHTML = "";
-      alerta.textContent = "📂 No hay datos disponibles para esta referencia.";
+    // Si backend manda msg/debug, muéstralo arriba
+    if (data?.msg) {
+      alerta.textContent = String(data.msg);
       alerta.classList.remove("hidden");
-      console.warn("⚠️ [Forecast] sin datos");
+    }
+
+    // Error explícito del backend
+    if (data?.error) throw new Error(data.error);
+
+
+    // 2) Si el backend manda lista de unidades, llenar select de forma segura
+    // Esperado: data.unidades = ["HOSP A", "HOSP B", ...]
+    if (Array.isArray(data?.unidades)) {
+      const current = selectUnidad.value || "TOTAL";
+      selectUnidad.innerHTML = "";
+
+      const optTotal = document.createElement("option");
+      optTotal.value = "TOTAL";
+      optTotal.textContent = "Total (suma de consumo)";
+      selectUnidad.appendChild(optTotal);
+
+      data.unidades
+        .filter(u => !!u && String(u).trim().length)
+        .sort()
+        .forEach((u) => {
+          const opt = document.createElement("option");
+          opt.value = u;
+          opt.textContent = u;
+          selectUnidad.appendChild(opt);
+        });
+
+      // conservar selección si existe
+      selectUnidad.value = data.unidades.includes(current) ? current : "TOTAL";
+    }
+
+    // 3) Render UI (KPIs, charts, evidencia, entregas, logs)
+    const pro = data?.pro || null;
+
+    if (!pro) {
+      alerta.textContent = "⚠️ Respuesta sin bloque PRO. Revisa backend.";
+      alerta.classList.remove("hidden");
+      return;
+    }
+
+    renderKpisForecast(pro);
+    renderGraficaConsumo(pro);
+    renderGraficaForecastPro(pro.series);
+    renderAccionForecast(pro);
+    renderMetricasYExplicabilidad(pro);
+    renderEvidenciaForecast(pro);
+    renderEntregasForecast(pro);
+    renderLogsForecast(pro);
+
+
+
+  } catch (err) {
+    console.error("❌ [Forecast PRO] Error:", err);
+    alerta.textContent = "❌ Error al cargar forecast: " + (err?.message || err);
+    alerta.classList.remove("hidden");
+
+    // limpia charts si existen
+    try { window.graficaForecastInstance?.destroy(); } catch {}
+    try { window.graficaForecastProInstance?.destroy(); } catch {}
+    window.graficaForecastInstance = null;
+    window.graficaForecastProInstance = null;
+
+  } finally {
+    console.groupEnd();
+  }
+}
+
+// ⚠️ Mantén compatibilidad por si en algún lado llamas a cargarDatosForecastEdge
+window.cargarDatosForecastEdge = async (ref) => cargarForecastPro(ref);
+async function cargarDatosForecastEdge(ref, opts = {}) {
+  console.groupCollapsed("📊 [Forecast PRO] cargarDatosForecastEdge");
+  console.log("ref =", ref, "opts =", opts);
+
+  const alerta = document.getElementById("alertaForecast");
+  const selectUnidad = document.getElementById("unidadForecast");
+  const canvas = document.getElementById("graficaForecastPro");
+
+  // Elementos PRO
+  const kpisEl = document.getElementById("kpisForecast");
+  const accionEl = document.getElementById("accionForecast");
+  const tablaEl = document.getElementById("tablaForecast");
+  const evidenciaEl = document.getElementById("evidenciaForecast");
+  const metricasEl = document.getElementById("metricasForecast");
+  const expEl = document.getElementById("expForecast");
+  const entregasEl = document.getElementById("tablaEntregasForecast");
+  const logsEl = document.getElementById("logsForecast");
+
+  console.log("DOM check =", {
+    alerta: !!alerta,
+    selectUnidad: !!selectUnidad,
+    canvas: !!canvas,
+    kpisEl: !!kpisEl,
+    accionEl: !!accionEl,
+    tablaEl: !!tablaEl,
+    evidenciaEl: !!evidenciaEl,
+    metricasEl: !!metricasEl,
+    expEl: !!expEl,
+    entregasEl: !!entregasEl,
+    logsEl: !!logsEl
+  });
+
+  if (!alerta || !selectUnidad || !canvas) {
+    console.warn("⚠️ [Forecast PRO] faltan elementos base del DOM");
+    console.groupEnd();
+    return;
+  }
+
+  alerta.classList.add("hidden");
+  alerta.textContent = "";
+
+  // Limpia secciones para que notes que se está re-renderizando
+  if (kpisEl) kpisEl.innerHTML = "";
+  if (accionEl) accionEl.innerHTML = "";
+  if (tablaEl) tablaEl.innerHTML = "";
+  if (evidenciaEl) evidenciaEl.innerHTML = "";
+  if (metricasEl) metricasEl.innerHTML = "";
+  if (expEl) expEl.innerHTML = "";
+  if (entregasEl) entregasEl.innerHTML = "";
+
+  const ctx = canvas.getContext("2d");
+
+  // Destroy chart anterior
+  if (window.graficaForecastInstance) {
+    try { window.graficaForecastInstance.destroy(); } catch {}
+    window.graficaForecastInstance = null;
+  }
+
+  // Params
+  const unidad = opts.unidad ?? (selectUnidad.value || "TOTAL");
+  const horizon = Number(opts.horizon ?? (window.FORECAST_DEFAULT_HORIZON ?? 6));
+  const merma_pct = Number(opts.merma_pct ?? (window.FORECAST_DEFAULT_MERMA_PCT ?? 5));
+  const modelo = String(opts.modelo ?? (window.FORECAST_DEFAULT_MODELO ?? "auto"));
+
+  const esc = opts.escenario;
+  const escTipo = esc?.tipo ?? "";
+  const escFactor = Number(esc?.factor ?? 0);
+
+  const url =
+    `https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/forecast_producto` +
+    `?ref=${encodeURIComponent(ref)}` +
+    `&unidad=${encodeURIComponent(unidad)}` +
+    `&horizon=${encodeURIComponent(horizon)}` +
+    `&modelo=${encodeURIComponent(modelo)}` +
+    `&merma_pct=${encodeURIComponent(merma_pct)}` +
+    (esc ? `&esc_tipo=${encodeURIComponent(escTipo)}&esc_factor=${encodeURIComponent(escFactor)}` : "");
+
+  console.log("fetch =", url);
+
+  try {
+    const res = await fetch(url);
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(`HTTP ${res.status}: ${txt || "sin cuerpo"}`);
+    }
+
+    const data = await res.json().catch(() => ({}));
+    console.log("respuesta =", data);
+
+    // Logs SIEMPRE
+    if (logsEl) {
+      logsEl.innerHTML = `<pre class="whitespace-pre-wrap bg-white/5 border border-white/10 rounded-2xl p-3">
+${escapeHtml(JSON.stringify(data, null, 2))}
+</pre>`;
+    }
+
+    if (data?.msg) {
+      alerta.textContent = String(data.msg);
+      alerta.classList.remove("hidden");
+    }
+
+    if (data?.error) throw new Error(data.error);
+
+    // Poblar unidades desde consumo (compat)
+    if (data?.consumo && typeof data.consumo === "object") {
+      const unidades = Object.keys(data.consumo).sort();
+
+      selectUnidad.innerHTML = "";
+      const optTotal = document.createElement("option");
+      optTotal.value = "TOTAL";
+      optTotal.textContent = "TOTAL (suma consumo)";
+      selectUnidad.appendChild(optTotal);
+
+      unidades.forEach((u) => {
+        const datosUnidad = data.consumo?.[u] || {};
+        const tiene = Object.values(datosUnidad).some((v) => v !== 0 && v != null);
+        if (tiene) {
+          const opt = document.createElement("option");
+          opt.value = u;
+          opt.textContent = u;
+          selectUnidad.appendChild(opt);
+        }
+      });
+
+      // asegura valor
+      if ([...selectUnidad.options].some(o => o.value === unidad)) {
+        selectUnidad.value = unidad;
+      }
+    }
+
+    const pro = data?.pro;
+
+    // Si no hay PRO, muestra algo visible
+    if (!pro) {
+      alerta.textContent = "⚠️ Respuesta sin bloque PRO. Revisa backend.";
+      alerta.classList.remove("hidden");
       console.groupEnd();
       return;
     }
 
-    // Opciones
-    select.innerHTML = "";
-
-    const optTotal = document.createElement("option");
-    optTotal.value = "TOTAL";
-    optTotal.textContent = "Total (Almacén CUU)";
-    select.appendChild(optTotal);
-
-    todasUnidades.forEach((u) => {
-      const datosUnidad = consumoData.consumo?.[u] || {};
-      const tieneDatos = Object.values(datosUnidad).some((v) => v !== 0 && v !== null && v !== undefined);
-      if (tieneDatos) {
-        const opt = document.createElement("option");
-        opt.value = u;
-        opt.textContent = u;
-        select.appendChild(opt);
-      }
-    });
-
-    select.onchange = () => {
-      console.groupCollapsed("🧭 [Forecast] onchange unidad");
-      const unidad = select.value;
-
-      const datosUnidad =
-        unidad === "TOTAL"
-          ? (typeof combinarUnidades === "function" ? combinarUnidades(consumoData.consumo) : {})
-          : (consumoData.consumo?.[unidad] || {});
-
-      console.log("unidad =", unidad);
-      console.log("datosUnidad =", datosUnidad);
-
-      const labels = Object.keys(datosUnidad).sort();
-      const valores = labels.map((k) => {
-        const n = Number(datosUnidad[k]);
-        return Number.isFinite(n) ? n : 0;
-      });
-
-      console.log("labels =", labels);
-      console.log("valores =", valores);
-
-      alerta.classList.add("hidden");
-      alerta.textContent = "";
-
-      if (window.graficaForecastInstance) {
-        window.graficaForecastInstance.destroy();
-        window.graficaForecastInstance = null;
-      }
-
-      if (!labels.length) {
-        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-        tabla.innerHTML = "";
-        alerta.textContent = "📂 Sin datos registrados para esta unidad.";
-        alerta.classList.remove("hidden");
-        console.warn("⚠️ [Forecast] unidad sin labels");
-        console.groupEnd();
-        return;
-      }
-
-      // Chart consumo
-      window.graficaForecastInstance = new Chart(ctx, {
-        type: "line",
-        data: {
-          labels,
-          datasets: [
-            {
-              label: "Unidades consumidas",
-              data: valores,
-              fill: true,
-              borderColor: "#02c7ca",
-              backgroundColor: "rgba(0, 110, 112, 0.20)",
-              tension: 0.3,
-              pointRadius: 2
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: "top",
-              labels: {
-                color: "#FFFFFF",          // 👈 LEYENDAS BLANCAS
-                boxWidth: 12,
-                boxHeight: 12,
-                font: {
-                  size: 12,
-                  weight: "600"
-                }
-              }
-            },
-            title: {
-              display: true,
-              text: "Consumo mensual",
-              color: "#E5E7EB",            // 👈 título claro
-              font: {
-                size: 14,
-                weight: "600"
-              }
-            }
-          },
-          interaction: { mode: "index", intersect: false },
-          scales: {
-            x: {
-              ticks: {
-                color: "#CBD5E1",          // 👈 etiquetas eje X claras
-                maxRotation: 45,
-                minRotation: 30
-              },
-              grid: { color: "rgba(255,255,255,0.08)" }
-            },
-            y: {
-              beginAtZero: true,
-              ticks: {
-                color: "#CBD5E1",          // 👈 etiquetas eje Y claras
-                precision: 0
-              },
-              grid: { color: "rgba(255,255,255,0.08)" },
-              afterDataLimits(scale) {
-                scale.max = scale.max * 1.1;
-              }
-            }
-          }
-        }
-      });
-
-
-      // Tabla glass
-      tabla.innerHTML = `
-        <div class="rounded-2xl border border-white/10 overflow-hidden">
-          <table class="w-full text-xs text-left">
-            <thead class="bg-black/30 text-white">
-              <tr>
-                <th class="p-2">Mes</th>
-                <th class="p-2 text-right">Unidades</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white/5 text-white">
-              ${labels
-                .map(
-                  (m) => `
-                    <tr class="border-t border-white/10">
-                      <td class="p-2">${escapeHtml(m)}</td>
-                      <td class="p-2 text-right">${Number(datosUnidad[m] ?? 0)}</td>
-                    </tr>
-                  `
-                )
-                .join("")}
-            </tbody>
-          </table>
+    // ====== KPIs (pinta aunque falle todo lo demás) ======
+    if (kpisEl) {
+      const k = pro.kpis || {};
+      const chip = (label, value) => `
+        <div class="rounded-2xl p-3 bg-white/5 border border-white/10">
+          <p class="text-xs text-white/60">${escapeHtml(label)}</p>
+          <p class="text-lg font-bold text-white">${escapeHtml(value)}</p>
         </div>
       `;
 
-      // Pronóstico
-      try {
-        graficarRegresionLineal(labels, valores);
-      } catch (e) {
-        console.error("❌ [Forecast] error en graficarRegresionLineal:", e);
-      }
-
-      document.getElementById("anclaForecast")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      console.groupEnd();
-    };
-
-    // primer render
-    select.dispatchEvent(new Event("change"));
-  } catch (err) {
-    console.error("❌ [Forecast] Error al cargar:", err);
-
-    if (window.graficaForecastInstance) {
-      window.graficaForecastInstance.destroy();
-      window.graficaForecastInstance = null;
+      kpisEl.innerHTML =
+        chip("Consumo prom 6M", (k.consumo_prom_6m ?? "—")) +
+        chip("Tendencia", (k.tendencia_pct != null ? `${k.tendencia_pct}%` : "—")) +
+        chip("Stock actual", (k.stock_actual ?? "—")) +
+        chip("Cobertura", (k.cobertura_meses != null ? `${k.cobertura_meses} meses` : "—")) +
+        chip("Entrega sugerida", (k.entrega_sugerida_prox_mes ?? "—")) +
+        chip("Confianza", (k.confianza != null ? `${k.confianza}/100` : "—"));
     }
-    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-    tabla.innerHTML = "";
+    // ====== Gráfica ======
+    try { if (ctx) renderGraficaForecastPro(ctx, pro.series); }
+    catch (e) { console.error("❌ gráfica PRO falló:", e); }
+
+    // ====== Acción ======
+    if (accionEl) {
+      const r = pro.recomendacion || {};
+      const nivel = r?.riesgo?.nivel || "—";
+      const motivos = Array.isArray(r.motivos)
+        ? r.motivos.map(m => `• ${escapeHtml(m.text || m)}`).join("<br/>")
+        : "—";
+
+      accionEl.innerHTML = `
+        <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div>
+            <p class="text-sm text-white/60">Acción recomendada</p>
+            <p class="text-xl font-bold text-white mt-1">${escapeHtml(r.accion || "—")}</p>
+            <p class="text-sm text-white/80 mt-2">Entrega sugerida: <span class="font-semibold">${escapeHtml(r.entrega_sugerida ?? "—")}</span></p>
+            <p class="text-sm text-white/80 mt-1">Riesgo: <span class="font-semibold">${escapeHtml(nivel)}</span></p>
+          </div>
+          <div class="text-sm text-white/70 bg-white/5 border border-white/10 rounded-2xl p-3 sm:max-w-[50%]">
+            <p class="text-xs text-white/60 mb-2">Motivos</p>
+            ${motivos}
+          </div>
+        </div>
+      `;
+    }
+
+    // ====== Tabla / Evidencia / Entregas ======
+    try { if (tablaEl) tablaEl.innerHTML = renderTablaForecast(pro.series); }
+    catch (e) { console.error("❌ tabla falló:", e); }
+
+    try { if (evidenciaEl) evidenciaEl.innerHTML = renderEvidencia(pro.evidencia); }
+    catch (e) { console.error("❌ evidencia falló:", e); }
+
+    try { if (metricasEl) {
+      const b = pro.backtest || {};
+      metricasEl.innerHTML = `
+        <div class="rounded-2xl p-3 bg-white/5 border border-white/10">
+          <p class="text-xs text-white/60">MAPE</p><p class="text-lg font-bold text-white">${escapeHtml(b.mape != null ? b.mape + "%" : "—")}</p>
+        </div>
+        <div class="rounded-2xl p-3 bg-white/5 border border-white/10">
+          <p class="text-xs text-white/60">MAE</p><p class="text-lg font-bold text-white">${escapeHtml(b.mae ?? "—")}</p>
+        </div>
+        <div class="rounded-2xl p-3 bg-white/5 border border-white/10">
+          <p class="text-xs text-white/60">RMSE</p><p class="text-lg font-bold text-white">${escapeHtml(b.rmse ?? "—")}</p>
+        </div>
+      `;
+    }} catch (e) { console.error("❌ métricas falló:", e); }
+
+    try { if (expEl) {
+      const top = pro.explain?.top_features;
+      expEl.innerHTML = Array.isArray(top)
+        ? `<ul class="list-disc pl-5">${top.map(x => `<li>${escapeHtml(String(x))}</li>`).join("")}</ul>`
+        : `<div class="text-white/60">—</div>`;
+    }} catch (e) { console.error("❌ explain falló:", e); }
+
+    try { if (entregasEl) entregasEl.innerHTML = renderEntregas(pro.entregas); }
+    catch (e) { console.error("❌ entregas falló:", e); }
+
+  } catch (err) {
+    console.error("❌ [Forecast PRO] Error:", err);
+    if (ctx) ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     alerta.textContent = "❌ Error al cargar forecast: " + (err?.message || err);
     alerta.classList.remove("hidden");
   } finally {
     console.groupEnd();
   }
 }
+
+function renderKpisForecast(pro) {
+  const wrap = document.getElementById("kpisForecast");
+  if (!wrap) return;
+
+  const k = pro?.kpis || {};
+  const items = [
+    ["Consumo prom 6M", k.consumo_prom_6m],
+    ["Tendencia", k.tendencia_pct != null ? `${k.tendencia_pct}%` : null],
+    ["Stock actual (almacén)", k.stock_actual],
+    ["Cobertura", k.cobertura_meses != null ? `${k.cobertura_meses} meses` : null],
+    ["Entrega sugerida", k.entrega_sugerida_prox_mes],
+    ["Confianza", k.confianza != null ? `${k.confianza}/100` : null],
+  ];
+
+  wrap.innerHTML = items.map(([t, v]) => `
+    <div class="rounded-2xl p-3 bg-white/5 border border-white/10">
+      <p class="text-xs text-white/60">${escapeHtml(t)}</p>
+      <p class="text-lg font-bold text-white">${escapeHtml(v ?? "—")}</p>
+    </div>
+  `).join("");
+}
+
+function renderGraficaConsumo(pro) {
+  const canvas = document.getElementById("graficaForecast");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+
+  const histL = pro?.series?.hist_labels || [];
+  const histV = (pro?.series?.hist_values || []).map(v => Number(v) || 0);
+
+  if (window.graficaForecastInstance) {
+    try { window.graficaForecastInstance.destroy(); } catch {}
+    window.graficaForecastInstance = null;
+  }
+
+  if (!histL.length) return;
+
+  window.graficaForecastInstance = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: histL,
+      datasets: [{
+        label: "Consumo",
+        data: histV,
+        fill: true,
+        borderColor: "#02c7ca",
+        backgroundColor: "rgba(2, 199, 202, 0.10)",
+        tension: 0.3,
+        pointRadius: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: "#E5E7EB" } },
+        title: { display: true, text: "Consumo mensual", color: "#E5E7EB" }
+      },
+      scales: {
+        x: { ticks: { color: "#CBD5E1" }, grid: { color: "rgba(255,255,255,0.08)" } },
+        y: { beginAtZero: true, ticks: { color: "#CBD5E1" }, grid: { color: "rgba(255,255,255,0.08)" } }
+      }
+    }
+  });
+}
+
+
+
+// Forecast PRO con banda p10-p90
+function renderGraficaForecastPro(series) {
+  try {
+    const canvas = document.getElementById("graficaForecastPro");
+    if (!canvas) return;
+
+    canvas.style.display = "block";
+    canvas.style.width = "100%";
+    canvas.style.height = "360px";
+    canvas.height = 360;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    if (!window.Chart) {
+      console.warn("⚠️ Chart.js no está cargado");
+      return;
+    }
+
+    const histLabels = series?.hist_labels || [];
+    const histValues = series?.hist_values || [];
+    const fcLabels = series?.fc_labels || [];
+    const p10 = series?.p10 || [];
+    const p50 = series?.p50 || [];
+    const p90 = series?.p90 || [];
+
+    if (!histLabels.length) {
+      console.warn("⚠️ Sin hist_labels");
+      return;
+    }
+
+    const labels = [...histLabels, ...fcLabels];
+    const histFull = [...histValues, ...Array(fcLabels.length).fill(null)];
+    const padPast = Array(histLabels.length).fill(null);
+
+    const p10Full = [...padPast, ...p10];
+    const p50Full = [...padPast, ...p50];
+    const p90Full = [...padPast, ...p90];
+
+    if (window.graficaForecastProInstance) {
+      try { window.graficaForecastProInstance.destroy(); } catch {}
+      window.graficaForecastProInstance = null;
+    }
+
+    window.graficaForecastProInstance = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Histórico",
+            data: histFull,
+            tension: 0.3,
+            pointRadius: 2,
+            borderColor: "#02c7ca",
+            backgroundColor: "rgba(2,199,202,0.10)",
+            fill: true,
+            spanGaps: true
+          },
+          {
+            label: "p10",
+            data: p10Full,
+            tension: 0.3,
+            pointRadius: 0,
+            borderColor: "rgba(255,255,255,0.25)",
+            backgroundColor: "rgba(255,255,255,0)",
+            fill: false,
+            spanGaps: true
+          },
+          {
+            label: "p90 (banda)",
+            data: p90Full,
+            tension: 0.3,
+            pointRadius: 0,
+            borderColor: "rgba(255,255,255,0.25)",
+            backgroundColor: "rgba(255,255,255,0.12)",
+            fill: "-1",
+            spanGaps: true
+          },
+          {
+            label: "Forecast p50",
+            data: p50Full,
+            tension: 0.3,
+            pointRadius: 2,
+            borderWidth: 3,
+            borderColor: "#cca300",
+            backgroundColor: "rgba(204,163,0,0.08)",
+            fill: false,
+            spanGaps: true
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { position: "top", labels: { color: "#E5E7EB" } },
+          title: { display: true, text: "Pronóstico (banda p10–p90)", color: "#E5E7EB" },
+          tooltip: { mode: "index", intersect: false }
+        },
+        scales: {
+          x: { ticks: { color: "#CBD5E1", maxRotation: 45, minRotation: 30 }, grid: { color: "rgba(255,255,255,0.08)" } },
+          y: { beginAtZero: true, ticks: { color: "#CBD5E1", precision: 0 }, grid: { color: "rgba(255,255,255,0.08)" } }
+        }
+      }
+    });
+
+    setTimeout(() => {
+      try {
+        window.graficaForecastProInstance?.resize();
+        window.graficaForecastProInstance?.update();
+      } catch {}
+    }, 80);
+
+  } catch (e) {
+    console.error("❌ renderGraficaForecastPro falló:", e);
+  }
+}
+
+
+
+function renderAccionForecast(pro) {
+  const box = document.getElementById("accionForecast");
+  if (!box) return;
+
+  const rec = pro?.recomendacion || {};
+  const riesgo = rec?.riesgo || {};
+  const motivos = Array.isArray(rec?.motivos) ? rec.motivos : [];
+
+  const modelo = pro?.log?.modelo_solicitado ?? "—";
+  const horizon = pro?.log?.horizon ?? "—";
+
+  box.innerHTML = `
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <p class="text-sm text-white/70">📌 Acción recomendada</p>
+        <p class="text-xl font-bold text-white mt-1">${escapeHtml(rec.accion ?? "—")}</p>
+        <p class="text-sm text-white/80 mt-2">
+          Entrega sugerida: <span class="font-semibold">${escapeHtml(rec.entrega_sugerida ?? "—")}</span>
+        </p>
+        <p class="text-xs text-white/60 mt-2">
+          Riesgo: <span class="text-white/90 font-semibold">${escapeHtml(riesgo.nivel ?? "—")}</span>
+          ${riesgo.detalle ? ` • ${escapeHtml(riesgo.detalle)}` : ""}
+        </p>
+      </div>
+      <div class="text-xs text-white/60 text-right">
+        <p>Modelo: <span class="text-white/90">${escapeHtml(modelo)}</span></p>
+        <p>Horizonte: <span class="text-white/90">${escapeHtml(horizon)}</span></p>
+      </div>
+    </div>
+
+    ${motivos.length ? `
+      <div class="mt-3 rounded-2xl bg-white/5 border border-white/10 p-3">
+        <p class="text-xs text-white/60 mb-2">Motivos</p>
+        <ul class="list-disc pl-5 text-sm text-white/85">
+          ${motivos.map(m => `<li>${escapeHtml(m.text ?? m.code ?? "")}</li>`).join("")}
+        </ul>
+      </div>
+    ` : ""}
+  `;
+}
+
+
+function renderMetricasYExplicabilidad(pro) {
+  const met = document.getElementById("metricasForecast");
+  const exp = document.getElementById("explicabilidadForecast");
+  if (!met || !exp) return;
+
+  const b = pro?.backtest || {};
+  met.innerHTML = [
+    ["MAPE", b.mape != null ? `${b.mape}%` : "—"],
+    ["MAE",  b.mae  != null ? b.mae : "—"],
+    ["RMSE", b.rmse != null ? b.rmse : "—"],
+  ].map(([t, v]) => `
+    <div class="rounded-2xl p-3 bg-black/30 border border-white/10">
+      <p class="text-xs text-white/60">${escapeHtml(t)}</p>
+      <p class="text-lg font-bold text-white">${escapeHtml(v)}</p>
+    </div>
+  `).join("");
+
+  const explain = pro?.explain || null;
+  exp.textContent = explain ? JSON.stringify(explain, null, 2) : "Sin explicabilidad disponible (backend no la envió).";
+}
+
+
+function renderEvidenciaForecast(pro) {
+  const wrap = document.getElementById("evidenciaForecast");
+  if (!wrap) return;
+
+  const ev = pro?.evidencia || {};
+  const blocks = Object.entries(ev);
+
+  if (!blocks.length) {
+    wrap.innerHTML = `<div class="text-white/60 text-sm">Sin evidencia disponible.</div>`;
+    return;
+  }
+
+  wrap.innerHTML = blocks.map(([key, obj]) => {
+    const source = obj?.source ?? "—";
+    const keys = obj?.keys ? JSON.stringify(obj.keys, null, 2) : "";
+    const rows = Array.isArray(obj?.rows) ? obj.rows : [];
+
+    return `
+      <div class="rounded-2xl p-3 bg-black/30 border border-white/10">
+        <div class="flex items-center justify-between gap-3">
+          <p class="text-sm font-semibold text-white">${escapeHtml(key)}</p>
+          <span class="text-xs text-white/60">Fuente: ${escapeHtml(source)}</span>
+        </div>
+        ${keys ? `<pre class="mt-2 text-[11px] text-white/70 overflow-x-auto">${escapeHtml(keys)}</pre>` : ""}
+        ${rows.length ? `
+          <div class="mt-2 rounded-2xl border border-white/10 overflow-hidden">
+            <div class="max-h-[220px] overflow-auto">
+              <pre class="p-2 text-[11px] text-white/70">${escapeHtml(JSON.stringify(rows.slice(0, 50), null, 2))}</pre>
+            </div>
+          </div>
+        ` : `<p class="mt-2 text-xs text-white/60">Sin filas (backend no envió rows).</p>`}
+      </div>
+    `;
+  }).join("");
+}
+
+
+function renderEntregasForecast(pro) {
+  const wrap = document.getElementById("tablaEntregasForecast");
+  if (!wrap) return;
+
+  const rows = Array.isArray(pro?.entregas) ? pro.entregas : [];
+  if (!rows.length) {
+    wrap.innerHTML = `<div class="text-white/60 text-sm">Sin plan de entregas (backend no lo envió).</div>`;
+    return;
+  }
+
+  wrap.innerHTML = `
+    <div class="rounded-2xl border border-white/10 overflow-hidden">
+      <table class="w-full text-xs text-left">
+        <thead class="bg-black/30 text-white">
+          <tr>
+            <th class="p-2">Unidad</th>
+            <th class="p-2 text-right">Consumo Est.</th>
+            <th class="p-2 text-right">Stock</th>
+            <th class="p-2 text-right">Cobertura</th>
+            <th class="p-2 text-right">Entrega</th>
+            <th class="p-2">Motivo</th>
+          </tr>
+        </thead>
+        <tbody class="bg-white/5 text-white">
+          ${rows.map(r => `
+            <tr class="border-t border-white/10">
+              <td class="p-2">${escapeHtml(r.unidad ?? "")}</td>
+              <td class="p-2 text-right">${escapeHtml(r.consumo_estimado ?? "—")}</td>
+              <td class="p-2 text-right">${escapeHtml(r.stock ?? "—")}</td>
+              <td class="p-2 text-right">${escapeHtml(r.cobertura_meses != null ? `${r.cobertura_meses}m` : "—")}</td>
+              <td class="p-2 text-right font-semibold">${escapeHtml(r.entrega_sugerida ?? "—")}</td>
+              <td class="p-2 text-white/70">${escapeHtml(r.motivo ?? "")}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+
+function renderLogsForecast(pro) {
+  const wrap = document.getElementById("logsForecast");
+  if (!wrap) return;
+
+  // Muestra primero el log “compacto” (si existe) y si no, todo el objeto pro
+  const payload = pro?.log ? pro.log : pro;
+
+  wrap.textContent = JSON.stringify(payload, null, 2);
+}
+
 
 
 // ---------- Chart: Regresión móvil + suavizado (pronóstico) ----------
@@ -5169,7 +5686,8 @@ function graficarRegresionLineal(labelsHist, valoresHist) {
   const m = String(ultima).match(/^(\d{4})-(\d{2})(?:-(\d{2}))?$/);
   const ultimaFecha = m ? new Date(Number(m[1]), Number(m[2]) - 1, 1) : new Date();
 
-  for (let i = 1; i <= 3; i++) {
+  const horizon = Number(window.FORECAST_DEFAULT_HORIZON ?? 6);
+  for (let i = 1; i <= horizon; i++) {
     const index = ultimosX.length + i - 1;
     const pred = Math.max(0, finPend * index + finInt);
     predFuturo.push(Math.round(pred * 100) / 100);
@@ -5368,6 +5886,7 @@ function exportarRegresionExcel() {
 
   XLSX.writeFile(wb, "Pronostico_Regresion_Centrum.xlsx");
 }
+
 async function exportarRegresionPDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF("p", "mm", "a4");
@@ -5435,76 +5954,6 @@ async function exportarRegresionPDF() {
       doc.save("Pronostico_Regresion_Centrum.pdf");
     };
   };
-}
-async function mostrarModalAsignarUnidades() {
-  const modal = document.getElementById("modalAsignarUnidades");
-  const select = document.getElementById("selectUsuario");
-  const lista = document.getElementById("listaUnidades");
-  if (!window.usuarioEsAdmin) {
-    notificar("❌ Solo administradores pueden modificar unidades", "#b91c1c");
-    return;
-  }
-  // Limpiar
-  select.innerHTML = "";
-  lista.innerHTML = "";
-
-  // 1. Obtener usuarios desde Supabase
-  try {
-    const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/usuarios?select=nombre,unidades", {
-      headers: {
-        apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo",
-        Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo"
-      }
-    });
-
-    const usuarios = await res.json();
-    const usuariosFiltrados = usuarios.filter(u => 
-      u.nombre !== "CONTROL_GLOBAL" && u.nombre !== "PIN_AUTO"
-    );
-    usuariosFiltrados.forEach(u => {
-      const opt = document.createElement("option");
-      opt.value = u.nombre;
-      opt.textContent = u.nombre;
-      opt.dataset.unidades = u.unidades || "";
-      select.appendChild(opt);
-    });
-
-    select.onchange = () => {
-      generarCheckboxesPara(select.value, select.selectedOptions[0].dataset.unidades);
-    };
-
-    // Dispara por default para el primero
-    if (usuariosFiltrados.length) {
-      generarCheckboxesPara(usuariosFiltrados[0].nombre, usuariosFiltrados[0].unidades);
-    }
-
-    modal.classList.remove("hidden");
-  } catch (err) {
-    console.error("Error al cargar usuarios:", err);
-  }
-}
-
-function generarCheckboxesPara(nombre, unidadesStr) {
-  const cont = document.getElementById("listaUnidades");
-  cont.innerHTML = "";
-
-  const unidadesActuales = unidadesStr
-    ? unidadesStr.split(",").map(u => u.trim().toUpperCase())
-    : [];
-
-  for (const clave in unidadesDestino) {
-    const label = document.createElement("label");
-    label.className = "flex items-center gap-2";
-
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.value = clave;
-    checkbox.checked = unidadesActuales.includes(clave);
-
-    label.appendChild(checkbox);
-    label.append(`${clave} - ${unidadesDestino[clave]}`);
-    cont.appendChild(label);
-  }
 }
 
 // 1. Obtener mes lógico como YYYY-MM
@@ -5633,60 +6082,6 @@ if (selectUnidadForecast) {
   });
 }
 
-function cerrarModalAsignarUnidades() {
-  document.getElementById("modalAsignarUnidades").classList.add("hidden");
-}
-async function guardarUnidadesAsignadas() {
-  const select = document.getElementById("selectUsuario");
-  const nombre = select.value;
-  const checkboxes = document.querySelectorAll("#listaUnidades input[type='checkbox']");
-  const seleccionadas = Array.from(checkboxes)
-    .filter(c => c.checked)
-    .map(c => c.value);
-
-  const errorDiv = document.getElementById("unidadAsignarError");
-
-  if (seleccionadas.length === 0) {
-    mostrarModal("❌ Debes seleccionar al menos una unidad.", "#b91c1c");
-    return;
-  }
-
-  if (!nipAdmin) {
-    mostrarModal("❌ No se detectó NIP de administrador.", "#b91c1c");
-    return;
-  }
-
-  const payload = {
-    nip_admin: nipAdmin,
-    nombre,
-    nuevo_nip: "sin_cambio",
-    nuevas_unidades: seleccionadas
-  };
-
-  try {
-    const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/actualizar_nip", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-
-    const data = await res.json();
-
-    if (res.ok) {
-      cerrarModalAsignarUnidades();
-      mostrarModal("✅ Unidades actualizadas correctamente", "#16a34a");
-    } else {
-      console.warn("Error desde Supabase:", data);
-      mostrarModal("❌ " + (data.error || "Error al guardar unidades."), "#b91c1c");
-    }
-
-  } catch (err) {
-    console.error("Error de red al guardar unidades:", err);
-    mostrarModal("❌ Error de red al guardar unidades.", "#b91c1c");
-  }
-}
-
-
 function confiabilidadConvertida(original) {
   const resultado = {};
   for (const unidad in original) {
@@ -5752,8 +6147,130 @@ async function descargarReporteForecast() {
     alert("❌ Error al generar el reporte.");
   }
 }
+//#endregion 888888888888888888888888888888888888888888888888888888888888888888 FORECAST 88888888888888888888888888888888888888888888888888888888888888888888888888888888888888888
+function cerrarModalAsignarUnidades() {
+  document.getElementById("modalAsignarUnidades").classList.add("hidden");
+}
+async function guardarUnidadesAsignadas() {
+  const select = document.getElementById("selectUsuario");
+  const nombre = select.value;
+  const checkboxes = document.querySelectorAll("#listaUnidades input[type='checkbox']");
+  const seleccionadas = Array.from(checkboxes)
+    .filter(c => c.checked)
+    .map(c => c.value);
 
+  const errorDiv = document.getElementById("unidadAsignarError");
 
+  if (seleccionadas.length === 0) {
+    mostrarModal("❌ Debes seleccionar al menos una unidad.", "#b91c1c");
+    return;
+  }
+
+  if (!nipAdmin) {
+    mostrarModal("❌ No se detectó NIP de administrador.", "#b91c1c");
+    return;
+  }
+
+  const payload = {
+    nip_admin: nipAdmin,
+    nombre,
+    nuevo_nip: "sin_cambio",
+    nuevas_unidades: seleccionadas
+  };
+
+  try {
+    const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/actualizar_nip", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      cerrarModalAsignarUnidades();
+      mostrarModal("✅ Unidades actualizadas correctamente", "#16a34a");
+    } else {
+      console.warn("Error desde Supabase:", data);
+      mostrarModal("❌ " + (data.error || "Error al guardar unidades."), "#b91c1c");
+    }
+
+  } catch (err) {
+    console.error("Error de red al guardar unidades:", err);
+    mostrarModal("❌ Error de red al guardar unidades.", "#b91c1c");
+  }
+}
+
+async function mostrarModalAsignarUnidades() {
+  const modal = document.getElementById("modalAsignarUnidades");
+  const select = document.getElementById("selectUsuario");
+  const lista = document.getElementById("listaUnidades");
+  if (!window.usuarioEsAdmin) {
+    notificar("❌ Solo administradores pueden modificar unidades", "#b91c1c");
+    return;
+  }
+  // Limpiar
+  select.innerHTML = "";
+  lista.innerHTML = "";
+
+  // 1. Obtener usuarios desde Supabase
+  try {
+    const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/usuarios?select=nombre,unidades", {
+      headers: {
+        apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo",
+        Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkanJwZnNicGNmbmlubnRmZm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0MjcxNjYsImV4cCI6MjA2MjAwMzE2Nn0.vxPo7XXaeKPa-jDQRA2jvOJ7dvJZDHRNZB7blbONNZo"
+      }
+    });
+
+    const usuarios = await res.json();
+    const usuariosFiltrados = usuarios.filter(u => 
+      u.nombre !== "CONTROL_GLOBAL" && u.nombre !== "PIN_AUTO"
+    );
+    usuariosFiltrados.forEach(u => {
+      const opt = document.createElement("option");
+      opt.value = u.nombre;
+      opt.textContent = u.nombre;
+      opt.dataset.unidades = u.unidades || "";
+      select.appendChild(opt);
+    });
+
+    select.onchange = () => {
+      generarCheckboxesPara(select.value, select.selectedOptions[0].dataset.unidades);
+    };
+
+    // Dispara por default para el primero
+    if (usuariosFiltrados.length) {
+      generarCheckboxesPara(usuariosFiltrados[0].nombre, usuariosFiltrados[0].unidades);
+    }
+
+    modal.classList.remove("hidden");
+  } catch (err) {
+    console.error("Error al cargar usuarios:", err);
+  }
+}
+
+function generarCheckboxesPara(nombre, unidadesStr) {
+  const cont = document.getElementById("listaUnidades");
+  cont.innerHTML = "";
+
+  const unidadesActuales = unidadesStr
+    ? unidadesStr.split(",").map(u => u.trim().toUpperCase())
+    : [];
+
+  for (const clave in unidadesDestino) {
+    const label = document.createElement("label");
+    label.className = "flex items-center gap-2";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.value = clave;
+    checkbox.checked = unidadesActuales.includes(clave);
+
+    label.appendChild(checkbox);
+    label.append(`${clave} - ${unidadesDestino[clave]}`);
+    cont.appendChild(label);
+  }
+}
 function actualizarTablaRegistros() {
   const tabla = document.getElementById("tablaRegistros");
   const contenedor = document.getElementById("tablaContenedora");
