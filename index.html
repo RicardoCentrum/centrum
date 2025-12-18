@@ -5035,12 +5035,20 @@ const dialVolEl   = modal.querySelector("#dialVol");
 
 const mermaDial = createRadialDial(dialMermaEl, {
   label: "Merma",
-  onChange: (v) => { syncMerma(v); refresh(); }
+  min: 0, max: 50, step: 1,
+  unit: "%",
+  colorMode: "fixed",
+  onInput: (v) => { syncMerma(v); refresh(); },
+  onCommit: (v) => { syncMerma(v); refreshNow(); }
 });
 
 const volDial = createRadialDial(dialVolEl, {
   label: "Volumen",
-  onChange: (v) => { syncVol(v, { commit: true }); refresh(); }
+  min: -100, max: 300, step: 1,
+  unit: "%",
+  colorMode: "auto", // negativos teal / positivos dorado
+  onInput: (v) => { syncVol(v, { commit: true }); refresh(); },
+  onCommit: (v) => { syncVol(v, { commit: true }); refreshNow(); }
 });
 
 // Input manual mueve dial
@@ -5296,7 +5304,19 @@ ${escapeHtml(JSON.stringify(data, null, 2))}
 
     // =========================
     // 5) Render especial: Escenarios (Base vs Escenario)
-    // =========================
+    if (window.volDial) {
+      // Base = sin simulación → normalmente 0%
+      const baseFactorVol = 0;
+
+      // Escenario = lo que el usuario está simulando
+      const escenarioFactorVol = factorVol;
+
+      window.volDial.setBoth({
+        base: baseFactorVol,
+        scenario: escenarioFactorVol
+      });
+    }
+
     if (basePro) {
       // Importante: basePro no lleva factorVol del escenario
       renderEscenariosTab({
@@ -5365,28 +5385,53 @@ function debounce(fn, wait = 450) {
 }
 function createRadialDial(el, {
   min, max, step,
-  value,
-  onChange,
-  label = ""
+  value,                 // escenario (principal)
+  baseValue = null,      // base (comparación)
+  onChange,              // compat: lo llamo en commit con value
+  onInput,               // live mientras arrastra
+  onCommit,              // al soltar (ideal para refreshNow)
+  label = "",
+  unit = "",             // e.g. "%"
+  formatValue,           // (v)=> string
+  colorMode = "auto",    // auto | fixed
 } = {}) {
   if (!el) return;
 
   // Config desde data-attrs si no lo pasan
-  min = (min ?? Number(el.dataset.min ?? 0));
-  max = (max ?? Number(el.dataset.max ?? 100));
-  step = (step ?? Number(el.dataset.step ?? 1));
+  min   = (min ?? Number(el.dataset.min ?? 0));
+  max   = (max ?? Number(el.dataset.max ?? 100));
+  step  = (step ?? Number(el.dataset.step ?? 1));
   value = (value ?? Number(el.dataset.value ?? min));
+  if (baseValue == null && el.dataset.base != null) baseValue = Number(el.dataset.base);
 
-  // Dial: arco de 270° (de -225° a +45°)
-  const startDeg = -225, endDeg = 45;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const snap = (v) => Math.round(v / step) * step;
 
-  const size = 140, cx = 70, cy = 70, r = 52;
-  const strokeW = 10;
+  // Dial: arco de 270° (start=-225 => 135°, end=45°)
+  const startDeg = -225, endDeg = 45;
+
+  // SVG
+  const size = 152, cx = 76, cy = 76, r = 56;
+  const strokeW = 12;
 
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", `0 0 ${size} ${size}`);
+  svg.style.width = "148px";
+  svg.style.height = "148px";
+  svg.style.touchAction = "none"; // 👈 importante en móvil
+
+  // defs: glow
+  const defs = document.createElementNS(svg.namespaceURI, "defs");
+  defs.innerHTML = `
+    <filter id="dialGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2.8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  `;
+  svg.appendChild(defs);
 
   const mkCircle = (cls) => {
     const c = document.createElementNS(svg.namespaceURI, "circle");
@@ -5400,23 +5445,23 @@ function createRadialDial(el, {
     return c;
   };
 
-  const bg = mkCircle("bg");
-  const track = mkCircle("track");
-  const val = mkCircle("value");
+  // Back plate (opcional)
+  const plate = document.createElementNS(svg.namespaceURI, "circle");
+  plate.setAttribute("cx", cx);
+  plate.setAttribute("cy", cy);
+  plate.setAttribute("r", r + 18);
+  plate.setAttribute("fill", "rgba(255,255,255,0.03)");
+  plate.setAttribute("stroke", "rgba(255,255,255,0.06)");
+  plate.setAttribute("stroke-width", "1");
 
-  // stroke-dash para recortar el círculo a 270°
-  const circ = 2 * Math.PI * r;
-  const arc = circ * (270 / 360);
-  const gap = circ - arc;
+  const bgTrack   = mkCircle("bgTrack");    // pista tenue
+  const baseArc   = mkCircle("baseArc");    // base (comparación)
+  const valueArc  = mkCircle("valueArc");   // escenario (principal)
 
-  [track, val].forEach(c => {
-    c.style.strokeDasharray = `${arc} ${gap}`;
-    c.style.strokeDashoffset = `${circ * ( (360-270)/360 )}`; // posiciona el arco
-    c.style.transformOrigin = "50% 50%";
-    c.style.transform = "rotate(-135deg)"; // alinea inicio
-  });
-
-  bg.style.opacity = "0.25";
+  // knob
+  const knob = document.createElementNS(svg.namespaceURI, "circle");
+  knob.setAttribute("class", "knob");
+  knob.setAttribute("r", 5.5);
 
   // texto central
   const tVal = document.createElementNS(svg.namespaceURI, "text");
@@ -5428,46 +5473,115 @@ function createRadialDial(el, {
   const tSub = document.createElementNS(svg.namespaceURI, "text");
   tSub.setAttribute("class", "sub");
   tSub.setAttribute("x", cx);
-  tSub.setAttribute("y", cy + 26);
+  tSub.setAttribute("y", cy + 28);
   tSub.setAttribute("text-anchor", "middle");
   tSub.textContent = label;
 
-  // knob
-  const knob = document.createElementNS(svg.namespaceURI, "circle");
-  knob.setAttribute("class", "knob");
-  knob.setAttribute("r", 5);
-
-  svg.appendChild(bg);
-  svg.appendChild(track);
-  svg.appendChild(val);
+  svg.appendChild(plate);
+  svg.appendChild(bgTrack);
+  svg.appendChild(baseArc);
+  svg.appendChild(valueArc);
   svg.appendChild(knob);
   svg.appendChild(tVal);
   svg.appendChild(tSub);
+
   el.innerHTML = "";
   el.appendChild(svg);
 
-  const setByValue = (v, emit = true) => {
+  // stroke-dash para recortar círculo a 270°
+  const circ = 2 * Math.PI * r;
+  const arc = circ * (270 / 360);
+  const gap = circ - arc;
+
+  const prepArc = (c) => {
+    c.style.strokeDasharray = `${arc} ${gap}`;
+    c.style.strokeDashoffset = `${circ * ((360 - 270) / 360)}`;
+    c.style.transformOrigin = "50% 50%";
+    c.style.transform = "rotate(-135deg)";
+  };
+  [bgTrack, baseArc, valueArc].forEach(prepArc);
+
+  // estilos default (puedes moverlos a CSS si quieres)
+  bgTrack.style.stroke = "rgba(255,255,255,0.18)";
+
+  baseArc.style.stroke = "rgba(2,199,202,0.35)"; // teal base
+  baseArc.style.filter = "none";
+
+  valueArc.style.stroke = "rgba(204,163,0,1)";   // dorado escenario default
+  valueArc.style.filter = "url(#dialGlow)";
+
+  knob.style.fill = "rgba(255,255,255,0.85)";
+  knob.style.stroke = "rgba(0,0,0,0.35)";
+  knob.style.strokeWidth = "1";
+
+  tVal.style.fill = "rgba(255,255,255,0.92)";
+  tVal.style.fontSize = "20px";
+  tVal.style.fontWeight = "800";
+  tVal.style.fontFamily = "system-ui, -apple-system, Segoe UI, Roboto";
+
+  tSub.style.fill = "rgba(255,255,255,0.55)";
+  tSub.style.fontSize = "11px";
+  tSub.style.fontWeight = "600";
+
+  // helpers
+  const pct = (v) => (v - min) / (max - min || 1);
+
+  const colorFor = (v) => {
+    if (colorMode === "fixed") return { arc: "rgba(204,163,0,1)", fill: "rgba(204,163,0,0.08)" };
+    // auto: negativos teal, positivos dorado, cero gris
+    if (v < 0)  return { arc: "rgba(2,199,202,1)", fill: "rgba(2,199,202,0.10)" };
+    if (v > 0)  return { arc: "rgba(204,163,0,1)", fill: "rgba(204,163,0,0.10)" };
+    return { arc: "rgba(255,255,255,0.55)", fill: "rgba(255,255,255,0.06)" };
+  };
+
+  const fmt = (v) => {
+    if (typeof formatValue === "function") return formatValue(v);
+    const s = (v > 0 ? `+${v}` : String(v));
+    return unit ? `${s}${unit}` : s;
+  };
+
+  const setArcDash = (circleEl, v) => {
+    const p = clamp(pct(v), 0, 1);
+    const dash = arc * p;
+    circleEl.style.strokeDasharray = `${dash} ${circ - dash}`;
+  };
+
+  const setKnobPos = (v) => {
+    const p = clamp(pct(v), 0, 1);
+    const deg = startDeg + p * (endDeg - startDeg);
+    const rad = (deg * Math.PI) / 180;
+    knob.setAttribute("cx", cx + Math.cos(rad) * r);
+    knob.setAttribute("cy", cy + Math.sin(rad) * r);
+  };
+
+  const applyVisual = () => {
+    // base
+    if (baseValue != null && Number.isFinite(baseValue)) setArcDash(baseArc, baseValue);
+    else baseArc.style.strokeDasharray = `0 ${circ}`; // oculta
+
+    // value
+    setArcDash(valueArc, value);
+    setKnobPos(value);
+
+    const c = colorFor(value);
+    valueArc.style.stroke = c.arc;
+    tVal.textContent = fmt(value);
+  };
+
+  const setByValue = (v, emit = true, mode = "input") => {
     v = snap(clamp(v, min, max));
     value = v;
     el.dataset.value = String(v);
 
-    // porcentaje dentro del arco
-    const p = (v - min) / (max - min || 1);
-    const dash = arc * p;
+    applyVisual();
 
-    val.style.strokeDasharray = `${dash} ${circ - dash}`;
+    if (!emit) return;
 
-    // knob position (sobre arco 270°)
-    const deg = startDeg + p * (endDeg - startDeg);
-    const rad = (deg * Math.PI) / 180;
-    const kx = cx + Math.cos(rad) * r;
-    const ky = cy + Math.sin(rad) * r;
-    knob.setAttribute("cx", kx);
-    knob.setAttribute("cy", ky);
-
-    tVal.textContent = String(v);
-
-    if (emit && typeof onChange === "function") onChange(v);
+    if (mode === "input" && typeof onInput === "function") onInput(v);
+    if (mode === "commit") {
+      if (typeof onCommit === "function") onCommit(v);
+      if (typeof onChange === "function") onChange(v); // compat
+    }
   };
 
   const valueFromPointer = (clientX, clientY) => {
@@ -5476,31 +5590,20 @@ function createRadialDial(el, {
     const y = clientY - rect.top - rect.height / 2;
 
     let ang = Math.atan2(y, x) * 180 / Math.PI; // -180..180
-    // normaliza para que el arco sea continuo
-    if (ang < -180) ang += 360;
-
-    // Mapea ángulo al rango del arco
-    // Convertimos a [startDeg..endDeg] con wrap
-    let a = ang;
-    // forzamos a la ventana más cercana del arco
     const within = (deg) => {
-      // arco: -225..45 (equivalente a 135..360 y 0..45)
       const d = (deg + 360) % 360;
       return (d >= 135 && d <= 360) || (d >= 0 && d <= 45);
     };
+
+    let a = ang;
     if (!within(a)) {
-      // si está fuera, pegamos al extremo más cercano
       const d = ((a + 360) % 360);
-      const distToStart = Math.min(Math.abs(d - 135), Math.abs(d - (135+360)));
-      const distToEnd = Math.min(Math.abs(d - 45), Math.abs(d - (45+360)));
+      const distToStart = Math.min(Math.abs(d - 135), Math.abs(d - (135 + 360)));
+      const distToEnd   = Math.min(Math.abs(d - 45),  Math.abs(d - (45 + 360)));
       a = distToStart < distToEnd ? startDeg : endDeg;
     }
 
-    // p según arco
-    // normaliza ángulo a progresión 0..1 sobre 270°
-    let d = ((a + 360) % 360);
-    // start=-225 => 135°, end=45°
-    // recorrido: 135..360 (225°) + 0..45 (45°) = 270°
+    const d = ((a + 360) % 360);
     let prog;
     if (d >= 135) prog = (d - 135) / 270;
     else prog = (d + 225) / 270;
@@ -5509,29 +5612,47 @@ function createRadialDial(el, {
     return min + prog * (max - min);
   };
 
+  // drag handling
   let dragging = false;
 
   const onDown = (e) => {
     dragging = true;
     svg.setPointerCapture?.(e.pointerId);
-    const v = valueFromPointer(e.clientX, e.clientY);
-    setByValue(v, true);
+    setByValue(valueFromPointer(e.clientX, e.clientY), true, "input");
   };
+
   const onMove = (e) => {
     if (!dragging) return;
-    const v = valueFromPointer(e.clientX, e.clientY);
-    setByValue(v, true);
+    setByValue(valueFromPointer(e.clientX, e.clientY), true, "input");
   };
-  const onUp = () => { dragging = false; };
+
+  const onUp = () => {
+    if (!dragging) return;
+    dragging = false;
+    setByValue(value, true, "commit");
+  };
 
   svg.addEventListener("pointerdown", onDown);
   svg.addEventListener("pointermove", onMove);
   window.addEventListener("pointerup", onUp);
 
   // init
-  setByValue(value, false);
+  value = snap(clamp(value, min, max));
+  if (baseValue != null) baseValue = snap(clamp(baseValue, min, max));
+  applyVisual();
 
-  return { set: (v) => setByValue(v, false), get: () => value };
+  return {
+    set: (v) => setByValue(v, false),
+    get: () => value,
+    setBase: (v) => { baseValue = snap(clamp(v, min, max)); el.dataset.base = String(baseValue); applyVisual(); },
+    setScenario: (v) => setByValue(v, false),
+    setBoth: ({ base, scenario }) => {
+      if (base != null) { baseValue = snap(clamp(base, min, max)); el.dataset.base = String(baseValue); }
+      if (scenario != null) value = snap(clamp(scenario, min, max));
+      el.dataset.value = String(value);
+      applyVisual();
+    }
+  };
 }
 
 // id incremental para ignorar respuestas viejas
