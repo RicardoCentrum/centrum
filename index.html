@@ -1193,7 +1193,7 @@ let modoScannerQR = "movimientos"; // "movimientos" | "inventario"
 let inventarioDetallado = {};
 window.autorizacionesExceso = window.autorizacionesExceso || {};
 window.FORECAST_DEFAULT_HORIZON = 6;  // 👈 Default 6 meses
-window.FORECAST_DEFAULT_MERMA_PCT = 5; // 👈 Merma default
+window.FORECAST_DEFAULT_MERMA_PCT = 10; // 👈 Merma default
 window.FORECAST_DEFAULT_MODELO = "auto"; // auto | arimax | xgboost | ensemble
 const unidadesDestino = {
   "C03442": "C.S. GALEANA", "C03441": "C.S. HIDALGO", "C03438": "C.S. NUEVO CASAS GRANDES", "C03443": "CAAPS ANAPRA", "C03439": "CESSA COLINAS", "C03440": "CESSA ZARAGOZA", "C03435": "H.C. NUEVO CASAS GRANDES", "C03436": "HIE JUAREZ",
@@ -2541,7 +2541,7 @@ function intentoMuestreoDeCalidad(producto) {
   console.log("🧪 Ejecutando intentoMuestreoDeCalidad");
   console.log("🧪 Producto recibido:", producto);
 
-  const probabilidad = 1 / 1; // Cambia a 1/30 en producción
+  const probabilidad = 1 / 300; // Cambia a 1/30 en producción
   const aleatorio = Math.random();
   console.log("🧪 Número aleatorio generado:", aleatorio);
 
@@ -4594,12 +4594,13 @@ function agregarFila(ref, lote, estado) {
 // ====================== REGRESIÓN + FORECAST (CORREGIDO Y COHERENTE) ======================
 
 // ✅ EDITA AQUÍ el horizonte default (6 meses)
-window.FORECAST_DEFAULT_HORIZON = 6;  // 👈 Default 6 meses
-window.FORECAST_DEFAULT_MERMA_PCT = 5; // 👈 Merma default
-window.FORECAST_DEFAULT_MODELO = "auto"; // auto | arimax | xgboost | ensemble
+// window.FORECAST_DEFAULT_HORIZON = 6;  // 👈 Default 6 meses
+// window.FORECAST_DEFAULT_MERMA_PCT = 5; // 👈 Merma default
+// window.FORECAST_DEFAULT_MODELO = "auto"; // auto | arimax | xgboost | ensemble
 // Instancias globales de charts
 window.graficaForecastInstance = window.graficaForecastInstance || null;
 window.graficaForecastProInstance = window.graficaForecastProInstance || null;
+window.graficaEscenarioCompareInstance = window.graficaEscenarioCompareInstance || null;
 
 // ---------- Utils ----------
 function escapeHtml(str) {
@@ -4625,6 +4626,20 @@ async function ensureChartJs() {
     document.head.appendChild(s);
   });
   return !!window.Chart;
+}
+function syncVol(v) {
+  let val = Number(v);
+
+  // permite escribir "-" temporalmente sin romper
+  if (Number.isNaN(val)) return;
+
+  val = Math.max(-100, Math.min(300, val));
+
+  const r = document.getElementById("factorVolForecast");
+  const n = document.getElementById("factorVolForecastNum");
+
+  if (r) r.value = String(val);
+  if (n) n.value = String(val);
 }
 
 function fixCanvasSize(id, h = 320) {
@@ -4778,32 +4793,130 @@ function verForecast(referencia, nombre = "", fabricante = "") {
         </section>
 
         <!-- TAB: ESCENARIOS -->
-        <section id="tab-escenarios" class="tab-section mt-4 hidden">
-          <div class="rounded-2xl p-4 bg-white/5 border border-white/10">
-            <p class="text-sm text-white/70 mb-3">🧪 Simulación rápida</p>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label class="text-xs text-white/60">Merma (%)</label>
-                <input id="mermaForecast" type="number" value="5" min="0" max="50"
-                  class="mt-1 w-full px-3 py-2 rounded-2xl bg-black/30 border border-white/10 text-white"/>
-              </div>
-              <div>
-                <label class="text-xs text-white/60">Factor volumen (%)</label>
-                <input id="factorVolForecast" type="number" value="0" min="-100" max="200"
-                  class="mt-1 w-full px-3 py-2 rounded-2xl bg-black/30 border border-white/10 text-white"/>
-              </div>
-              <div class="flex items-end">
-                <button id="btnSimularForecast" type="button"
-                  class="w-full px-4 py-2 rounded-2xl font-semibold bg-white/10 border border-white/10 hover:bg-white/15">
-                  ⚡ Simular
+          <section id="tab-escenarios" class="tab-section mt-4 hidden">
+
+            <!-- Simulación -->
+            <div class="rounded-2xl p-4 bg-white/5 border border-white/10">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <p class="text-sm text-white/70 mb-1">🧪 Simulación (Live)</p>
+                  <p class="text-xs text-white/50">
+                    Ajusta sliders y verás el impacto <span class="text-white/80 font-semibold">Base vs Escenario</span> en esta pestaña y en Resumen.
+                  </p>
+                </div>
+
+                <button type="button" id="btnVerImpactoResumen"
+                  class="shrink-0 px-3 py-2 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-xs text-white/85">
+                  👀 Ver impacto en Resumen
                 </button>
               </div>
+
+              <!-- CONTROLES (grid) -->
+              <div class="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+
+                <!-- Merma -->
+                <div class="rounded-2xl p-3 bg-black/20 border border-white/10">
+                  <div class="flex items-center justify-between">
+                    <label for="mermaForecast" class="text-xs text-white/60">
+                      Merma (%)
+                    </label>
+
+                    <div class="flex items-center gap-2">
+                      <input
+                        id="mermaForecastNum"
+                        type="number"
+                        value="10"
+                        min="0"
+                        max="50"
+                        step="1"
+                        class="w-20 px-2 py-1 rounded-xl bg-black/30 border border-white/5
+                              text-white text-xs text-right focus:outline-none focus:ring-1 focus:ring-teal-500"
+                      />
+                      <span class="text-xs text-white/50">%</span>
+                    </div>
+                  </div>
+
+                  <input
+                    id="mermaForecast"
+                    type="range"
+                    value="10"
+                    min="0"
+                    max="50"
+                    step="1"
+                    class="mt-2 w-full accent-teal-400"
+                  />
+
+                  <p class="mt-1 text-[11px] text-white/45">
+                    Impacta consumo efectivo y cobertura
+                  </p>
+                </div>
+
+
+                <!-- Factor volumen -->
+                <div class="rounded-2xl p-3 bg-black/20 border border-white/10">
+                  <div class="flex items-center justify-between">
+                    <label class="text-xs text-white/60">Volumen de Entrega (%)</label>
+                    <div class="flex items-center gap-2">
+                      <input id="factorVolForecastNum" type="text" inputmode="numeric" value="0"
+                        class="w-24 px-2 py-1 rounded-xl bg-black/30 border border-white/5 text-white text-xs text-right"/>
+                      <span class="text-xs text-white/50">%</span>
+                    </div>
+                  </div>
+                  <input id="factorVolForecast" type="range" value="0" min="-100" max="200" step="1"
+                    class="mt-2 w-full accent-teal-400"/>
+                </div>
+
+                <!-- Hint -->
+                <div class="flex items-end">
+                  <div id="scenarioLiveHint"
+                    class="w-full px-4 py-2 rounded-2xl bg-white/5 border border-white/10 text-xs text-white/70 text-center">
+                    ⚡ Live: ajusta sliders y se recalcula solo
+                  </div>
+                </div>
+
+              </div><!-- /grid -->
+
+              <p class="text-xs text-white/50 mt-3">
+                *Ej. Volumen de Entrega: -35 = recorte presupuestal 35%. 0 = entrega completa.
+              </p>
             </div>
-            <p class="text-xs text-white/50 mt-3">
-              *Factor volumen: -35 significa recorte 35%. 0 = sin evento.
-            </p>
-          </div>
-        </section>
+
+            <!-- Impacto -->
+            <div class="mt-4 rounded-2xl p-4 bg-black/30 border border-white/10">
+              <div class="flex items-center justify-between gap-3">
+                <p class="text-sm text-white/80 font-semibold">📌 Impacto del escenario</p>
+                <span id="scenarioBadge" class="text-xs text-white/60">Base vs Escenario</span>
+              </div>
+
+              <div id="scenarioImpactCards" class="mt-3 grid grid-cols-2 lg:grid-cols-4 gap-3"></div>
+
+              <div class="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div class="rounded-2xl p-3 bg-white/5 border border-white/10">
+                  <p class="text-xs text-white/60 mb-2">📉 Mini forecast comparativo (p50)</p>
+                  <div class="relative w-full h-[260px]">
+                    <canvas id="graficaEscenarioCompare" class="block w-full h-full"></canvas>
+                  </div>
+                  <div class="mt-4 rounded-2xl p-3">
+                    <p class="text-xs text-white/60 mb-2">🔮 Pronóstico completo (p10–p50–p90) • (Escenarios)</p>
+                    <div class="relative w-full h-[260px]">
+                      <canvas id="graficaForecastProEscenarios" class="block w-full h-full"></canvas>
+                    </div>
+                    </div>
+                </div>
+
+                <div class="rounded-2xl p-3 bg-white/5 border border-white/10">
+                  <p class="text-xs text-white/60 mb-2">🧠 Reglas activadas</p>
+                  <div id="scenarioRules" class="text-sm text-white/80"></div>
+
+                  <div class="mt-3 rounded-2xl bg-black/30 border border-white/10 p-3">
+                    <p class="text-xs text-white/60 mb-2">📊 Estadísticos del escenario</p>
+                    <div id="scenarioStats" class="text-xs text-white/70 whitespace-pre-wrap"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </section>
 
         <!-- TAB: EVIDENCIA -->
         <section id="tab-evidencia" class="tab-section mt-4 hidden">
@@ -4856,6 +4969,14 @@ function verForecast(referencia, nombre = "", fabricante = "") {
         b.classList.remove("bg-white/10","text-white");
         b.classList.add("bg-white/5","text-white/70");
       });
+            // ✅ Si el tab contiene charts, fuerza resize/update
+      setTimeout(() => {
+        try { window.graficaForecastInstance?.resize(); window.graficaForecastInstance?.update(); } catch {}
+        try { window.graficaForecastProInstance?.resize(); window.graficaForecastProInstance?.update(); } catch {}
+        try { window.graficaEscenarioCompareInstance?.resize(); window.graficaEscenarioCompareInstance?.update(); } catch {}
+        try { window.graficaForecastProEscenariosInstance?.resize(); window.graficaForecastProEscenariosInstance?.update(); } catch {}
+      }, 80);
+
       btn.classList.add("bg-white/10","text-white");
       btn.classList.remove("bg-white/5","text-white/70");
 
@@ -4863,25 +4984,113 @@ function verForecast(referencia, nombre = "", fabricante = "") {
       modal.querySelector(`#tab-${tab}`)?.classList.remove("hidden");
     });
   });
+  // Ir a Resumen desde Escenarios
+  modal.querySelector("#btnVerImpactoResumen")?.addEventListener("click", () => {
+    modal.querySelector('.tab-btn[data-tab="resumen"]')?.click();
+  });
 
   // Init defaults
   const horizonSel = modal.querySelector("#horizonForecast");
   if (horizonSel) horizonSel.value = String(Number(window.FORECAST_DEFAULT_HORIZON ?? 6));
 
-  // Listeners refresh
   const selectUnidad = modal.querySelector("#unidadForecast");
   const selectModelo = modal.querySelector("#modeloForecast");
-  const btnSim = modal.querySelector("#btnSimularForecast");
 
-  const refresh = async () => {
+  const mermaRange = modal.querySelector("#mermaForecast");
+  const mermaNum   = modal.querySelector("#mermaForecastNum");
+  const volRange   = modal.querySelector("#factorVolForecast");
+  const volNum     = modal.querySelector("#factorVolForecastNum");
+
+  const hint = modal.querySelector("#scenarioLiveHint");
+
+  const refreshNow = async () => {
+    if (hint) hint.textContent = "⚡ Recalculando…";
     await cargarForecastPro(referencia);
+    if (hint) hint.textContent = "✅ Listo (live)";
+  };
+  const refresh = debounce(refreshNow, 450);
+
+  // Sync merma
+  const syncMerma = (v) => {
+    const val = Math.max(0, Math.min(50, Number(v || 0)));
+    if (mermaRange) mermaRange.value = String(val);
+    if (mermaNum) mermaNum.value = String(val);
   };
 
-  selectUnidad?.addEventListener("change", refresh);
-  selectModelo?.addEventListener("change", refresh);
-  horizonSel?.addEventListener("change", refresh);
+  // Sync volumen
+  const VOL_MIN = -100;
+  const VOL_MAX = 300;
 
-  btnSim?.addEventListener("click", refresh);
+  const syncVol = (raw) => {
+    // ✅ permite escribir estados intermedios: "-", "", "-0", etc.
+    if (raw === "" || raw === "-" || raw === "-0") {
+      if (volNum) volNum.value = raw;
+      return;
+    }
+
+    let val = Number(raw);
+    if (!Number.isFinite(val)) return;
+
+    // clamp
+    val = Math.max(VOL_MIN, Math.min(VOL_MAX, val));
+
+    if (volRange) volRange.value = String(val);
+    if (volNum) volNum.value = String(val);
+  };
+
+  // Eventos (live)
+  // Volumen: slider (live)
+  volRange?.addEventListener("input", (e) => {
+    syncVol(e.target.value);
+    refresh();
+  });
+
+  // Volumen: input numérico (permite negativos y confirma con Enter/blur/change)
+  if (volNum) {
+    // Live mientras escribe (incluye "-", "" etc.)
+    volNum.addEventListener("input", (e) => {
+      syncVol(e.target.value);
+      refresh(); // debounce
+    });
+
+    // Enter = confirmar ya
+    volNum.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        // normaliza si quedó en "-" o ""
+        if (volNum.value === "" || volNum.value === "-") syncVol(0);
+        else syncVol(volNum.value);
+
+        refreshNow(); // inmediato
+        volNum.blur(); // opcional: “cierra” el input visualmente
+      }
+    });
+
+    // Blur = confirmar sí o sí
+    volNum.addEventListener("blur", () => {
+      if (volNum.value === "" || volNum.value === "-") syncVol(0);
+      else syncVol(volNum.value);
+
+      refreshNow(); // inmediato
+    });
+    
+    volNum?.addEventListener("beforeinput", (e) => {
+      if (e.data == null) return; // borrado, etc.
+      // permite dígitos y "-"
+      if (!/[\d-]/.test(e.data)) e.preventDefault();
+    });
+
+    // Change (fallback) = confirmar
+    volNum.addEventListener("change", () => {
+      if (volNum.value === "" || volNum.value === "-") syncVol(0);
+      else syncVol(volNum.value);
+
+      refreshNow();
+    });
+  }
+  // init sync (por si el DOM arranca con defaults)
+  syncMerma(mermaRange?.value ?? mermaNum?.value ?? 5);
+  syncVol(volRange?.value ?? volNum?.value ?? 0);
 
   // Load
   (async () => {
@@ -4897,6 +5106,8 @@ function verForecast(referencia, nombre = "", fabricante = "") {
     await wait2Frames();
     fixCanvasSize("graficaForecast", 320);
     fixCanvasSize("graficaForecastPro", 360);
+    fixCanvasSize("graficaEscenarioCompare", 260);
+    fixCanvasSize("graficaForecastProEscenarios", 320);
 
     await cargarForecastPro(referencia);
   })().catch((err) => {
@@ -4909,8 +5120,18 @@ function verForecast(referencia, nombre = "", fabricante = "") {
   });
 }
 window.verForecast = verForecast;
+// ===== Cache para comparar Base vs Escenario =====
+window.__forecastBaseCache = window.__forecastBaseCache || {}; // key -> data (respuesta completa)
+// ===== Cache + Anti-race (si no existen arriba, déjalos también) =====
+window.__forecastBaseCache = window.__forecastBaseCache || {}; // key -> respuesta completa
+window.__forecastReqId = window.__forecastReqId || 0;
 
-// ---------- Data + UI: Forecast PRO ----------
+/**
+ * Forecast PRO (base + escenario live)
+ * - Base: merma default + vol 0 (cacheado)
+ * - Escenario: merma slider + vol slider (live)
+ * - Renderiza Resumen y Escenarios (incluye gráficas)
+ */
 async function cargarForecastPro(ref) {
   console.groupCollapsed("📊 [Forecast PRO] cargarForecastPro");
   console.log("ref =", ref);
@@ -4918,10 +5139,26 @@ async function cargarForecastPro(ref) {
   const selectUnidad = document.getElementById("unidadForecast");
   const alerta = document.getElementById("alertaForecast");
 
-  const horizon = Number(document.getElementById("horizonForecast")?.value ?? (window.FORECAST_DEFAULT_HORIZON ?? 6));
-  const modelo  = String(document.getElementById("modeloForecast")?.value ?? "auto");
-  const mermaPct = Number(document.getElementById("mermaForecast")?.value ?? 5);
-  const factorVol = Number(document.getElementById("factorVolForecast")?.value ?? 0);
+  // Controles
+  const horizon = Number(
+    document.getElementById("horizonForecast")?.value ??
+    (window.FORECAST_DEFAULT_HORIZON ?? 6)
+  );
+
+  const modelo = String(
+    document.getElementById("modeloForecast")?.value ??
+    (window.FORECAST_DEFAULT_MODELO ?? "auto")
+  );
+
+  // Inputs escenario (usa los NUM para evitar jitter)
+  const mermaPct = Number(
+    document.getElementById("mermaForecastNum")?.value ??
+    (window.FORECAST_DEFAULT_MERMA_PCT ?? 10)
+  );
+
+  const factorVol = Number(
+    document.getElementById("factorVolForecastNum")?.value ?? 0
+  );
 
   if (!selectUnidad || !alerta) {
     console.warn("⚠️ [Forecast PRO] faltan elementos del DOM");
@@ -4929,109 +5166,283 @@ async function cargarForecastPro(ref) {
     return;
   }
 
+  const unidad = (selectUnidad.value || "TOTAL").trim();
+  const myReqId = ++window.__forecastReqId;
+
   try {
     alerta.classList.add("hidden");
     alerta.textContent = "";
 
-    // 1) Traer datos PRO desde Edge Function (SIN V2)
-    const url = `https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/forecast_producto` +
-      `?ref=${encodeURIComponent(ref)}` +
-      `&unidad=${encodeURIComponent(selectUnidad.value || "TOTAL")}` +
-      `&horizon=${encodeURIComponent(horizon)}` +
-      `&modelo=${encodeURIComponent(modelo)}` +
-      `&merma_pct=${encodeURIComponent(mermaPct)}` +
-      `&factor_vol_pct=${encodeURIComponent(factorVol)}`;
+    // =========================
+    // 1) BASE (cacheada)
+    // =========================
+    const baseKey = `${ref}__${unidad}__h${horizon}__m${modelo}__base`;
 
-    console.log("fetch =", url);
+    if (!window.__forecastBaseCache[baseKey]) {
+      const baseParams = {
+        unidad,
+        horizon,
+        modelo,
+        merma_pct: (window.FORECAST_DEFAULT_MERMA_PCT ?? 10), // base estable
+        factor_vol_pct: 0
+      };
 
-    const res = await fetch(url);
-
-    // Si falla HTTP, lee texto crudo y muéstralo
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      throw new Error(`HTTP ${res.status}: ${txt || "sin cuerpo"}`);
+      const baseData = await fetchForecastProData(ref, baseParams);
+      window.__forecastBaseCache[baseKey] = baseData;
     }
 
-    const data = await res.json().catch(() => ({}));
-    console.log("respuesta =", data);
+    const baseData = window.__forecastBaseCache[baseKey];
+    const basePro = baseData?.pro || null;
 
-    // Siempre pinta el JSON crudo en Logs (para que nunca sea “pantalla en blanco”)
+    // =========================
+    // 2) ESCENARIO (live)
+    // =========================
+    const scenParams = {
+      unidad,
+      horizon,
+      modelo,
+      merma_pct: mermaPct,
+      factor_vol_pct: factorVol
+    };
+
+    const data = await fetchForecastProData(ref, scenParams);
+    console.log("respuesta escenario =", data);
+
+    // anti-race: ignora respuestas viejas
+    if (myReqId !== window.__forecastReqId) {
+      console.warn("⏭️ Respuesta vieja ignorada", { myReqId, latest: window.__forecastReqId });
+      console.groupEnd();
+      return;
+    }
+
+    // Logs crudos (útiles para auditar)
     const logsEl = document.getElementById("logsForecast");
     if (logsEl) {
       logsEl.innerHTML = `<pre class="whitespace-pre-wrap bg-white/5 border border-white/10 rounded-2xl p-3">
-    ${escapeHtml(JSON.stringify(data, null, 2))}
-    </pre>`;
+${escapeHtml(JSON.stringify(data, null, 2))}
+</pre>`;
     }
 
-    // Si backend manda msg/debug, muéstralo arriba
     if (data?.msg) {
       alerta.textContent = String(data.msg);
       alerta.classList.remove("hidden");
     }
 
-    // Error explícito del backend
     if (data?.error) throw new Error(data.error);
 
-
-    // 2) Si el backend manda lista de unidades, llenar select de forma segura
-    // Esperado: data.unidades = ["HOSP A", "HOSP B", ...]
-    if (Array.isArray(data?.unidades)) {
-      const current = selectUnidad.value || "TOTAL";
-      selectUnidad.innerHTML = "";
-
-      const optTotal = document.createElement("option");
-      optTotal.value = "TOTAL";
-      optTotal.textContent = "Total (suma de consumo)";
-      selectUnidad.appendChild(optTotal);
-
-      data.unidades
-        .filter(u => !!u && String(u).trim().length)
-        .sort()
-        .forEach((u) => {
-          const opt = document.createElement("option");
-          opt.value = u;
-          opt.textContent = u;
-          selectUnidad.appendChild(opt);
-        });
-
-      // conservar selección si existe
-      selectUnidad.value = data.unidades.includes(current) ? current : "TOTAL";
-    }
-
-    // 3) Render UI (KPIs, charts, evidencia, entregas, logs)
     const pro = data?.pro || null;
-
     if (!pro) {
       alerta.textContent = "⚠️ Respuesta sin bloque PRO. Revisa backend.";
       alerta.classList.remove("hidden");
+      console.groupEnd();
       return;
     }
 
-    renderKpisForecast(pro);
-    renderGraficaConsumo(pro);
-    renderGraficaForecastPro(pro.series);
-    renderAccionForecast(pro);
-    renderMetricasYExplicabilidad(pro);
-    renderEvidenciaForecast(pro);
-    renderEntregasForecast(pro);
-    renderLogsForecast(pro);
+    // =========================
+    // 3) Aplicar Volumen de Entrega (visual/escenario)
+    // =========================
+    // Nota: NO alteramos hist; solo p10/p50/p90 para simular el evento sobre la demanda/entrega.
+    const seriesEsc = aplicarFactorVolumenSeries(pro.series, factorVol);
+    const scenPro = { ...pro, series: seriesEsc };
 
+    // =========================
+    // 4) Render global (Resumen + demás tabs)
+    // =========================
+    renderKpisForecast(scenPro);
+    renderGraficaConsumo(scenPro);
 
+    // ✅ Pronóstico completo en Resumen
+    renderGraficaForecastPro(scenPro.series, "graficaForecastPro");
+
+    // ✅ Pronóstico completo en Escenarios (mismo motor, canvas distinto)
+    renderGraficaForecastPro(scenPro.series, "graficaForecastProEscenarios");
+
+    renderAccionForecast(scenPro);
+    renderMetricasYExplicabilidad(scenPro);
+    renderEvidenciaForecast(scenPro);
+    renderEntregasForecast(scenPro);
+    renderLogsForecast(scenPro);
+
+    // =========================
+    // 5) Render especial: Escenarios (Base vs Escenario)
+    // =========================
+    if (basePro) {
+      // Importante: basePro no lleva factorVol del escenario
+      renderEscenariosTab({
+        basePro,
+        scenPro,
+        params: { unidad, horizon, modelo, mermaPct, factorVol }
+      });
+    } else {
+      document.getElementById("scenarioImpactCards")?.replaceChildren();
+      const rules = document.getElementById("scenarioRules");
+      if (rules) rules.innerHTML = `<div class="text-white/60">Sin base para comparar.</div>`;
+    }
 
   } catch (err) {
     console.error("❌ [Forecast PRO] Error:", err);
-    alerta.textContent = "❌ Error al cargar forecast: " + (err?.message || err);
-    alerta.classList.remove("hidden");
+    if (alerta) {
+      alerta.textContent = "❌ Error al cargar forecast: " + (err?.message || err);
+      alerta.classList.remove("hidden");
+    }
 
-    // limpia charts si existen
+    // opcional: reset charts si falló duro
     try { window.graficaForecastInstance?.destroy(); } catch {}
     try { window.graficaForecastProInstance?.destroy(); } catch {}
+    try { window.graficaEscenarioCompareInstance?.destroy(); } catch {}
+    try { window.graficaForecastProEscenariosInstance?.destroy(); } catch {}
+
     window.graficaForecastInstance = null;
     window.graficaForecastProInstance = null;
+    window.graficaEscenarioCompareInstance = null;
+    window.graficaForecastProEscenariosInstance = null;
 
   } finally {
     console.groupEnd();
   }
+}
+
+// (por compat, si lo ocupas en otro lado)
+window.cargarForecastPro = cargarForecastPro;
+window.cargarDatosForecastEdge = async (ref) => cargarForecastPro(ref);
+
+// Helper: arma URL y trae JSON
+async function fetchForecastProData(ref, params) {
+  const url =
+    `https://ldjrpfsbpcfninntffoj.supabase.co/functions/v1/forecast_producto` +
+    `?ref=${encodeURIComponent(ref)}` +
+    `&unidad=${encodeURIComponent(params.unidad || "TOTAL")}` +
+    `&horizon=${encodeURIComponent(params.horizon || (window.FORECAST_DEFAULT_HORIZON ?? 6))}` +
+    `&modelo=${encodeURIComponent(params.modelo || "auto")}` +
+    `&merma_pct=${encodeURIComponent(params.merma_pct ?? (window.FORECAST_DEFAULT_MERMA_PCT ?? 5))}` +
+    `&factor_vol_pct=${encodeURIComponent(params.factor_vol_pct ?? 0)}`;
+
+  const res = await fetch(url);
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`HTTP ${res.status}: ${txt || "sin cuerpo"}`);
+  }
+  return await res.json().catch(() => ({}));
+}
+// ===== Debounce + Anti-race =====
+function debounce(fn, wait = 450) {
+  let t = null;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), wait);
+  };
+}
+
+// id incremental para ignorar respuestas viejas
+window.__forecastReqId = window.__forecastReqId || 0;
+// ====== Escenarios: aplicar factor volumen SOLO al forecast (p10/p50/p90) ======
+function aplicarFactorVolumenSeries(series, factorVolPct) {
+  const f = 1 + (Number(factorVolPct || 0) / 100);
+  if (!Number.isFinite(f) || f <= 0) return series;
+
+  const mult = (arr) =>
+    Array.isArray(arr) ? arr.map(v => (v == null ? v : Math.round(Number(v) * f * 100) / 100)) : arr;
+
+  return {
+    ...series,
+    // histórico NO lo tocamos; solo el forecast para simular evento
+    p10: mult(series?.p10),
+    p50: mult(series?.p50),
+    p90: mult(series?.p90),
+  };
+}
+
+function n(v, fallback = null) {
+  const x = Number(v);
+  return Number.isFinite(x) ? x : fallback;
+}
+
+function fmtDelta(a, b, digits = 2) {
+  const A = n(a), B = n(b);
+  if (A == null || B == null) return "—";
+  const d = B - A;
+  const sign = d > 0 ? "+" : "";
+  const val = Math.round(d * Math.pow(10, digits)) / Math.pow(10, digits);
+  return `${sign}${val}`;
+}
+
+function firstForecastP50(series) {
+  const p50 = series?.p50;
+  if (!Array.isArray(p50) || !p50.length) return null;
+  return n(p50[0], null);
+}
+
+// ====== Render: Escenarios tab (cards + chart p50 base vs escenario) ======
+function renderEscenariosTab({ basePro, scenPro, params }) {
+  const cards = document.getElementById("scenarioImpactCards");
+  const rules = document.getElementById("scenarioRules");
+  const stats = document.getElementById("scenarioStats");
+  const badge = document.getElementById("scenarioBadge");
+
+  if (badge) {
+    badge.textContent = `Base vs Escenario • Merma ${params.mermaPct}% • Vol ${params.factorVol}%`;
+  }
+
+  // -------- Cards (deltas) --------
+  if (cards) {
+    const bK = basePro?.kpis || {};
+    const sK = scenPro?.kpis || {};
+
+    const bP50 = firstForecastP50(basePro?.series);
+    const sP50 = firstForecastP50(scenPro?.series);
+
+    const chip = (title, baseVal, scenVal, suffix = "") => `
+      <div class="rounded-2xl p-3 bg-white/5 border border-white/10">
+        <p class="text-xs text-white/60">${escapeHtml(title)}</p>
+        <div class="mt-1 flex items-baseline justify-between gap-2">
+          <p class="text-sm text-white/70">Base: <span class="text-white/90 font-semibold">${escapeHtml(baseVal ?? "—")}${suffix}</span></p>
+          <p class="text-sm text-white/70">Esc: <span class="text-white/90 font-semibold">${escapeHtml(scenVal ?? "—")}${suffix}</span></p>
+        </div>
+        <p class="mt-2 text-xs text-white/60">Δ ${escapeHtml(fmtDelta(baseVal, scenVal))}${suffix}</p>
+      </div>
+    `;
+
+    cards.innerHTML = [
+      chip("Forecast p50 (próx mes)", bP50, sP50, ""),
+      chip("Entrega sugerida", bK.entrega_sugerida_prox_mes, sK.entrega_sugerida_prox_mes, ""),
+      chip("Cobertura (meses)", bK.cobertura_meses, sK.cobertura_meses, " m"),
+      chip("Confianza", bK.confianza, sK.confianza, "/100"),
+    ].join("");
+  }
+
+  // -------- Rules + stats --------
+  if (rules) {
+    const bAcc = basePro?.recomendacion?.accion ?? "—";
+    const sAcc = scenPro?.recomendacion?.accion ?? "—";
+    const bRisk = basePro?.recomendacion?.riesgo?.nivel ?? "—";
+    const sRisk = scenPro?.recomendacion?.riesgo?.nivel ?? "—";
+
+    rules.innerHTML = `
+      <div class="rounded-2xl bg-black/30 border border-white/10 p-3">
+        <p class="text-xs text-white/60 mb-2">Acción / Riesgo</p>
+        <p class="text-sm text-white/80">Base: <span class="text-white font-semibold">${escapeHtml(bAcc)}</span> • Riesgo: <span class="text-white font-semibold">${escapeHtml(bRisk)}</span></p>
+        <p class="text-sm text-white/80 mt-1">Esc: <span class="text-white font-semibold">${escapeHtml(sAcc)}</span> • Riesgo: <span class="text-white font-semibold">${escapeHtml(sRisk)}</span></p>
+      </div>
+    `;
+  }
+
+  if (stats) {
+    const out = {
+      params,
+      base: {
+        p50_next: firstForecastP50(basePro?.series),
+        kpis: basePro?.kpis,
+      },
+      escenario: {
+        p50_next: firstForecastP50(scenPro?.series),
+        kpis: scenPro?.kpis,
+      },
+    };
+    stats.textContent = JSON.stringify(out, null, 2);
+  }
+
+  // -------- Chart p50 compare --------
+  renderGraficaEscenarioCompare(basePro?.series, scenPro?.series);
 }
 
 // ⚠️ Mantén compatibilidad por si en algún lado llamas a cargarDatosForecastEdge
@@ -5291,17 +5702,25 @@ function renderKpisForecast(pro) {
 function renderGraficaConsumo(pro) {
   const canvas = document.getElementById("graficaForecast");
   if (!canvas) return;
+
+  canvas.style.display = "block";
+  canvas.style.width = "100%";
+  canvas.style.height = "320px";
+  canvas.height = 320;
+
   const ctx = canvas.getContext("2d");
 
   const histL = pro?.series?.hist_labels || [];
   const histV = (pro?.series?.hist_values || []).map(v => Number(v) || 0);
+  if (!histL.length) return;
 
   if (window.graficaForecastInstance) {
-    try { window.graficaForecastInstance.destroy(); } catch {}
-    window.graficaForecastInstance = null;
+    const ch = window.graficaForecastInstance;
+    ch.data.labels = histL;
+    ch.data.datasets[0].data = histV;
+    ch.update();
+    return;
   }
-
-  if (!histL.length) return;
 
   window.graficaForecastInstance = new Chart(ctx, {
     type: "line",
@@ -5320,6 +5739,7 @@ function renderGraficaConsumo(pro) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      animation: { duration: 450, easing: "easeOutQuart" },
       plugins: {
         legend: { labels: { color: "#E5E7EB" } },
         title: { display: true, text: "Consumo mensual", color: "#E5E7EB" }
@@ -5331,15 +5751,23 @@ function renderGraficaConsumo(pro) {
     }
   });
 }
-
-
-
-// Forecast PRO con banda p10-p90
-function renderGraficaForecastPro(series) {
+function fadeAlpha(index, total, { min = 0.18, max = 1, power = 1.35 } = {}) {
+  if (total <= 1) return max;
+  const t = Math.max(0, Math.min(1, index / (total - 1)));
+  const eased = Math.pow(t, power);
+  return min + (max - min) * eased;
+}
+function renderGraficaForecastPro(series, canvasId = "graficaForecastPro") {
   try {
-    const canvas = document.getElementById("graficaForecastPro");
+    const canvas = document.getElementById(canvasId);
     if (!canvas) return;
 
+    if (!window.Chart) {
+      console.warn("⚠️ Chart.js no está cargado");
+      return;
+    }
+
+    // Tamaño (si tab estaba hidden)
     canvas.style.display = "block";
     canvas.style.width = "100%";
     canvas.style.height = "360px";
@@ -5348,81 +5776,183 @@ function renderGraficaForecastPro(series) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    if (!window.Chart) {
-      console.warn("⚠️ Chart.js no está cargado");
-      return;
-    }
-
     const histLabels = series?.hist_labels || [];
-    const histValues = series?.hist_values || [];
+    const histValues = (series?.hist_values || []).map(v => toNum(v));
+
     const fcLabels = series?.fc_labels || [];
-    const p10 = series?.p10 || [];
-    const p50 = series?.p50 || [];
-    const p90 = series?.p90 || [];
+    const p10F = (series?.p10 || []).map(v => toNum(v));
+    const p50F = (series?.p50 || []).map(v => toNum(v));
+    const p90F = (series?.p90 || []).map(v => toNum(v));
 
     if (!histLabels.length) {
       console.warn("⚠️ Sin hist_labels");
       return;
     }
 
+    const histLen = histLabels.length;
+    const futLen = fcLabels.length;
+
+    // Labels globales
     const labels = [...histLabels, ...fcLabels];
-    const histFull = [...histValues, ...Array(fcLabels.length).fill(null)];
-    const padPast = Array(histLabels.length).fill(null);
 
-    const p10Full = [...padPast, ...p10];
-    const p50Full = [...padPast, ...p50];
-    const p90Full = [...padPast, ...p90];
+    // Serie real
+    const realFull = [...histValues, ...Array(futLen).fill(null)];
 
-    if (window.graficaForecastProInstance) {
-      try { window.graficaForecastProInstance.destroy(); } catch {}
-      window.graficaForecastProInstance = null;
+    // ===== FITTED HISTÓRICO =====
+    const ma = (arr, i, w) => {
+      const a = arr.slice(Math.max(0, i - w + 1), i + 1);
+      return a.length ? mean(a) : null;
+    };
+
+    const fittedHist = histValues.map((v, i) => {
+      if (i >= 12) return histValues[i - 12];
+      const m = ma(histValues, i, 6);
+      return m == null ? histValues[i] : m;
+    });
+
+    // Banda histórica: usa ancho promedio del forecast futuro
+    const wUp = mean(p90F.map((v, i) => v - (p50F[i] ?? 0)).filter(isFiniteNum)) || 0;
+    const wDn = mean(p50F.map((v, i) => (p50F[i] ?? 0) - (p10F[i] ?? 0)).filter(isFiniteNum)) || 0;
+
+    const fittedP50Hist = fittedHist.map(x => round2(x));
+    const fittedP10Hist = fittedHist.map(x => round2(Math.max(0, x - wDn)));
+    const fittedP90Hist = fittedHist.map(x => round2(Math.max(0, x + wUp)));
+
+    // Full (hist fitted + futuro)
+    const p50Full = [...fittedP50Hist, ...p50F.map(round2)];
+    const p10Full = [...fittedP10Hist, ...p10F.map(round2)];
+    const p90Full = [...fittedP90Hist, ...p90F.map(round2)];
+
+    // ===== Fade solo en histórico =====
+    const alphaFor = (idx, { min, max, power }) => {
+      if (idx >= histLen) return max; // futuro full visible
+      return fadeAlpha(idx, histLen, { min, max, power });
+    };
+
+    // Instancia por canvas
+    const instanceKey =
+      canvasId === "graficaForecastProEscenarios"
+        ? "graficaForecastProEscenariosInstance"
+        : "graficaForecastProInstance";
+
+    // ✅ MORPH
+    if (window[instanceKey]) {
+      const ch = window[instanceKey];
+      const oldCanvas = ch?.canvas;
+
+      if (!oldCanvas || !oldCanvas.isConnected || oldCanvas.id !== canvasId) {
+        try { ch.destroy(); } catch {}
+        window[instanceKey] = null;
+      } else {
+        ch.data.labels = labels;
+        ch.data.datasets[0].data = realFull;
+        ch.data.datasets[1].data = p10Full;
+        ch.data.datasets[2].data = p90Full;
+        ch.data.datasets[3].data = p50Full;
+
+        // importante: para que Chart recalcule bien los callbacks
+        ch.update();
+        setTimeout(() => { try { ch.resize(); ch.update(); } catch {} }, 80);
+        return;
+      }
     }
 
-    window.graficaForecastProInstance = new Chart(ctx, {
+    // ✅ CREAR
+    window[instanceKey] = new Chart(ctx, {
       type: "line",
       data: {
         labels,
         datasets: [
+          // 0) Real
           {
-            label: "Histórico",
-            data: histFull,
+            label: "Histórico (real)",
+            data: realFull,
             tension: 0.3,
             pointRadius: 2,
             borderColor: "#02c7ca",
-            backgroundColor: "rgba(2,199,202,0.10)",
+            backgroundColor: "rgba(2,199,202,0.08)",
             fill: true,
-            spanGaps: true
+            spanGaps: true,
+            order: 1
           },
+
+          // 1) p10
           {
-            label: "p10",
+            label: "p10 (modelo)",
             data: p10Full,
             tension: 0.3,
             pointRadius: 0,
-            borderColor: "rgba(255,255,255,0.25)",
-            backgroundColor: "rgba(255,255,255,0)",
+            borderWidth: 2,
+
+            // ✅ color estable en leyenda
+            borderColor: "rgba(255,255,255,0.35)",
+            backgroundColor: "rgba(0,0,0,0)",
             fill: false,
-            spanGaps: true
+            spanGaps: true,
+            order: 2,
+
+            segment: {
+              borderColor: (seg) => {
+                const i = seg.p0DataIndex ?? 0;
+                const a = alphaFor(i, { min: 0.05, max: 0.35, power: 1.2 });
+                return `rgba(255,255,255,${a})`;
+              }
+            }
           },
+
+          // 2) p90 con fill hacia p10
           {
-            label: "p90 (banda)",
+            label: "Banda p10–p90",
             data: p90Full,
             tension: 0.3,
             pointRadius: 0,
-            borderColor: "rgba(255,255,255,0.25)",
-            backgroundColor: "rgba(255,255,255,0.12)",
-            fill: "-1",
-            spanGaps: true
+            borderWidth: 2,
+
+            // ✅ leyenda estable
+            borderColor: "rgba(255,255,255,0.35)",
+
+            // ✅ AQUÍ está la magia: el fill necesita backgroundColor propio
+            backgroundColor: (c) => {
+              const i = c.dataIndex ?? 0;
+              const a = alphaFor(i, { min: 0.02, max: 0.36, power: 1.25 });
+              return `rgba(255,255,255,${a})`;
+            },
+
+            fill: { target: 1 }, // hacia p10
+            spanGaps: true,      // importante para que la banda no se rompa por nulls
+            order: 3,
+
+            segment: {
+              borderColor: (seg) => {
+                const i = seg.p0DataIndex ?? 0;
+                const a = alphaFor(i, { min: 0.05, max: 0.35, power: 1.2 });
+                return `rgba(255,255,255,${a})`;
+              }
+            }
           },
+
+          // 3) p50
           {
-            label: "Forecast p50",
+            label: "Forecast p50 (modelo)",
             data: p50Full,
             tension: 0.3,
-            pointRadius: 2,
+            pointRadius: 0,
             borderWidth: 3,
-            borderColor: "#cca300",
+
+            // ✅ leyenda estable
+            borderColor: "rgba(204,163,0,1)",
             backgroundColor: "rgba(204,163,0,0.08)",
             fill: false,
-            spanGaps: true
+            spanGaps: true,
+            order: 4,
+
+            segment: {
+              borderColor: (seg) => {
+                const i = seg.p0DataIndex ?? 0;
+                const a = alphaFor(i, { min: 0.12, max: 1, power: 1.3 });
+                return `rgba(204,163,0,${a})`;
+              }
+            }
           }
         ]
       },
@@ -5430,30 +5960,49 @@ function renderGraficaForecastPro(series) {
         responsive: true,
         maintainAspectRatio: false,
         interaction: { mode: "index", intersect: false },
+
+        animation: { duration: 450, easing: "easeOutQuart" },
+
+        layout: { padding: { left: 10, right: 16, top: 8, bottom: 8 } },
+        clip: 0,
+
         plugins: {
           legend: { position: "top", labels: { color: "#E5E7EB" } },
-          title: { display: true, text: "Pronóstico (banda p10–p90)", color: "#E5E7EB" },
+          title: {
+            display: true,
+            text: "Pronóstico (p10–p50–p90) sobre toda la serie",
+            color: "#E5E7EB"
+          },
           tooltip: { mode: "index", intersect: false }
         },
         scales: {
-          x: { ticks: { color: "#CBD5E1", maxRotation: 45, minRotation: 30 }, grid: { color: "rgba(255,255,255,0.08)" } },
-          y: { beginAtZero: true, ticks: { color: "#CBD5E1", precision: 0 }, grid: { color: "rgba(255,255,255,0.08)" } }
+          x: {
+            ticks: { color: "#CBD5E1", maxRotation: 45, minRotation: 30 },
+            grid: { color: "rgba(255,255,255,0.08)" }
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { color: "#CBD5E1", precision: 0 },
+            grid: { color: "rgba(255,255,255,0.08)" }
+          }
         }
       }
     });
 
     setTimeout(() => {
-      try {
-        window.graficaForecastProInstance?.resize();
-        window.graficaForecastProInstance?.update();
-      } catch {}
+      try { window[instanceKey]?.resize(); window[instanceKey]?.update(); } catch {}
     }, 80);
 
   } catch (e) {
     console.error("❌ renderGraficaForecastPro falló:", e);
   }
-}
 
+  // Helpers locales
+  function toNum(v) { const n = Number(v); return Number.isFinite(n) ? n : 0; }
+  function mean(arr) { return arr.length ? arr.reduce((s, x) => s + x, 0) / arr.length : 0; }
+  function round2(x) { return Math.round((toNum(x)) * 100) / 100; }
+  function isFiniteNum(x) { return typeof x === "number" && Number.isFinite(x); }
+}
 
 
 function renderAccionForecast(pro) {
@@ -5496,7 +6045,6 @@ function renderAccionForecast(pro) {
     ` : ""}
   `;
 }
-
 
 function renderMetricasYExplicabilidad(pro) {
   const met = document.getElementById("metricasForecast");
@@ -5608,7 +6156,179 @@ function renderLogsForecast(pro) {
   wrap.textContent = JSON.stringify(payload, null, 2);
 }
 
+function fmtNum(x, d = 2) {
+  const n = Number(x);
+  if (!Number.isFinite(n)) return "—";
+  return n.toFixed(d);
+}
 
+function fmtPct(x, d = 1) {
+  const n = Number(x);
+  if (!Number.isFinite(n)) return "—";
+  return `${n.toFixed(d)}%`;
+}
+
+function delta(a, b) {
+  const na = Number(a), nb = Number(b);
+  if (!Number.isFinite(na) || !Number.isFinite(nb)) return null;
+  return nb - na;
+}
+
+function deltaPct(a, b) {
+  const na = Number(a), nb = Number(b);
+  if (!Number.isFinite(na) || !Number.isFinite(nb) || na === 0) return null;
+  return ((nb - na) / na) * 100;
+}
+
+function arrow(d) {
+  if (d == null) return "";
+  if (d > 0) return "▲";
+  if (d < 0) return "▼";
+  return "•";
+}
+
+function badgeDelta(a, b, unit = "") {
+  const d = delta(a, b);
+  const p = deltaPct(a, b);
+
+  const aTxt = (a == null ? "—" : a);
+  const bTxt = (b == null ? "—" : b);
+
+  let sub = "";
+  if (p != null) sub = `${arrow(p)} ${fmtPct(p)}`;
+  else if (d != null) sub = `${arrow(d)} ${fmtNum(d)}${unit}`;
+
+  return { aTxt, bTxt, sub };
+}
+
+function renderGraficaEscenarioCompare(basePro, scenPro) {
+  const canvas = document.getElementById("graficaEscenarioCompare");
+  if (!canvas) return;
+
+  if (!window.Chart) {
+    console.warn("⚠️ Chart.js no está cargado (escenario)");
+    return;
+  }
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  const base = basePro?.series || basePro || {};
+  const scen = scenPro?.series || scenPro || {};
+
+  const labels = (scen.fc_labels?.length ? scen.fc_labels : (base.fc_labels || [])) || [];
+  const baseP50 = (base.p50 || []).slice(0, labels.length).map(v => {
+  const n = Number(v);
+    return Number.isFinite(n) ? n : null; // ✅ null, no 0
+  });
+  const scenP50 = (scen.p50 || []).slice(0, labels.length).map(v => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null; // ✅ null, no 0
+  });
+
+  if (!labels.length) {
+    console.warn("⚠️ Sin fc_labels para comparar en escenarios");
+    return;
+  }
+
+  // Asegura tamaño (por si el tab estaba hidden)
+  canvas.style.display = "block";
+  canvas.style.width = "100%";
+  canvas.style.height = "260px";
+  canvas.height = 260;
+
+  // =========================
+  // ✅ RANGO DINÁMICO (NO 0)
+  // =========================
+  const all = [...baseP50, ...scenP50].filter(v => typeof v === "number" && Number.isFinite(v));
+  const minV = Math.min(...all);
+  const maxV = Math.max(...all);
+
+  // padding relativo + mínimo absoluto para evitar zoom extremo cuando todo es igual
+  const span = Math.max(1e-9, (maxV - minV));
+  const padRel = span * 0.15;         // 15% del rango
+  const padAbs = Math.max(1, maxV * 0.01); // 1% del nivel (mínimo 1)
+
+  const pad = Math.max(padRel, padAbs);
+  const suggestedMin = Math.max(0, minV - pad);
+  const suggestedMax = maxV + pad;
+
+  // ✅ MORPH: si ya existe, actualiza y anima (no destruir)
+  if (window.graficaEscenarioCompareInstance) {
+    const ch = window.graficaEscenarioCompareInstance;
+    ch.data.labels = labels;
+    ch.data.datasets[0].data = baseP50;
+    ch.data.datasets[1].data = scenP50;
+
+    // aplica rango dinámico
+    ch.options.scales.y.beginAtZero = false;
+    ch.options.scales.y.min = suggestedMin;   // ✅ forzado
+    ch.options.scales.y.max = suggestedMax;   // ✅ forzado
+
+    ch.update();
+    setTimeout(() => { try { ch.resize(); ch.update(); } catch {} }, 80);
+    return;
+  }
+
+  // ✅ Crear SOLO una vez
+  window.graficaEscenarioCompareInstance = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Base (p50)",
+          data: baseP50,
+          tension: 0.3,
+          pointRadius: 2,
+          borderWidth: 2
+        },
+        {
+          label: "Escenario (p50)",
+          data: scenP50,
+          tension: 0.3,
+          pointRadius: 2,
+          borderWidth: 3
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+
+      // ✅ morph suave
+      animation: { duration: 450, easing: "easeOutQuart" },
+      transitions: {
+        active: { animation: { duration: 450 } },
+        resize: { animation: { duration: 0 } }
+      },
+
+      plugins: {
+        legend: { labels: { color: "#E5E7EB" } },
+        tooltip: { mode: "index", intersect: false }
+      },
+      scales: {
+        x: { ticks: { color: "#CBD5E1" }, grid: { color: "rgba(255,255,255,0.08)" } },
+        y: {
+          beginAtZero: false,
+          min: suggestedMin,   // ✅ forzado
+          max: suggestedMax,   // ✅ forzado
+          ticks: { color: "#CBD5E1", precision: 0 },
+          grid: { color: "rgba(255,255,255,0.08)" }
+        }
+      }
+    }
+  });
+
+  // Nudge por tab hidden->visible
+  setTimeout(() => {
+    try {
+      window.graficaEscenarioCompareInstance?.resize();
+      window.graficaEscenarioCompareInstance?.update();
+    } catch {}
+  }, 80);
+}
 
 // ---------- Chart: Regresión móvil + suavizado (pronóstico) ----------
 function graficarRegresionLineal(labelsHist, valoresHist) {
