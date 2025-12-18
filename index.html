@@ -42,6 +42,14 @@
   --radius: 24px;
   --radius-sm: 16px;
 }
+.dial { width: 140px; height: 140px; touch-action: none; }
+.dial svg { width: 100%; height: 100%; overflow: visible; }
+.dial .bg { stroke: rgba(255,255,255,0.10); }
+.dial .track { stroke: rgba(2,199,202,0.20); }
+.dial .value { stroke: rgba(204,163,0,0.95); filter: drop-shadow(0 0 10px rgba(204,163,0,0.25)); }
+.dial .knob { fill: rgba(255,255,255,0.85); }
+.dial .txt { fill: rgba(229,231,235,0.9); font: 700 16px system-ui; }
+.dial .sub { fill: rgba(203,213,225,0.65); font: 12px system-ui; }
 
 /* =========================
    Base
@@ -4814,56 +4822,31 @@ function verForecast(referencia, nombre = "", fabricante = "") {
               <!-- CONTROLES (grid) -->
               <div class="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
 
-                <!-- Merma -->
+                
+                <!-- MERMA radial -->
                 <div class="rounded-2xl p-3 bg-black/20 border border-white/10">
                   <div class="flex items-center justify-between">
-                    <label for="mermaForecast" class="text-xs text-white/60">
-                      Merma (%)
-                    </label>
-
-                    <div class="flex items-center gap-2">
-                      <input
-                        id="mermaForecastNum"
-                        type="number"
-                        value="10"
-                        min="0"
-                        max="50"
-                        step="1"
-                        class="w-20 px-2 py-1 rounded-xl bg-black/30 border border-white/5
-                              text-white text-xs text-right focus:outline-none focus:ring-1 focus:ring-teal-500"
-                      />
-                      <span class="text-xs text-white/50">%</span>
-                    </div>
+                    <label class="text-xs text-white/60">Merma (%)</label>
+                    <input id="mermaForecastNum" type="number" value="10" min="0" max="50" step="1"
+                      class="w-20 px-2 py-1 rounded-xl bg-black/30 border border-white/5 text-white text-xs text-right" />
                   </div>
 
-                  <input
-                    id="mermaForecast"
-                    type="range"
-                    value="10"
-                    min="0"
-                    max="50"
-                    step="1"
-                    class="mt-2 w-full accent-teal-400"
-                  />
-
-                  <p class="mt-1 text-[11px] text-white/45">
-                    Impacta consumo efectivo y cobertura
-                  </p>
+                  <div class="mt-3 grid place-items-center">
+                    <div id="dialMerma" class="dial" data-min="0" data-max="50" data-step="1" data-value="10"></div>
+                  </div>
                 </div>
 
-
-                <!-- Factor volumen -->
+                <!-- VOLUMEN radial -->
                 <div class="rounded-2xl p-3 bg-black/20 border border-white/10">
                   <div class="flex items-center justify-between">
                     <label class="text-xs text-white/60">Volumen de Entrega (%)</label>
-                    <div class="flex items-center gap-2">
-                      <input id="factorVolForecastNum" type="text" inputmode="numeric" value="0"
-                        class="w-24 px-2 py-1 rounded-xl bg-black/30 border border-white/5 text-white text-xs text-right"/>
-                      <span class="text-xs text-white/50">%</span>
-                    </div>
+                    <input id="factorVolForecastNum" type="text" inputmode="numeric" value="0"
+                      class="w-24 px-2 py-1 rounded-xl bg-black/30 border border-white/5 text-white text-xs text-right" />
                   </div>
-                  <input id="factorVolForecast" type="range" value="0" min="-100" max="200" step="1"
-                    class="mt-2 w-full accent-teal-400"/>
+
+                  <div class="mt-3 grid place-items-center">
+                    <div id="dialVol" class="dial" data-min="-100" data-max="300" data-step="1" data-value="0"></div>
+                  </div>
                 </div>
 
                 <!-- Hint -->
@@ -5010,87 +4993,135 @@ function verForecast(referencia, nombre = "", fabricante = "") {
   };
   const refresh = debounce(refreshNow, 450);
 
-  // Sync merma
-  const syncMerma = (v) => {
-    const val = Math.max(0, Math.min(50, Number(v || 0)));
-    if (mermaRange) mermaRange.value = String(val);
-    if (mermaNum) mermaNum.value = String(val);
-  };
+ // Sync merma
+const syncMerma = (v) => {
+  const val = Math.max(0, Math.min(50, Number(v || 0)));
+  if (mermaRange) mermaRange.value = String(val);
+  if (mermaNum) mermaNum.value = String(val);
+};
 
-  // Sync volumen
-  const VOL_MIN = -100;
-  const VOL_MAX = 300;
+// Sync volumen  ✅ (DECLÁRALA ANTES)
+const VOL_MIN = -100;
+const VOL_MAX = 300;
 
-  const syncVol = (raw) => {
-    // ✅ permite escribir estados intermedios: "-", "", "-0", etc.
-    if (raw === "" || raw === "-" || raw === "-0") {
-      if (volNum) volNum.value = raw;
+const syncVol = (raw, { commit = false } = {}) => {
+  const s = String(raw ?? "").trim();
+
+  // permite estados intermedios mientras escribe
+  if (!commit && (s === "" || s === "-" || s === "-0")) {
+    if (volNum) volNum.value = s;
+    return;
+  }
+
+  // al confirmar, normaliza vacíos a 0
+  if (commit && (s === "" || s === "-")) {
+    if (volNum) volNum.value = "0";
+    if (volRange) volRange.value = "0";
+    return;
+  }
+
+  const valNum = Number(s);
+  if (!Number.isFinite(valNum)) return;
+
+  const val = Math.max(VOL_MIN, Math.min(VOL_MAX, valNum));
+
+  if (volRange) volRange.value = String(val);
+  if (volNum) volNum.value = String(val);
+};
+
+// ====== Diales (después de syncVol) ======
+const dialMermaEl = modal.querySelector("#dialMerma");
+const dialVolEl   = modal.querySelector("#dialVol");
+
+const mermaDial = createRadialDial(dialMermaEl, {
+  label: "Merma",
+  onChange: (v) => { syncMerma(v); refresh(); }
+});
+
+const volDial = createRadialDial(dialVolEl, {
+  label: "Volumen",
+  onChange: (v) => { syncVol(v, { commit: true }); refresh(); }
+});
+
+// Input manual mueve dial
+mermaNum?.addEventListener("input", (e) => {
+  syncMerma(e.target.value);
+  mermaDial?.set(Number(e.target.value || 0));
+  refresh();
+});
+
+if (volNum) {
+  // ✅ que el teclado permita "-"
+  volNum.setAttribute("inputmode", "text"); // mejor que numeric para permitir "-"
+  volNum.setAttribute("autocomplete", "off");
+  volNum.setAttribute("spellcheck", "false");
+
+  // ✅ filtro: solo un "-" y solo al inicio
+  volNum.addEventListener("beforeinput", (e) => {
+    if (e.data == null) return; // borrado, etc.
+    const data = e.data;
+
+    // permite dígitos
+    if (/^\d$/.test(data)) return;
+
+    // permite "-" SOLO si quedará al inicio
+    if (data === "-") {
+      const start = volNum.selectionStart ?? 0;
+      const end   = volNum.selectionEnd ?? 0;
+      const next = volNum.value.slice(0, start) + "-" + volNum.value.slice(end);
+
+      // válido si "-" está solo al inicio y solo una vez
+      if (!/^-?\d*$/.test(next)) e.preventDefault();
       return;
     }
 
-    let val = Number(raw);
-    if (!Number.isFinite(val)) return;
+    // bloquea todo lo demás
+    e.preventDefault();
+  });
 
-    // clamp
-    val = Math.max(VOL_MIN, Math.min(VOL_MAX, val));
-
-    if (volRange) volRange.value = String(val);
-    if (volNum) volNum.value = String(val);
-  };
-
-  // Eventos (live)
-  // Volumen: slider (live)
-  volRange?.addEventListener("input", (e) => {
-    syncVol(e.target.value);
+  // Live mientras escribe
+  volNum.addEventListener("input", (e) => {
+    syncVol(e.target.value, { commit: false });
+    const n = Number(e.target.value);
+    if (Number.isFinite(n)) volDial?.set(n);
     refresh();
   });
 
-  // Volumen: input numérico (permite negativos y confirma con Enter/blur/change)
-  if (volNum) {
-    // Live mientras escribe (incluye "-", "" etc.)
-    volNum.addEventListener("input", (e) => {
-      syncVol(e.target.value);
-      refresh(); // debounce
-    });
-
-    // Enter = confirmar ya
-    volNum.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        // normaliza si quedó en "-" o ""
-        if (volNum.value === "" || volNum.value === "-") syncVol(0);
-        else syncVol(volNum.value);
-
-        refreshNow(); // inmediato
-        volNum.blur(); // opcional: “cierra” el input visualmente
-      }
-    });
-
-    // Blur = confirmar sí o sí
-    volNum.addEventListener("blur", () => {
-      if (volNum.value === "" || volNum.value === "-") syncVol(0);
-      else syncVol(volNum.value);
-
-      refreshNow(); // inmediato
-    });
-    
-    volNum?.addEventListener("beforeinput", (e) => {
-      if (e.data == null) return; // borrado, etc.
-      // permite dígitos y "-"
-      if (!/[\d-]/.test(e.data)) e.preventDefault();
-    });
-
-    // Change (fallback) = confirmar
-    volNum.addEventListener("change", () => {
-      if (volNum.value === "" || volNum.value === "-") syncVol(0);
-      else syncVol(volNum.value);
-
+  // Enter = commit inmediato
+  volNum.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      syncVol(volNum.value, { commit: true });
+      const n = Number(volNum.value);
+      if (Number.isFinite(n)) volDial?.set(n);
       refreshNow();
-    });
-  }
-  // init sync (por si el DOM arranca con defaults)
-  syncMerma(mermaRange?.value ?? mermaNum?.value ?? 5);
-  syncVol(volRange?.value ?? volNum?.value ?? 0);
+      volNum.blur();
+    }
+  });
+
+  // Blur = commit sí o sí
+  volNum.addEventListener("blur", () => {
+    syncVol(volNum.value, { commit: true });
+    const n = Number(volNum.value);
+    if (Number.isFinite(n)) volDial?.set(n);
+    refreshNow();
+  });
+
+  // Change fallback
+  volNum.addEventListener("change", () => {
+    syncVol(volNum.value, { commit: true });
+    const n = Number(volNum.value);
+    if (Number.isFinite(n)) volDial?.set(n);
+    refreshNow();
+  });
+}
+
+// Range volumen mueve dial
+volRange?.addEventListener("input", (e) => {
+  syncVol(e.target.value, { commit: true });
+  volDial?.set(Number(e.target.value));
+  refresh();
+});
 
   // Load
   (async () => {
@@ -5331,6 +5362,176 @@ function debounce(fn, wait = 450) {
     clearTimeout(t);
     t = setTimeout(() => fn(...args), wait);
   };
+}
+function createRadialDial(el, {
+  min, max, step,
+  value,
+  onChange,
+  label = ""
+} = {}) {
+  if (!el) return;
+
+  // Config desde data-attrs si no lo pasan
+  min = (min ?? Number(el.dataset.min ?? 0));
+  max = (max ?? Number(el.dataset.max ?? 100));
+  step = (step ?? Number(el.dataset.step ?? 1));
+  value = (value ?? Number(el.dataset.value ?? min));
+
+  // Dial: arco de 270° (de -225° a +45°)
+  const startDeg = -225, endDeg = 45;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const snap = (v) => Math.round(v / step) * step;
+
+  const size = 140, cx = 70, cy = 70, r = 52;
+  const strokeW = 10;
+
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", `0 0 ${size} ${size}`);
+
+  const mkCircle = (cls) => {
+    const c = document.createElementNS(svg.namespaceURI, "circle");
+    c.setAttribute("class", cls);
+    c.setAttribute("cx", cx);
+    c.setAttribute("cy", cy);
+    c.setAttribute("r", r);
+    c.setAttribute("fill", "none");
+    c.setAttribute("stroke-width", strokeW);
+    c.setAttribute("stroke-linecap", "round");
+    return c;
+  };
+
+  const bg = mkCircle("bg");
+  const track = mkCircle("track");
+  const val = mkCircle("value");
+
+  // stroke-dash para recortar el círculo a 270°
+  const circ = 2 * Math.PI * r;
+  const arc = circ * (270 / 360);
+  const gap = circ - arc;
+
+  [track, val].forEach(c => {
+    c.style.strokeDasharray = `${arc} ${gap}`;
+    c.style.strokeDashoffset = `${circ * ( (360-270)/360 )}`; // posiciona el arco
+    c.style.transformOrigin = "50% 50%";
+    c.style.transform = "rotate(-135deg)"; // alinea inicio
+  });
+
+  bg.style.opacity = "0.25";
+
+  // texto central
+  const tVal = document.createElementNS(svg.namespaceURI, "text");
+  tVal.setAttribute("class", "txt");
+  tVal.setAttribute("x", cx);
+  tVal.setAttribute("y", cy + 6);
+  tVal.setAttribute("text-anchor", "middle");
+
+  const tSub = document.createElementNS(svg.namespaceURI, "text");
+  tSub.setAttribute("class", "sub");
+  tSub.setAttribute("x", cx);
+  tSub.setAttribute("y", cy + 26);
+  tSub.setAttribute("text-anchor", "middle");
+  tSub.textContent = label;
+
+  // knob
+  const knob = document.createElementNS(svg.namespaceURI, "circle");
+  knob.setAttribute("class", "knob");
+  knob.setAttribute("r", 5);
+
+  svg.appendChild(bg);
+  svg.appendChild(track);
+  svg.appendChild(val);
+  svg.appendChild(knob);
+  svg.appendChild(tVal);
+  svg.appendChild(tSub);
+  el.innerHTML = "";
+  el.appendChild(svg);
+
+  const setByValue = (v, emit = true) => {
+    v = snap(clamp(v, min, max));
+    value = v;
+    el.dataset.value = String(v);
+
+    // porcentaje dentro del arco
+    const p = (v - min) / (max - min || 1);
+    const dash = arc * p;
+
+    val.style.strokeDasharray = `${dash} ${circ - dash}`;
+
+    // knob position (sobre arco 270°)
+    const deg = startDeg + p * (endDeg - startDeg);
+    const rad = (deg * Math.PI) / 180;
+    const kx = cx + Math.cos(rad) * r;
+    const ky = cy + Math.sin(rad) * r;
+    knob.setAttribute("cx", kx);
+    knob.setAttribute("cy", ky);
+
+    tVal.textContent = String(v);
+
+    if (emit && typeof onChange === "function") onChange(v);
+  };
+
+  const valueFromPointer = (clientX, clientY) => {
+    const rect = svg.getBoundingClientRect();
+    const x = clientX - rect.left - rect.width / 2;
+    const y = clientY - rect.top - rect.height / 2;
+
+    let ang = Math.atan2(y, x) * 180 / Math.PI; // -180..180
+    // normaliza para que el arco sea continuo
+    if (ang < -180) ang += 360;
+
+    // Mapea ángulo al rango del arco
+    // Convertimos a [startDeg..endDeg] con wrap
+    let a = ang;
+    // forzamos a la ventana más cercana del arco
+    const within = (deg) => {
+      // arco: -225..45 (equivalente a 135..360 y 0..45)
+      const d = (deg + 360) % 360;
+      return (d >= 135 && d <= 360) || (d >= 0 && d <= 45);
+    };
+    if (!within(a)) {
+      // si está fuera, pegamos al extremo más cercano
+      const d = ((a + 360) % 360);
+      const distToStart = Math.min(Math.abs(d - 135), Math.abs(d - (135+360)));
+      const distToEnd = Math.min(Math.abs(d - 45), Math.abs(d - (45+360)));
+      a = distToStart < distToEnd ? startDeg : endDeg;
+    }
+
+    // p según arco
+    // normaliza ángulo a progresión 0..1 sobre 270°
+    let d = ((a + 360) % 360);
+    // start=-225 => 135°, end=45°
+    // recorrido: 135..360 (225°) + 0..45 (45°) = 270°
+    let prog;
+    if (d >= 135) prog = (d - 135) / 270;
+    else prog = (d + 225) / 270;
+
+    prog = clamp(prog, 0, 1);
+    return min + prog * (max - min);
+  };
+
+  let dragging = false;
+
+  const onDown = (e) => {
+    dragging = true;
+    svg.setPointerCapture?.(e.pointerId);
+    const v = valueFromPointer(e.clientX, e.clientY);
+    setByValue(v, true);
+  };
+  const onMove = (e) => {
+    if (!dragging) return;
+    const v = valueFromPointer(e.clientX, e.clientY);
+    setByValue(v, true);
+  };
+  const onUp = () => { dragging = false; };
+
+  svg.addEventListener("pointerdown", onDown);
+  svg.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp);
+
+  // init
+  setByValue(value, false);
+
+  return { set: (v) => setByValue(v, false), get: () => value };
 }
 
 // id incremental para ignorar respuestas viejas
