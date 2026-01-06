@@ -28,13 +28,14 @@ window.LOGS_ON = true;
 window.logx = function logx(tag, msg, obj) {
   if (!window.LOGS_ON) return;
   const line = `[${new Date().toISOString()}] ${tag} ${msg}`;
-  console.log(line, obj ?? "");
-  const box = document.getElementById("logsForecast");
-  if (box) {
-    const extra = obj ? ` :: ${JSON.stringify(obj)}` : "";
-    box.textContent = (line + extra + "\n" + (box.textContent || "")).slice(0, 8000);
-  }
+  if (obj !== undefined) console.log(line, obj);
+  else console.log(line);
 };
+// =========================
+// ✅ SOL DEBUG HOVER
+// =========================
+window.SOL_DEBUG_HOVER = false;
+window.solDbg = (...args) => { if (window.SOL_DEBUG_HOVER) console.log("[SOL_HOVER]", ...args); };
 
     // =========================
     // ✅ Config Supabase
@@ -470,7 +471,14 @@ body{
   background-position:center;
   transition: background 3s ease-in-out;
 }
+:root{
+  --mx-green: #00a65a;
+  --mx-red:   #ce1126;
+  --mx-white: rgba(255,255,255,0.92);
+}
 
+.hud-glow-teal{ filter: drop-shadow(0 0 10px rgba(23,162,166,.35)); }
+.hud-glow-gold{ filter: drop-shadow(0 0 10px rgba(204,163,0,.28)); }
   </style>
 </head>
 
@@ -699,7 +707,7 @@ body{
 
       <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
         <div>
-          <div class="fuente-magma tracking-widest text-2xl text-white/90">🛰️ QC COMMAND</div>
+          <div class="fuente-magma tracking-widest text-2xl text-white/90">🛰️ Centro de Control QC </div>
           <div class="text-xs text-white/60 mt-1">Dashboard operativo para IQC / EQC • stock • caducidad • cobertura • compra sugerida</div>
         </div>
 
@@ -782,47 +790,48 @@ body{
 
       <!-- KPIs -->
       <div id="qcKPIs" class="mt-4 grid grid-cols-2 md:grid-cols-5 gap-3"></div>
-      <!-- =========================
-          SOL LOGÍSTICO (Nacional + Drilldown)
-      ========================= -->
-      <div class="space-card p-4 mt-4">
-        <div class="flex flex-wrap items-center justify-between gap-3">
+      <!-- ☀️ Sol Logístico Nacional (SVG) -->
+      <div class="mt-4 space-card p-4">
+        <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <div class="text-sm font-bold text-white/85">☀️ Sol Nacional</div>
-            <div id="solSubtitulo" class="text-xs text-white/55">Vista por representación</div>
+            <div class="text-sm font-bold text-white/85">Abasto Nacional</div>
+            <div id="solSubtitulo" class="text-xs text-white/55 mt-0.5">Vista por representación • métrica: Stock</div>
           </div>
 
-          <!-- Toggle métrica -->
-          <div class="flex items-center gap-2">
-            <span class="text-xs text-white/60">Métrica:</span>
-            <div class="flex rounded-2xl border border-white/10 overflow-hidden bg-white/5">
-              <button id="btnMetricStock" class="px-3 py-2 text-xs font-semibold">Stock</button>
-              <button id="btnMetricValor" class="px-3 py-2 text-xs font-semibold opacity-60">Valor</button>
-            </div>
+          <div class="flex gap-2">
+            <button id="btnMetricStock" class="space-btn px-3 py-2 text-xs">📦 Stock</button>
+            <button id="btnMetricValor" class="space-btn-ghost px-3 py-2 text-xs opacity-60">💰 Valor</button>
           </div>
         </div>
 
-        <!-- SVG Nacional -->
-        <div class="mt-3">
-          <svg id="solNacional" viewBox="0 0 900 900" class="w-full h-auto"></svg>
+        <div class="mt-3 rounded-2xl border border-white/10 bg-black/20 overflow-hidden">
+          <div class="relative">
+            <svg id="solNacional" viewBox="0 0 900 900" class="w-full h-[420px] block"></svg>
+
+            <div id="solTooltip"
+                class="hidden absolute z-10 pointer-events-none px-3 py-2 rounded-2xl
+                        bg-black/70 border border-white/10 text-[12px] text-white/90
+                        shadow-2xl backdrop-blur-xl">
+              <div class="font-bold" id="solTipTitle">—</div>
+              <div class="text-white/70" id="solTipSub">—</div>
+            </div>
+          </div>
         </div>
 
         <!-- Drilldown -->
-        <div id="solDrillWrap" class="mt-4 hidden">
-          <div class="flex items-center justify-between">
-            <div>
-              <div id="solDrillTitle" class="text-sm font-bold text-white/85">🏥 Unidades</div>
-              <div id="solDrillHint" class="text-xs text-white/55">Click en una unidad para ver detalle (opcional)</div>
-            </div>
+        <div id="solDrillWrap" class="hidden mt-4">
+          <div class="flex items-center justify-between gap-2 mb-2">
+            <div id="solDrillTitle" class="text-sm font-bold text-white/85">🏥 Drilldown</div>
             <button id="btnCerrarDrill" class="space-btn-ghost px-3 py-2 text-xs">Cerrar</button>
           </div>
-
-          <div class="mt-3">
-            <svg id="solDrill" viewBox="0 0 900 900" class="w-full h-auto"></svg>
+          <div class="rounded-2xl border border-white/10 bg-black/20 overflow-hidden">
+            <svg id="solDrill" viewBox="0 0 900 900" class="w-full h-[360px] block"></svg>
           </div>
         </div>
 
-        <div class="mt-3 text-[11px] text-white/55 font-mono whitespace-pre-wrap" id="solLogs"></div>
+        <!-- <div class="mt-3 text-[11px] text-white/60 space-card p-3">
+          <div class="font-mono whitespace-pre-wrap" id="solLogs"></div>
+        </div> -->
       </div>
       <!-- Charts -->
       <div class="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-3">
@@ -858,9 +867,9 @@ body{
         </div>
       </div>
 
-      <div class="mt-4 text-xs text-white/60 space-card p-3">
+      <!-- <div class="mt-4 text-xs text-white/60 space-card p-3">
         <div class="font-mono whitespace-pre-wrap" id="qcLogs"></div>
-      </div>
+      </div> -->
 
       <div class="h-[env(safe-area-inset-bottom)]"></div>
     </div>
@@ -948,13 +957,13 @@ body{
       </div>
 
       <div class="text-center mt-6 space-y-3">
-        <button id="btnAlertasCaducidad" class="w-full md:w-auto rounded-2xl px-5 py-3 font-semibold bg-gradient-to-r from-amber-900/60 to-yellow-900/50 border border-amber-300/20 shadow-lg hover:opacity-95">
+        <button id="btnAlertasCaducidad" class="space-btn px-5 py-3 rounded-2xl">
           ⚠️ Ver productos próximos a caducar
         </button>
 
         <div class="flex justify-center">
           <button id="btnQC" type="button" onclick="abrirModalQC()" class="space-btn px-5 py-3 rounded-2xl">
-            🛰️ Centro de Comando de Control de Calidad
+            🛰️ Centro de Mando QC
           </button>
         </div>
 
@@ -1381,6 +1390,7 @@ body{
       </div>
     </div>
   </div>
+
 
   <!-- ================= Scripts locales ================= -->
   <script>
@@ -4171,243 +4181,52 @@ async function verificarPin(pinIngresado) {
 
 
 //==========================================================================================================
-function fp_getUsuarioString() {
-  const u = window.usuarioActivo ?? window.usuario ?? "";
-
-  // si ya es string
-  if (typeof u === "string") return u.trim();
-
-  // si es objeto, intenta campos comunes
-  if (u && typeof u === "object") {
-    const cand = u.usuario ?? u.username ?? u.email ?? u.nombre ?? u.id ?? "";
-    return String(cand || "").trim();
-  }
-
-  return String(u || "").trim();
-}
-async function fp_getRepresentacionUsuario(usuario) {
-  // ajusta el campo si tu tabla usuarios no usa "usuario"
-  const q = `select=representacion&usuario=eq.${encodeURIComponent(usuario)}&limit=1`;
-  const data = await fp_fetchRest("usuarios", q);
-  const rep = data?.[0]?.representacion ?? null;
-  logx("👤[Unidad]", "Representación usuario", { usuario, rep });
-  return rep;
-}
-
-async function fp_getUnidadesByRepresentacion(rep) {
-  const q = `select=unidad_medica&representacion=eq.${encodeURIComponent(rep)}&limit=5000`;
-  const data = await fp_fetchRest("representaciones", q);
-
-  const unidades = (data || [])
-    .map(x => String(x.unidad_medica || "").trim())
-    .filter(Boolean);
-
-  const unique = [...new Set(unidades)].sort((a,b)=>a.localeCompare(b));
-  logx("🏥[Unidad]", "Unidades por representación", { rep, count: unique.length });
-  return unique;
-}
-function fp_getInventarioColVigente(today = new Date()) {
-  const d = today.getDate();
-  let m = today.getMonth() + 1;
-  let y = today.getFullYear();
-
-  if (d >= 25) return `25_${m}_${y}`;
-  if (d >= 10) return `10_${m}_${y}`;
-
-  // si hoy < 10 → último inventario fue 25 del mes anterior
-  m -= 1;
-  if (m <= 0) { m = 12; y -= 1; }
-  return `25_${m}_${y}`;
-}
-window.__historicosCache = window.__historicosCache || {}; // { ref: { unidad: rowHistorico } }
-
-async function cargarUnidadesForecast(referencia, modal) {
-  const select = modal?.querySelector("#unidadForecast");
-  if (!select) return;
-
-  try {
-    select.innerHTML = `<option value="TOTAL">Total (suma de consumo)</option>`;
-
-    const usuario = fp_getUsuarioString();
-    logx("🧠[Unidad]", "Usuario detectado", { raw: window.usuarioActivo ?? window.usuario, usuario });
-
-    if (!usuario) {
-      logx("⚠️[Unidad]", "No hay usuario. Se queda en TOTAL.");
-      return;
-    }
-
-    const rep = await fp_getRepresentacionUsuario(usuario);
-    if (!rep) {
-      logx("⚠️[Unidad]", "Usuario sin representación. Se queda en TOTAL.");
-      return;
-    }
-
-    const unidades = await fp_getUnidadesByRepresentacion(rep);
-    select.innerHTML = `
-      <option value="TOTAL">Total (suma de consumo)</option>
-      ${unidades.map(u => `<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`).join("")}
-    `;
-
-    // precache historicos para stock rápido
-    window.__historicosCache[referencia] = window.__historicosCache[referencia] || {};
-
-    // REST "in" -> unidad_medica=in.(A,B,C)
-    const inList = unidades.map(u => `"${String(u).replaceAll('"','\\"')}"`).join(",");
-    const q = `select=*&referencia=eq.${encodeURIComponent(referencia)}&unidad_medica=in.(${encodeURIComponent(inList)})&limit=5000`;
-
-    logx("📦[Unidad]", "Precargando historicos", { referencia, unidades: unidades.length });
-
-    // Nota: si tu PostgREST no acepta comillas así, te lo ajusto en el siguiente paso.
-    const rows = await fp_fetchRest("historicos", q);
-    const arr = Array.isArray(rows) ? rows : [];
-
-    const map = {};
-    for (const r of arr) {
-      const u = String(r.unidad_medica || r.unidad || "").trim();
-      if (!u) continue;
-      map[u] = r;
-    }
-    window.__historicosCache[referencia] = map;
-
-    logx("✅[Unidad]", "Cache historicos listo", { referencia, rows: arr.length, keys: Object.keys(map).length });
-
-  } catch (e) {
-    logx("❌[Unidad]", "Error cargarUnidadesForecast", { err: String(e?.message || e) });
-  }
-}
-function fp_getStockUnidadDesdeCache(referencia, unidad, today = new Date()) {
-  const row = window.__historicosCache?.[referencia]?.[unidad];
-  if (!row) return { stock: null, col: null, fuente: "cache-miss" };
-
-  const col = fp_getInventarioColVigente(today);
-  const raw = row[col];
-  const stock = Number(raw);
-
-  logx("📦[Stock]", "Cache", { referencia, unidad, col, raw });
-
-  return { stock: Number.isFinite(stock) ? stock : null, col, fuente: "cache" };
-}
-
-async function fp_getStockUnidadREST(referencia, unidad, today = new Date()) {
-  const col = fp_getInventarioColVigente(today);
-
-  const q = `select=${encodeURIComponent(col)}&referencia=eq.${encodeURIComponent(referencia)}&unidad_medica=eq.${encodeURIComponent(unidad)}&limit=1`;
-  const data = await fp_fetchRest("historicos", q);
-
-  const raw = data?.[0]?.[col];
-  const stock = Number(raw);
-
-  logx("📦[Stock]", "REST", { referencia, unidad, col, raw, stock });
-
-  return { stock: Number.isFinite(stock) ? stock : 0, col, fuente: "rest" };
-}
-
-async function fp_getStockCentralProducto(referencia) {
-  const q = `select=stock&referencia=eq.${encodeURIComponent(referencia)}&limit=1`;
-  const data = await fp_fetchRest("productos", q);
-  const stock = Number(data?.[0]?.stock ?? 0) || 0;
-
-  logx("🏬[Stock]", "Central productos.stock", { referencia, stock });
-
-  return { stock, fuente: "productos" };
-}
-// ✅ Cargar unidades del SELECT (por representación)
-cargarUnidadesForecast(referencia, modal);
-
-// ✅ Cuando cambie la unidad, refresca (si ya tienes refreshNow, úsalo)
-modal.querySelector("#unidadForecast")?.addEventListener("change", () => {
-  logx("🔁[Unidad]", "Cambio de unidad", { unidad: modal.querySelector("#unidadForecast")?.value });
-  // llama tu refreshNow() / cargarForecastPro(referencia)
-});
 
 
 
-// =====================
-// ✅ CACHE GLOBAL (desde el inicio)
-// =====================
-window.referenciasCache = window.referenciasCache || [];
-window.referenciasCacheReady = window.referenciasCacheReady || false;
-
-// =====================
-// ✅ Fetch REST helper (con logs)
-// =====================
-async function fp_fetchRest(path, query = "") {
-  const url = `${window.SUPABASE_URL}/rest/v1/${path}${query ? `?${query}` : ""}`;
-  logx("🌐[REST]", "GET", { url });
-
-  const res = await fetch(url, {
+// Nueva función independiente
+async function cargarReferencias() {
+  const res = await fetch("https://ldjrpfsbpcfninntffoj.supabase.co/rest/v1/productos?select=referencia,nombre,fabricante,lote,caducidad,cantidad", {
     headers: {
-      apikey: window.SUPABASE_KEY,
-      Authorization: `Bearer ${window.SUPABASE}`
+      "apikey": API_KEY,
+      "Authorization": `Bearer ${API_KEY}`
     }
   });
-
-  const text = await res.text().catch(() => "");
-  logx("🌐[REST]", "RESP", { ok: res.ok, status: res.status, bytes: text.length });
-
-  let data = null;
-  try { data = text ? JSON.parse(text) : null; } catch { data = null; }
-  if (!res.ok) throw new Error(`REST ${res.status}: ${text.slice(0, 180)}`);
-
-  return data;
+  referenciasCache = await res.json();
 }
 
-// =====================
-// ✅ Cargar referencias (con logs)
-// =====================
-async function cargarReferencias() {
-  try {
-    window.referenciasCacheReady = false;
-    logx("📦[Refs]", "Cargando referencias...");
 
-    const data = await fp_fetchRest(
-      "productos",
-      "select=referencia,nombre,fabricante,lote,caducidad,cantidad&limit=50000"
-    );
-
-    window.referenciasCache = Array.isArray(data) ? data : [];
-    window.referenciasCacheReady = true;
-
-    logx("✅[Refs]", "Cache listo", { count: window.referenciasCache.length });
-  } catch (e) {
-    window.referenciasCacheReady = false;
-    logx("❌[Refs]", "Error cargando referencias", { err: String(e?.message || e) });
-  }
-}
-
-// =====================
-// ✅ Buscar (NO redeclarar cache local)
-// =====================
+// ✅ Esta es la función que estaba faltando
 function buscarReferencia(valor) {
   const cont = document.getElementById("resultadoBusqueda");
-  if (!cont) return;
-
-  if (!window.referenciasCacheReady) {
-    cont.innerHTML = "<p class='text-gray-500'>Cargando referencias...</p>";
-    logx("⏳[Refs]", "Aún no listo. Ignorando búsqueda.", { valor });
-    return;
-  }
-
-  const cache = window.referenciasCache;
-  const q = String(valor || "").trim().toLowerCase();
-
-  if (!q) {
+  if (!valor || !referenciasCache?.length) {
     cont.innerHTML = "<p class='text-gray-500'>Escribe para buscar...</p>";
     return;
   }
 
-  logx("🔎[Refs]", "Buscando", { q, cache: cache.length });
-  mostrarResultadosCoincidencias(q, cache, cont);
+  mostrarResultadosCoincidencias(valor.toLowerCase(), referenciasCache, cont);
 }
+function normalizarFechaExcel(fechaOriginal) {
+  if (!fechaOriginal) return "S/C";
 
-// =====================
-// ✅ Lánzalo al iniciar
-// =====================
-window.addEventListener("DOMContentLoaded", () => {
-  // Si ya la llamas en otro lado, no la dupliques.
-  cargarReferencias();
-});
+  // Si es un número (fecha Excel)
+  if (typeof fechaOriginal === "number" || !isNaN(Number(fechaOriginal))) {
+    const valor = Number(fechaOriginal);
+    if (valor > 10000 && valor < 60000) { // valores válidos de Excel
+      const baseDate = new Date(Date.UTC(1899, 11, 30));
+      baseDate.setDate(baseDate.getDate() + valor);
+      return baseDate.toISOString().split("T")[0];
+    }
+  }
 
+  // Si ya es string tipo fecha
+  const fecha = new Date(fechaOriginal);
+  if (!isNaN(fecha.getTime())) {
+    return fecha.toISOString().split("T")[0];
+  }
+
+  return "S/C";
+}
 
 
 async function mostrarResultadosCoincidencias(ref, referenciasCache, cont) {
@@ -5070,238 +4889,6 @@ function fixCanvasSize(id, h = 320) {
   c.style.height = `${h}px`;
   c.height = h;
 }
-async function cargarUnidadesForecast(referencia, modal) {
-  const selectUnidad = modal?.querySelector("#unidadForecast");
-  if (!selectUnidad) return;
-
-  console.log("🧠 [Unidad] Cargando unidades desde historicos para ref:", referencia);
-
-  // 1) Trae filas de historicos que existan para esa referencia
-  const { data, error } = await supabase
-    .from("historicos")
-    .select("*")
-    .eq("referencia", referencia);
-
-  if (error) {
-    console.error("❌ historicos query error:", error);
-    return;
-  }
-
-  const rows = Array.isArray(data) ? data : [];
-  console.log("✅ [Unidad] Filas historicos encontradas:", rows.length);
-
-  // Cache por referencia: { unidad -> row }
-  const byUnidad = {};
-  for (const r of rows) {
-    const u = (r.unidad || r.unidad_medica || r.almacen || "").trim();
-    if (!u) continue;
-    byUnidad[u] = r;
-  }
-  window.__historicosCache[referencia] = byUnidad;
-
-  // 2) Render options
-  const unidades = Object.keys(byUnidad).sort((a,b)=>a.localeCompare(b));
-  selectUnidad.innerHTML = `
-    <option value="TOTAL">Total (suma de consumo)</option>
-    ${unidades.map(u => `<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`).join("")}
-  `;
-
-  console.log("🧾 [Unidad] Unidades cargadas:", unidades);
-
-  // opcional: si solo hay 1 unidad, autoselecciona
-  if (unidades.length === 1) {
-    selectUnidad.value = unidades[0];
-    console.log("🎯 [Unidad] Auto-select:", unidades[0]);
-  }
-}
-function pickUltimaColInventario(row, today = new Date()) {
-  if (!row) return { col: null, date: null };
-
-  // columnas candidatas: "10_5_2025", "25_5_2025", etc.
-  const cols = Object.keys(row).filter(k => /^\d{1,2}_\d{1,2}_\d{4}$/.test(k));
-  if (!cols.length) return { col: null, date: null };
-
-  const t0 = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-
-  let best = null;
-  let bestT = -Infinity;
-
-  for (const c of cols) {
-    const [corteS, mesS, anioS] = c.split("_");
-    const corte = Number(corteS);
-    const mes = Number(mesS);
-    const anio = Number(anioS);
-    if (!Number.isFinite(corte) || !Number.isFinite(mes) || !Number.isFinite(anio)) continue;
-
-    // fecha del corte
-    const dt = new Date(anio, mes - 1, corte);
-    const tt = dt.getTime();
-    if (tt <= t0 && tt > bestT) {
-      bestT = tt;
-      best = c;
-    }
-  }
-
-  return { col: best, date: best ? new Date(bestT) : null };
-}
-function getStockUnidadDesdeHistoricos(referencia, unidad, today = new Date()) {
-  const cache = window.__historicosCache?.[referencia];
-  const row = cache?.[unidad];
-
-  if (!row) {
-    console.warn("⚠️ [Stock] No hay fila en historicos para", { referencia, unidad });
-    return { stock: null, col: null };
-  }
-
-  const { col } = pickUltimaColInventario(row, today);
-  if (!col) {
-    console.warn("⚠️ [Stock] No encontré columna de inventario válida para", { referencia, unidad });
-    return { stock: null, col: null };
-  }
-
-  const raw = row[col];
-  const stock = Number(raw);
-
-  console.log("📦 [Stock] Unidad:", unidad, "col:", col, "raw:", raw, "stock:", stock);
-
-  return { stock: Number.isFinite(stock) ? stock : null, col };
-}
-// ===================== Forecast PRO Helpers =====================
-
-function getSB() {
-  // Ajusta si tu cliente se llama distinto
-  return window.supabase || supabase;
-}
-
-function fpNowISO() {
-  return new Date().toISOString();
-}
-
-function fpLog(msg, obj) {
-  try {
-    console.log(`🧪[ForecastPRO] ${msg}`, obj ?? "");
-    const box = document.getElementById("logsForecast");
-    if (box) {
-      const line = `[${fpNowISO()}] ${msg}` + (obj ? ` :: ${JSON.stringify(obj)}` : "");
-      box.textContent = (line + "\n" + (box.textContent || "")).slice(0, 5000);
-    }
-  } catch {}
-}
-
-// Devuelve la columna 10_m_y o 25_m_y más reciente <= fecha
-function getLatestInventarioCol(fecha = new Date()) {
-  const d = new Date(fecha);
-  const day = d.getDate();
-  let m = d.getMonth() + 1;
-  let y = d.getFullYear();
-
-  // Si hoy < 10, lo más reciente fue 25 del mes anterior
-  if (day < 10) {
-    m -= 1;
-    if (m <= 0) { m = 12; y -= 1; }
-    return `25_${m}_${y}`;
-  }
-
-  // Si 10 <= hoy < 25 → corte 10 del mes actual
-  if (day < 25) return `10_${m}_${y}`;
-
-  // Si hoy >= 25 → corte 25 del mes actual
-  return `25_${m}_${y}`;
-}
-
-// Obtiene representacion del usuario desde tabla usuarios
-async function getUserRepresentacion(usuarioIdOrNombre) {
-  const sb = getSB();
-  fpLog("Buscando representación del usuario…", { usuario: usuarioIdOrNombre });
-
-  // ⚠️ Ajusta el campo de búsqueda según tu tabla:
-  // - si guardas usuario por "usuario" o por "email" o por "id"
-  // aquí uso "usuario" como ejemplo.
-  const { data, error } = await sb
-    .from("usuarios")
-    .select("representacion")
-    .eq("usuario", usuarioIdOrNombre)
-    .maybeSingle();
-
-  if (error) {
-    fpLog("❌ Error usuarios.representacion", { error });
-    throw error;
-  }
-  const rep = data?.representacion || null;
-  fpLog("Representación obtenida", { rep });
-  return rep;
-}
-
-// Obtiene lista de unidades médicas de la representación
-async function getUnidadesByRepresentacion(representacion) {
-  const sb = getSB();
-  fpLog("Cargando unidades por representación…", { representacion });
-
-  const { data, error } = await sb
-    .from("representaciones")
-    .select("unidad_medica")
-    .eq("representacion", representacion);
-
-  if (error) {
-    fpLog("❌ Error representaciones", { error });
-    throw error;
-  }
-
-  const unidades = (data || [])
-    .map(r => String(r.unidad_medica || "").trim())
-    .filter(Boolean);
-
-  const unique = [...new Set(unidades)].sort((a,b)=>a.localeCompare(b));
-  fpLog("Unidades encontradas", { count: unique.length, unique });
-  return unique;
-}
-
-// Stock central (almacén) desde productos
-async function getStockCentralProducto(referencia) {
-  const sb = getSB();
-
-  // ⚠️ Ajusta el nombre real de la columna stock si no es "stock"
-  const { data, error } = await sb
-    .from("productos")
-    .select("stock")
-    .eq("referencia", referencia)
-    .maybeSingle();
-
-  if (error) {
-    fpLog("❌ Error productos.stock", { error });
-    throw error;
-  }
-
-  const stock = Number(data?.stock ?? 0) || 0;
-  fpLog("Stock central obtenido", { referencia, stock });
-  return stock;
-}
-
-// Stock de unidad desde historicos: fila (unidad+referencia) y columna (inventario)
-async function getStockUnidadHistoricos(unidad_medica, referencia, fecha = new Date()) {
-  const sb = getSB();
-  const col = getLatestInventarioCol(fecha);
-
-  fpLog("Buscando stock de unidad en historicos…", { unidad_medica, referencia, col });
-
-  // ⚠️ Ajusta nombres de campos si tu tabla usa otros:
-  // aquí asumo: historicos.unidad_medica y historicos.referencia
-  const { data, error } = await sb
-    .from("historicos")
-    .select(col)
-    .eq("unidad_medica", unidad_medica)
-    .eq("referencia", referencia)
-    .maybeSingle();
-
-  if (error) {
-    fpLog("❌ Error historicos (select col dinámica)", { error, col });
-    throw error;
-  }
-
-  const stock = Number(data?.[col] ?? 0) || 0;
-  fpLog("Stock unidad obtenido", { unidad_medica, referencia, col, stock });
-  return { stock, col };
-}
 
 // ---------- UI: Modal Forecast PRO ----------
 function verForecast(referencia, nombre = "", fabricante = "") {
@@ -5484,12 +5071,12 @@ function verForecast(referencia, nombre = "", fabricante = "") {
                 <div class="rounded-2xl p-3 bg-black/20 border border-white/10">
                   <div class="flex items-center justify-between">
                     <label class="text-xs text-white/60">Volumen de Entrega (%)</label>
-                    <input id="factorVolForecastNum" type="text" inputmode="numeric" value="100"
+                    <input id="factorVolForecastNum" type="text" inputmode="numeric" value="0"
                       class="w-24 px-2 py-1 rounded-xl bg-black/30 border border-white/5 text-white text-xs text-right" />
                   </div>
 
                   <div class="mt-3 grid place-items-center">
-                    <div id="dialVol" class="dial" data-min="0" data-max="200" data-step="1" data-value="100"></div>
+                    <div id="dialVol" class="dial" data-min="-100" data-max="300" data-step="1" data-value="0"></div>
                   </div>
                 </div>
 
@@ -5575,13 +5162,6 @@ function verForecast(referencia, nombre = "", fabricante = "") {
   `;
 
   document.body.appendChild(modal);
-  // Cache local por referencia (para no pegarle a supabase a cada refresh)
-  window.__historicosCache = window.__historicosCache || {};
-
-  // ✅ Cargar unidades del SELECT desde historicos
-  cargarUnidadesForecast(referencia, modal).catch(err => {
-    console.error("❌ cargarUnidadesForecast error:", err);
-  });
 
   const cerrar = () => {
     modal.remove();
@@ -5632,6 +5212,7 @@ function verForecast(referencia, nombre = "", fabricante = "") {
 
   const mermaRange = modal.querySelector("#mermaForecast");
   const mermaNum   = modal.querySelector("#mermaForecastNum");
+  const volRange   = modal.querySelector("#factorVolForecast");
   const volNum     = modal.querySelector("#factorVolForecastNum");
 
   const hint = modal.querySelector("#scenarioLiveHint");
@@ -5650,23 +5231,34 @@ const syncMerma = (v) => {
   if (mermaNum) mermaNum.value = String(val);
 };
 
-// ================== VOLUMEN ==================
-const VOL_MIN = 0;
-const VOL_MAX = 200;
-const VOL_DEFAULT = 100;
+// Sync volumen  ✅ (DECLÁRALA ANTES)
+const VOL_MIN = -100;
+const VOL_MAX = 300;
 
-const syncVol = (raw) => {
-  if (raw === "") { if (volNum) volNum.value = ""; return; }
+const syncVol = (raw, { commit = false } = {}) => {
+  const s = String(raw ?? "").trim();
 
-  let val = Number(raw);
-  if (!Number.isFinite(val)) return;
+  // permite estados intermedios mientras escribe
+  if (!commit && (s === "" || s === "-" || s === "-0")) {
+    if (volNum) volNum.value = s;
+    return;
+  }
 
-  val = Math.max(VOL_MIN, Math.min(VOL_MAX, val));
+  // al confirmar, normaliza vacíos a 0
+  if (commit && (s === "" || s === "-")) {
+    if (volNum) volNum.value = "0";
+    if (volRange) volRange.value = "0";
+    return;
+  }
 
+  const valNum = Number(s);
+  if (!Number.isFinite(valNum)) return;
+
+  const val = Math.max(VOL_MIN, Math.min(VOL_MAX, valNum));
+
+  if (volRange) volRange.value = String(val);
   if (volNum) volNum.value = String(val);
-  if (volDial) volDial.set(val);
 };
-
 
 // ====== Diales (después de syncVol) ======
 const dialMermaEl = modal.querySelector("#dialMerma");
@@ -5683,20 +5275,12 @@ const mermaDial = createRadialDial(dialMermaEl, {
 
 const volDial = createRadialDial(dialVolEl, {
   label: "Volumen",
-  min: 0, max: 200, step: 1,
+  min: -100, max: 300, step: 1,
   unit: "%",
-
-  // ✅ mata el "+"
-  showPlus: false,
-
-  // ✅ y todavía más robusto: fuerza formato exacto
-  formatValue: (v) => `${Number(v)}%`,
-
-  onInput:  (v) => { syncVol(v); refresh(); },
-  onCommit: (v) => { syncVol(v); refreshNow(); }
+  colorMode: "auto", // negativos teal / positivos dorado
+  onInput: (v) => { syncVol(v, { commit: true }); refresh(); },
+  onCommit: (v) => { syncVol(v, { commit: true }); refreshNow(); }
 });
-
-
 
 // Input manual mueve dial
 mermaNum?.addEventListener("input", (e) => {
@@ -5706,14 +5290,39 @@ mermaNum?.addEventListener("input", (e) => {
 });
 
 if (volNum) {
-  volNum.type = "number";
-  volNum.min = String(VOL_MIN);
-  volNum.max = String(VOL_MAX);
-  volNum.step = "1";
+  // ✅ que el teclado permita "-"
+  volNum.setAttribute("inputmode", "text"); // mejor que numeric para permitir "-"
+  volNum.setAttribute("autocomplete", "off");
+  volNum.setAttribute("spellcheck", "false");
+
+  // ✅ filtro: solo un "-" y solo al inicio
+  volNum.addEventListener("beforeinput", (e) => {
+    if (e.data == null) return; // borrado, etc.
+    const data = e.data;
+
+    // permite dígitos
+    if (/^\d$/.test(data)) return;
+
+    // permite "-" SOLO si quedará al inicio
+    if (data === "-") {
+      const start = volNum.selectionStart ?? 0;
+      const end   = volNum.selectionEnd ?? 0;
+      const next = volNum.value.slice(0, start) + "-" + volNum.value.slice(end);
+
+      // válido si "-" está solo al inicio y solo una vez
+      if (!/^-?\d*$/.test(next)) e.preventDefault();
+      return;
+    }
+
+    // bloquea todo lo demás
+    e.preventDefault();
+  });
 
   // Live mientras escribe
   volNum.addEventListener("input", (e) => {
-    syncVol(e.target.value);
+    syncVol(e.target.value, { commit: false });
+    const n = Number(e.target.value);
+    if (Number.isFinite(n)) volDial?.set(n);
     refresh();
   });
 
@@ -5721,20 +5330,37 @@ if (volNum) {
   volNum.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      if (volNum.value === "") syncVol(VOL_DEFAULT);
-      else syncVol(volNum.value);
+      syncVol(volNum.value, { commit: true });
+      const n = Number(volNum.value);
+      if (Number.isFinite(n)) volDial?.set(n);
       refreshNow();
       volNum.blur();
     }
   });
 
-  // Blur = commit
+  // Blur = commit sí o sí
   volNum.addEventListener("blur", () => {
-    if (volNum.value === "") syncVol(VOL_DEFAULT);
-    else syncVol(volNum.value);
+    syncVol(volNum.value, { commit: true });
+    const n = Number(volNum.value);
+    if (Number.isFinite(n)) volDial?.set(n);
+    refreshNow();
+  });
+
+  // Change fallback
+  volNum.addEventListener("change", () => {
+    syncVol(volNum.value, { commit: true });
+    const n = Number(volNum.value);
+    if (Number.isFinite(n)) volDial?.set(n);
     refreshNow();
   });
 }
+
+// Range volumen mueve dial
+volRange?.addEventListener("input", (e) => {
+  syncVol(e.target.value, { commit: true });
+  volDial?.set(Number(e.target.value));
+  refresh();
+});
 
   // Load
   (async () => {
@@ -5911,7 +5537,7 @@ ${escapeHtml(JSON.stringify(data, null, 2))}
     // 5) Render especial: Escenarios (Base vs Escenario)
     if (window.volDial) {
       // Base = sin simulación → normalmente 0%
-      const baseFactorVol = 100;
+      const baseFactorVol = 0;
 
       // Escenario = lo que el usuario está simulando
       const escenarioFactorVol = factorVol;
@@ -5990,18 +5616,16 @@ function debounce(fn, wait = 450) {
 }
 function createRadialDial(el, {
   min, max, step,
-  value,
-  baseValue = null,
-  onChange,
-  onInput,
-  onCommit,
+  value,                 // escenario (principal)
+  baseValue = null,      // base (comparación)
+  onChange,              // compat: lo llamo en commit con value
+  onInput,               // live mientras arrastra
+  onCommit,              // al soltar (ideal para refreshNow)
   label = "",
-  unit = "",
-  colorMode = "fixed",      // "fixed" | "auto"
-  showPlus = true,          // false => no muestra "+"
-  formatValue = null        // (v)=>string, opcional
+  unit = "",             // e.g. "%"
+  formatValue,           // (v)=> string
+  colorMode = "auto",    // auto | fixed
 } = {}) {
-
   if (!el) return;
 
   // Config desde data-attrs si no lo pasan
@@ -6009,11 +5633,10 @@ function createRadialDial(el, {
   max   = (max ?? Number(el.dataset.max ?? 100));
   step  = (step ?? Number(el.dataset.step ?? 1));
   value = (value ?? Number(el.dataset.value ?? min));
-
   if (baseValue == null && el.dataset.base != null) baseValue = Number(el.dataset.base);
 
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  const snap  = (v) => Math.round(v / step) * step;
+  const snap = (v) => Math.round(v / step) * step;
 
   // Dial: arco de 270° (start=-225 => 135°, end=45°)
   const startDeg = -225, endDeg = 45;
@@ -6062,9 +5685,9 @@ function createRadialDial(el, {
   plate.setAttribute("stroke", "rgba(255,255,255,0.06)");
   plate.setAttribute("stroke-width", "1");
 
-  const bgTrack  = mkCircle("bgTrack");   // pista tenue
-  const baseArc  = mkCircle("baseArc");   // base (comparación)
-  const valueArc = mkCircle("valueArc");  // escenario (principal)
+  const bgTrack   = mkCircle("bgTrack");    // pista tenue
+  const baseArc   = mkCircle("baseArc");    // base (comparación)
+  const valueArc  = mkCircle("valueArc");   // escenario (principal)
 
   // knob
   const knob = document.createElementNS(svg.namespaceURI, "circle");
@@ -6098,8 +5721,8 @@ function createRadialDial(el, {
 
   // stroke-dash para recortar círculo a 270°
   const circ = 2 * Math.PI * r;
-  const arc  = circ * (270 / 360);
-  const gap  = circ - arc;
+  const arc = circ * (270 / 360);
+  const gap = circ - arc;
 
   const prepArc = (c) => {
     c.style.strokeDasharray = `${arc} ${gap}`;
@@ -6109,7 +5732,7 @@ function createRadialDial(el, {
   };
   [bgTrack, baseArc, valueArc].forEach(prepArc);
 
-  // estilos default
+  // estilos default (puedes moverlos a CSS si quieres)
   bgTrack.style.stroke = "rgba(255,255,255,0.18)";
 
   baseArc.style.stroke = "rgba(2,199,202,0.35)"; // teal base
@@ -6135,16 +5758,16 @@ function createRadialDial(el, {
   const pct = (v) => (v - min) / (max - min || 1);
 
   const colorFor = (v) => {
-    if (colorMode === "fixed") return { arc: "rgba(204,163,0,1)" };
+    if (colorMode === "fixed") return { arc: "rgba(204,163,0,1)", fill: "rgba(204,163,0,0.08)" };
     // auto: negativos teal, positivos dorado, cero gris
-    if (v < 0)  return { arc: "rgba(2,199,202,1)" };
-    if (v > 0)  return { arc: "rgba(204,163,0,1)" };
-    return { arc: "rgba(255,255,255,0.55)" };
+    if (v < 0)  return { arc: "rgba(2,199,202,1)", fill: "rgba(2,199,202,0.10)" };
+    if (v > 0)  return { arc: "rgba(204,163,0,1)", fill: "rgba(204,163,0,0.10)" };
+    return { arc: "rgba(255,255,255,0.55)", fill: "rgba(255,255,255,0.06)" };
   };
 
   const fmt = (v) => {
     if (typeof formatValue === "function") return formatValue(v);
-    const s = (showPlus && v > 0) ? `+${v}` : String(v);
+    const s = (v > 0 ? `+${v}` : String(v));
     return unit ? `${s}${unit}` : s;
   };
 
@@ -6173,8 +5796,6 @@ function createRadialDial(el, {
 
     const c = colorFor(value);
     valueArc.style.stroke = c.arc;
-
-    // ✅ texto central correcto (sin usar variables inexistentes)
     tVal.textContent = fmt(value);
   };
 
@@ -6200,7 +5821,6 @@ function createRadialDial(el, {
     const y = clientY - rect.top - rect.height / 2;
 
     let ang = Math.atan2(y, x) * 180 / Math.PI; // -180..180
-
     const within = (deg) => {
       const d = (deg + 360) % 360;
       return (d >= 135 && d <= 360) || (d >= 0 && d <= 45);
@@ -6255,17 +5875,10 @@ function createRadialDial(el, {
   return {
     set: (v) => setByValue(v, false),
     get: () => value,
-    setBase: (v) => {
-      baseValue = snap(clamp(v, min, max));
-      el.dataset.base = String(baseValue);
-      applyVisual();
-    },
+    setBase: (v) => { baseValue = snap(clamp(v, min, max)); el.dataset.base = String(baseValue); applyVisual(); },
     setScenario: (v) => setByValue(v, false),
     setBoth: ({ base, scenario }) => {
-      if (base != null) {
-        baseValue = snap(clamp(base, min, max));
-        el.dataset.base = String(baseValue);
-      }
+      if (base != null) { baseValue = snap(clamp(base, min, max)); el.dataset.base = String(baseValue); }
       if (scenario != null) value = snap(clamp(scenario, min, max));
       el.dataset.value = String(value);
       applyVisual();
@@ -9219,1112 +8832,6 @@ document.addEventListener("keydown", function(e) {
   }
 });
 
-// =================================================================================================
-// 🛰️🧪 QC COMMAND (Supervisor de Calidad)
-// - Requiere tablas: qc_items (catálogo), qc_consumo (consumo)
-// - Usa productos (stock central/lotes/caducidad) + historicos (stock unidades por corte)
-// - FULL LOGGING (console + panel)
-// =================================================================================================
-(function initQCModule(){
-  window.qcState = window.qcState || {
-    catalogo: [],
-    productosQC: [],
-    historicosQC: [],
-    consumoQC: [],
-    computed: null,
-    charts: { consumo: null, cobertura: null, caducidad: null },
-    lastRunAt: null,
-  };
-
-  function qclog(msg, obj){
-    try{
-      if(typeof window.logx === "function") window.logx("🛰️[QC]", msg, obj);
-      const box = document.getElementById("qcLogs");
-      if(box){
-        const line = `[${new Date().toISOString()}] ${msg}` + (obj ? ` :: ${JSON.stringify(obj)}` : "");
-        box.textContent = (line + "\n" + (box.textContent || "")).slice(0, 8000);
-      }
-    }catch(_){/* no-op */}
-  }
-  // =========================
-  // ☀️ Sol Logístico: Motor SVG
-  // =========================
-
-  // 1) Orden fijo (tu arreglo real)
-  const REPRESENTACIONES_RADIALES = [
-    { id: "CUU", nombre: "ALMACÉN CHIHUAHUA", angulo: 330, color: "#17A2A6" },
-    { id: "65",  nombre: "ALMACÉN JUÁREZ",     angulo: 345, color: "#1E40AF" },
-    { id: "66",  nombre: "ALMACÉN PARRAL",     angulo: 315, color: "#CCA300" },
-    { id: "BCS",   nombre: "BAJA CALIFORNIA SUR", angulo: 250, color: "#06B6D4" },
-    { id: "DUR",   nombre: "DURANGO",             angulo: 305, color: "#3B82F6" },
-    { id: "NAY",   nombre: "NAYARIT",             angulo: 270, color: "#22C55E" },
-    { id: "SIN",   nombre: "SINALOA",             angulo: 290, color: "#A3E635" },
-    { id: "TAM",   nombre: "TAMAULIPAS",          angulo:  20, color: "#F97316" },
-    { id: "COA",   nombre: "COAHUILA",            angulo: 350, color: "#F59E0B" },
-    { id: "CHP",   nombre: "CHIAPAS",             angulo: 140, color: "#34D399" },
-    { id: "OAX",   nombre: "OAXACA",              angulo: 165, color: "#10B981" },
-    { id: "TAB",   nombre: "TABASCO",             angulo: 110, color: "#60A5FA" },
-    { id: "CAM",   nombre: "CAMPECHE",            angulo: 120, color: "#A78BFA" },
-    { id: "QROO",  nombre: "QUINTANA ROO",        angulo:  90, color: "#F472B6" },
-    { id: "GRO",   nombre: "GUERRERO",            angulo: 200, color: "#FB7185" },
-    { id: "EDOMEX",nombre: "EDO. DE MÉXICO",      angulo: 230, color: "#EAB308" },
-    { id: "HGO",   nombre: "HIDALGO",             angulo:  40, color: "#38BDF8" },
-    // 🔥 agrega aquí las que quieras, siempre con angulo fijo
-  ];
-
-  // 2) Utilidades (mínimas)
-  function solLog(msg, obj){
-    const box = document.getElementById("solLogs");
-    const line = `[${new Date().toISOString()}] ${msg}`;
-    if (box) box.textContent = (line + (obj? " :: "+JSON.stringify(obj):"") + "\n" + (box.textContent||"")).slice(0, 4000);
-    if (window.logx) logx("☀️[SOL]", msg, obj);
-  }
-
-  function svgEl(name){
-    return document.createElementNS("http://www.w3.org/2000/svg", name);
-  }
-
-  function polarToXY(cx, cy, r, deg){
-    const rad = (deg - 90) * Math.PI / 180; // 0° arriba
-    return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
-  }
-
-  function deg2rad(deg){ return (deg * Math.PI) / 180; }
-
-  // arc flags for SVG
-  function arcFlag(a0, a1){
-    let d = ((a1 - a0) % 360 + 360) % 360;
-    return d > 180 ? 1 : 0;
-  }
-
-  // Donut-wedge path. IMPORTANT: uses same angle convention as polarToXY (0° arriba).
-  function wedgePathD(cx, cy, r0, r1, a0, a1){
-    const A0 = a0 - 90;
-    const A1 = a1 - 90;
-
-    const p0o = { x: cx + r1 * Math.cos(deg2rad(A0)), y: cy + r1 * Math.sin(deg2rad(A0)) };
-    const p1o = { x: cx + r1 * Math.cos(deg2rad(A1)), y: cy + r1 * Math.sin(deg2rad(A1)) };
-    const p0i = { x: cx + r0 * Math.cos(deg2rad(A0)), y: cy + r0 * Math.sin(deg2rad(A0)) };
-    const p1i = { x: cx + r0 * Math.cos(deg2rad(A1)), y: cy + r0 * Math.sin(deg2rad(A1)) };
-
-    const laf = arcFlag(a0, a1);
-
-    return [
-      `M ${p0o.x.toFixed(2)} ${p0o.y.toFixed(2)}`,
-      `A ${r1.toFixed(2)} ${r1.toFixed(2)} 0 ${laf} 1 ${p1o.x.toFixed(2)} ${p1o.y.toFixed(2)}`,
-      `L ${p1i.x.toFixed(2)} ${p1i.y.toFixed(2)}`,
-      `A ${r0.toFixed(2)} ${r0.toFixed(2)} 0 ${laf} 0 ${p0i.x.toFixed(2)} ${p0i.y.toFixed(2)}`,
-      `Z`
-    ].join(" ");
-  }
-
-  function computeMinAngleGap(data){
-    const angs = (data||[]).map(d => Number(d.angulo)).filter(n => Number.isFinite(n));
-    if(angs.length < 2) return 18;
-    angs.sort((a,b)=>a-b);
-    let min = 360;
-    for(let i=0;i<angs.length;i++){
-      const a = angs[i];
-      const b = angs[(i+1)%angs.length] + (i===angs.length-1 ? 360 : 0);
-      min = Math.min(min, b-a);
-    }
-    return min;
-  }
-
-  function clamp01(x){ return Math.max(0, Math.min(1, x)); }
-
-  // Escala bonita: sqrt (suave y legible)
-  function scaleSqrt(v, vMax, Lmin=18, Lmax=240){
-    if (!vMax || vMax <= 0) return Lmin;
-    const t = clamp01(v / vMax);
-    return Lmin + (Lmax - Lmin) * Math.sqrt(t);
-  }
-
-  // Formato de número
-  function fmtNum(n){ return Number(n||0).toLocaleString(); }
-  function fmtMoney(n){ return "$" + Number(n||0).toLocaleString() + " MXN"; }
-
-  // 3) Builder del SVG completo (grid + hub + barras)
-  function buildSolSVG(svg, { title="ROMA • CDMX", subtitle="", onBarClick=null }){
-    svg.innerHTML = "";
-
-    // defs
-    const defs = svgEl("defs");
-
-    const filter = svgEl("filter");
-    filter.setAttribute("id", "solGlow");
-    filter.setAttribute("x", "-40%");
-    filter.setAttribute("y", "-40%");
-    filter.setAttribute("width", "180%");
-    filter.setAttribute("height", "180%");
-    const blur = svgEl("feGaussianBlur");
-    blur.setAttribute("stdDeviation", "3");
-    blur.setAttribute("result", "b");
-    const merge = svgEl("feMerge");
-    const mn1 = svgEl("feMergeNode"); mn1.setAttribute("in", "b");
-    const mn2 = svgEl("feMergeNode"); mn2.setAttribute("in", "SourceGraphic");
-    merge.appendChild(mn1); merge.appendChild(mn2);
-    filter.appendChild(blur); filter.appendChild(merge);
-
-    defs.appendChild(filter);
-    svg.appendChild(defs);
-
-    const cx=450, cy=450;
-
-    // Grid
-    const grid = svgEl("g");
-    grid.setAttribute("opacity", "0.55");
-
-    const rings = [140, 200, 260, 320, 380];
-    rings.forEach((r,i)=>{
-      const c = svgEl("circle");
-      c.setAttribute("cx", cx);
-      c.setAttribute("cy", cy);
-      c.setAttribute("r", r);
-      c.setAttribute("fill", "none");
-      c.setAttribute("stroke", i===0||i===rings.length-1 ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.07)");
-      c.setAttribute("stroke-width", i===rings.length-1 ? "1.4" : "1.2");
-      grid.appendChild(c);
-    });
-
-    const vline = svgEl("line");
-    vline.setAttribute("x1", cx); vline.setAttribute("y1", 70);
-    vline.setAttribute("x2", cx); vline.setAttribute("y2", 830);
-    vline.setAttribute("stroke", "rgba(255,255,255,0.05)");
-    vline.setAttribute("stroke-width", "1");
-    grid.appendChild(vline);
-
-    const hline = svgEl("line");
-    hline.setAttribute("x1", 70); hline.setAttribute("y1", cy);
-    hline.setAttribute("x2", 830); hline.setAttribute("y2", cy);
-    hline.setAttribute("stroke", "rgba(255,255,255,0.05)");
-    hline.setAttribute("stroke-width", "1");
-    grid.appendChild(hline);
-
-    svg.appendChild(grid);
-
-    // Hub
-    const hub = svgEl("g");
-    hub.setAttribute("filter", "url(#solGlow)");
-
-    const hubCircle = svgEl("circle");
-    hubCircle.setAttribute("cx", cx);
-    hubCircle.setAttribute("cy", cy);
-    hubCircle.setAttribute("r", 62);
-    hubCircle.setAttribute("fill", "rgba(23,162,166,0.18)");
-    hubCircle.setAttribute("stroke", "rgba(23,162,166,0.35)");
-    hubCircle.setAttribute("stroke-width", "1.5");
-    hub.appendChild(hubCircle);
-
-    const dot = svgEl("circle");
-    dot.setAttribute("cx", cx); dot.setAttribute("cy", cy); dot.setAttribute("r", 6);
-    dot.setAttribute("fill", "rgba(255,255,255,0.85)");
-    hub.appendChild(dot);
-
-    const txt = svgEl("text");
-    txt.setAttribute("x", cx);
-    txt.setAttribute("y", cy+2);
-    txt.setAttribute("text-anchor", "middle");
-    txt.setAttribute("fill", "rgba(255,255,255,0.82)");
-    txt.setAttribute("font-size", "12");
-    txt.setAttribute("font-weight", "700");
-    txt.setAttribute("font-family", "system-ui");
-    txt.textContent = title;
-    hub.appendChild(txt);
-
-    if (subtitle){
-      const st = svgEl("text");
-      st.setAttribute("x", cx);
-      st.setAttribute("y", cy+18);
-      st.setAttribute("text-anchor", "middle");
-      st.setAttribute("fill", "rgba(255,255,255,0.55)");
-      st.setAttribute("font-size", "11");
-      st.setAttribute("font-family", "system-ui");
-      st.textContent = subtitle;
-      hub.appendChild(st);
-    }
-
-    svg.appendChild(hub);
-
-    // Contenedor de barras
-    const barras = svgEl("g");
-    barras.setAttribute("id", "barras");
-    svg.appendChild(barras);
-
-    // Return API
-    return {
-      setBars: (bars, metricKey, opts={}) => renderBars(barras, bars, metricKey, onBarClick, opts)
-    };
-  }
-
-  function renderBars(g, data, metricKey, onBarClick, opts={}){
-    const cx=450, cy=450;
-    const R0=140;
-    const Lmax=240;
-
-    g.innerHTML = "";
-
-    const maxVal = Math.max(...data.map(d => Number(d[metricKey]||0)));
-
-    data.forEach(d=>{
-      const ang = Number(d.angulo||0);
-      const v = Number(d[metricKey]||0);
-
-      const L = scaleSqrt(v, maxVal, 18, Lmax);
-
-      // --- WEDGES (cuñas tipo dona) ---
-      const minGap = computeMinAngleGap(data);
-      const GAP_DEG = Math.max(1.2, Math.min(3, minGap * 0.12));
-      const WEDGE_DEG = Math.max(3, Math.min(14, minGap - GAP_DEG));
-
-      const a0 = ang - (WEDGE_DEG/2);
-      const a1 = ang + (WEDGE_DEG/2);
-
-      // Ghost wedge para “llenar” el círculo (fondo)
-      const ghost = svgEl("path");
-      ghost.setAttribute("d", wedgePathD(cx, cy, R0, R0 + Lmax, a0, a1));
-      ghost.setAttribute("fill", "rgba(255,255,255,0.04)");
-      ghost.setAttribute("stroke", "rgba(255,255,255,0.03)");
-      ghost.setAttribute("stroke-width", "1");
-      ghost.setAttribute("pointer-events", "none");
-      g.appendChild(ghost);
-
-      // Wedge real
-      const p = svgEl("path");
-      p.setAttribute("d", wedgePathD(cx, cy, R0, R0 + L, a0, a1));
-      p.setAttribute("fill", d.color || "rgba(23,162,166,0.9)");
-      p.setAttribute("fill-opacity", "0.90");
-      p.setAttribute("stroke", "rgba(255,255,255,0.09)");
-      p.setAttribute("stroke-width", "1");
-
-      // Tooltip nativo
-      const title = svgEl("title");
-      title.textContent =
-        `${d.nombre}\n` +
-        `Stock: ${fmtNum(d.stock)}\n` +
-        `Valor: ${fmtMoney(d.valor)}\n` +
-        `Cad <30d: ${Number(d.cad30||0)}%`;
-      p.appendChild(title);
-
-      // Hit area (más fácil hover/click)
-      const hit = svgEl("path");
-      hit.setAttribute("d", wedgePathD(cx, cy, R0, R0 + L, a0, a1));
-      hit.setAttribute("fill", "transparent");
-      hit.setAttribute("stroke", "transparent");
-      hit.setAttribute("stroke-width", "18");
-      hit.style.cursor = (typeof onBarClick === "function") ? "pointer" : "default";
-
-      if (typeof onBarClick === "function"){
-        hit.addEventListener("click", ()=> onBarClick(d));
-      }
-
-      g.appendChild(p);
-      g.appendChild(hit);
-    });
-
-    solLog("Render bars", { metricKey, count: data.length });
-  }
-
-  // =========================
-  // Datos: fetch / mock (placeholder)
-  // =========================
-
-  // 🔥 Debe venir de Supabase: agregados por representación
-  // Forma esperada por cada representación:
-  // { id, nombre, angulo, color, stock, valor, cad30 }
-  async function solFetchRepresentaciones(){
-    // TODO: aquí conectamos a Supabase real.
-    // Por ahora: demo usando tu arreglo + valores random
-    return REPRESENTACIONES_RADIALES.map(r=>({
-      ...r,
-      stock: Math.floor(Math.random()*2400)+150,
-      valor: Math.floor(Math.random()*12000000)+500000,
-      cad30: Math.floor(Math.random()*22),
-      strokeWidth: 10
-    }));
-  }
-
-  // 🔥 Debe venir de Supabase: agregados por unidad médica dentro de una representación
-  // Forma esperada:
-  // { id, nombre, angulo, color, stock, valor, cad30 }
-  async function solFetchUnidadesDeRepresentacion(repId){
-    // TODO: Supabase real.
-    // Demo: generamos 18 unidades con ángulos fijos alrededor del círculo (sin geo)
-    const n = 18;
-    const base = 360 / n;
-
-    return Array.from({length:n}).map((_,i)=>({
-      id: `${repId}_UM_${i+1}`,
-      nombre: `Unidad ${i+1} (${repId})`,
-      angulo: (i*base + 10) % 360,
-      color: "rgba(255,255,255,0.78)",
-      stock: Math.floor(Math.random()*700)+30,
-      valor: Math.floor(Math.random()*3200000)+150000,
-      cad30: Math.floor(Math.random()*18),
-      strokeWidth: 8
-    }));
-  }
-
-  // =========================
-  // Controller: toggle + drilldown
-  // =========================
-  let solMetric = "stock"; // "stock" | "valor"
-  let solAPI = null;
-  let solDrillAPI = null;
-  let solDataRep = [];
-  let solDataUM = [];
-  let solSelectedRep = null;
-
-  async function solInit(){
-    const svgN = document.getElementById("solNacional");
-    const svgD = document.getElementById("solDrill");
-
-    if(!svgN || !svgD){
-      solLog("No SVG targets found");
-      return;
-    }
-
-    // build SVGs
-    solAPI = buildSolSVG(svgN, {
-      title: "ROMA • CDMX",
-      subtitle: "Representaciones",
-      onBarClick: async (rep)=> {
-        await solOpenDrill(rep);
-      }
-    });
-
-    solDrillAPI = buildSolSVG(svgD, {
-      title: "DRILLDOWN",
-      subtitle: "Unidades médicas",
-      onBarClick: null // (opcional) segundo nivel
-    });
-
-    // hook toggle buttons
-    const bS = document.getElementById("btnMetricStock");
-    const bV = document.getElementById("btnMetricValor");
-    if (bS && bV){
-      bS.addEventListener("click", ()=> solSetMetric("stock"));
-      bV.addEventListener("click", ()=> solSetMetric("valor"));
-    }
-
-    // close drill
-    const btnClose = document.getElementById("btnCerrarDrill");
-    btnClose?.addEventListener("click", ()=> solCloseDrill());
-
-    // initial fetch + render
-    solDataRep = await solFetchRepresentaciones();
-    solRenderMain();
-
-    solLog("Sol init OK", { metric: solMetric, reps: solDataRep.length });
-  }
-
-  function solSetMetric(m){
-    solMetric = m;
-
-    const bS = document.getElementById("btnMetricStock");
-    const bV = document.getElementById("btnMetricValor");
-    if(bS && bV){
-      const stockOn = (m==="stock");
-      bS.classList.toggle("opacity-60", !stockOn);
-      bV.classList.toggle("opacity-60", stockOn);
-    }
-
-    // re-render main + drill if open
-    solRenderMain();
-    if (solSelectedRep) solRenderDrill();
-
-    solLog("Metric changed", { solMetric });
-  }
-
-  function solRenderMain(){
-    const sub = document.getElementById("solSubtitulo");
-    if(sub) sub.textContent = `Vista por representación • métrica: ${solMetric === "stock" ? "Stock" : "Valor"}`;
-
-    solAPI?.setBars(solDataRep, solMetric);
-  }
-
-  async function solOpenDrill(rep){
-    solSelectedRep = rep;
-
-    const wrap = document.getElementById("solDrillWrap");
-    const title = document.getElementById("solDrillTitle");
-    if(wrap) wrap.classList.remove("hidden");
-    if(title) title.textContent = `🏥 ${rep.nombre} • Unidades médicas (${solMetric === "stock" ? "Stock" : "Valor"})`;
-
-    solDataUM = await solFetchUnidadesDeRepresentacion(rep.id);
-    solRenderDrill();
-
-    solLog("Open drill", { rep: rep.id, units: solDataUM.length });
-  }
-
-  function solRenderDrill(){
-    const rep = solSelectedRep;
-    if(!rep) return;
-
-    const svgD = document.getElementById("solDrill");
-    // Update hub text by rebuilding is overkill; simple: re-build once or just render bars.
-    // Aquí solo renderizamos barras, y el título ya lo pusimos afuera.
-
-    solDrillAPI?.setBars(solDataUM, solMetric);
-  }
-
-  function solCloseDrill(){
-    solSelectedRep = null;
-    solDataUM = [];
-    const wrap = document.getElementById("solDrillWrap");
-    wrap?.classList.add("hidden");
-    solLog("Close drill");
-  }
-
-  // Lánzalo cuando exista el DOM (si ya estás usando DOMContentLoaded, encájalo ahí)
-  window.addEventListener("DOMContentLoaded", ()=> {
-    try { solInit(); } catch(e){ solLog("Init error", { e: String(e?.message||e) }); }
-  });
-  function qcEsc(v){
-    return (typeof escapeHtml === "function") ? escapeHtml(v) : String(v ?? "");
-  }
-
-  function qcTodayISO(){
-    const d = new Date();
-    d.setHours(0,0,0,0);
-    return d.toISOString().slice(0,10);
-  }
-
-  function qcAddDaysISO(iso, days){
-    const d = new Date(iso + "T00:00:00");
-    d.setDate(d.getDate() + days);
-    return d.toISOString().slice(0,10);
-  }
-
-  // Corte vigente para historicos: 10 o 25
-  // regla:
-  //  - día < 10  -> usa 25 del mes anterior
-  //  - 10..24    -> usa 10 del mes actual
-  //  - >= 25     -> usa 25 del mes actual
-  function qcColumnaCorteVigente(){
-    const now = new Date();
-    const day = now.getDate();
-    let month = now.getMonth() + 1;
-    let year = now.getFullYear();
-    let corte = 10;
-
-    if(day < 10){
-      corte = 25;
-      month -= 1;
-      if(month <= 0){ month = 12; year -= 1; }
-    } else if(day >= 25){
-      corte = 25;
-    } else {
-      corte = 10;
-    }
-    return `${corte}_${month}_${year}`;
-  }
-
-  async function qcEnsureChart(){
-    const ok = await (typeof ensureChartJs === "function" ? ensureChartJs() : Promise.resolve(!!window.Chart));
-    if(!ok) qclog("❌ Chart.js no disponible");
-    return ok;
-  }
-
-  async function qcSbSelect(table, selectStr, opts={}){
-    const sb = window.sb;
-    if(!sb){
-      qclog("❌ Supabase client no disponible (window.sb)");
-      return [];
-    }
-    let q = sb.from(table).select(selectStr);
-    if(opts.eq){ for(const [k,v] of Object.entries(opts.eq)) q = q.eq(k, v); }
-    if(opts.in){ for(const [k,arr] of Object.entries(opts.in)) q = q.in(k, arr); }
-    if(opts.gte){ for(const [k,v] of Object.entries(opts.gte)) q = q.gte(k, v); }
-    if(opts.lte){ for(const [k,v] of Object.entries(opts.lte)) q = q.lte(k, v); }
-    if(opts.order){ q = q.order(opts.order.col, { ascending: opts.order.asc !== false }); }
-    if(opts.limit){ q = q.limit(opts.limit); }
-    const { data, error } = await q;
-    if(error){
-      qclog(`❌ Supabase error en ${table}`, { error: String(error.message || error) });
-      return [];
-    }
-    return Array.isArray(data) ? data : [];
-  }
-
-  function qcGetFilters(){
-    const tipo = document.getElementById("qcTipo")?.value || "ALL";
-    const almacen = document.getElementById("qcAlmacen")?.value || "ALL";
-    const unidad = document.getElementById("qcUnidad")?.value || "ALL";
-    const desde = document.getElementById("qcDesde")?.value || qcAddDaysISO(qcTodayISO(), -180);
-    const hasta = document.getElementById("qcHasta")?.value || qcTodayISO();
-    const soloCrit = !!document.getElementById("qcSoloCriticos")?.checked;
-    const incluirCentral = !!document.getElementById("qcIncluirCentral")?.checked;
-    return { tipo, almacen, unidad, desde, hasta, soloCrit, incluirCentral };
-  }
-
-  function qcSetDefaultDates(){
-    const desdeEl = document.getElementById("qcDesde");
-    const hastaEl = document.getElementById("qcHasta");
-    if(desdeEl && !desdeEl.value) desdeEl.value = qcAddDaysISO(qcTodayISO(), -180);
-    if(hastaEl && !hastaEl.value) hastaEl.value = qcTodayISO();
-  }
-
-  async function qcCargarUnidadesSelect(){
-    try{
-      const sel = document.getElementById("qcUnidad");
-      if(!sel) return;
-      // Si existe un selector global / caches de unidades, úsalo. Si no, usa diccionario local.
-      const entries = Object.entries(window.unidadesDestino || {}).filter(([k,_]) => String(k).trim());
-      const opts = ["<option value=\"ALL\" selected>Todas</option>"];
-      for(const [clave,nombre] of entries){
-        // omitimos almacenes que son CUU/65/66 si quieres separarlos
-        opts.push(`<option value=\"${qcEsc(clave)}\">${qcEsc(clave)} · ${qcEsc(nombre)}</option>`);
-      }
-      sel.innerHTML = opts.join("\n");
-    } catch(e){
-      qclog("❌ Error cargando selector unidades", { err: String(e?.message || e) });
-    }
-  }
-
-  // ---------- Cálculos ----------
-  function qcParseCaducidadToDate(fecha){
-    if(!fecha || fecha === "S/C" || fecha === "0" || fecha === 0) return null;
-    // Excel serial
-    if(!isNaN(fecha)){
-      const serial = parseInt(fecha, 10);
-      if(serial > 1000) return new Date(1900, 0, serial - 2);
-    }
-    if(typeof fecha === "string"){
-      if(/^\d{4}-\d{2}-\d{2}$/.test(fecha)){
-        const [y,m,d] = fecha.split("-").map(Number);
-        return new Date(y, m-1, d);
-      }
-      if(/^\d{2}\/\d{2}\/\d{4}$/.test(fecha)){
-        const [d,m,y] = fecha.split("/").map(Number);
-        return new Date(y, m-1, d);
-      }
-    }
-    return null;
-  }
-
-  function qcDiasRestantes(fecha){
-    const dt = qcParseCaducidadToDate(fecha);
-    if(!dt || isNaN(dt.getTime())) return Infinity;
-    const hoy = new Date(); hoy.setHours(0,0,0,0);
-    dt.setHours(0,0,0,0);
-    return Math.floor((dt - hoy) / (1000*60*60*24));
-  }
-
-  function qcFmt2(n){
-    const x = Number(n);
-    if(!Number.isFinite(x)) return "-";
-    return x.toLocaleString("es-MX", { maximumFractionDigits: 2 });
-  }
-
-  function qcPillDias(dias){
-    if(dias === Infinity) return `<span class=\"cadu-pill\">S/C</span>`;
-    if(dias <= 7) return `<span class=\"cadu-pill cadu-pill--danger\">⛔ ${dias}d</span>`;
-    if(dias <= 30) return `<span class=\"cadu-pill cadu-pill--warn\">⚠️ ${dias}d</span>`;
-    return `<span class=\"cadu-pill cadu-pill--ok\">✅ ${dias}d</span>`;
-  }
-
-  function qcCompute({ catalogo, productosQC, historicosQC, consumoQC, filtros, columnaCorte }){
-    qclog("🧠 Computando dashboard", { columnaCorte, filtros, nCat: catalogo.length, nProd: productosQC.length, nHist: historicosQC.length, nCon: consumoQC.length });
-
-    // Normaliza catálogo
-    const cat = (catalogo || []).map(x => ({
-      referencia: String(x.referencia || "").trim(),
-      tipo: String(x.tipo || "ALL").toUpperCase(),
-      analito: x.analito ?? "",
-      plataforma: x.plataforma_equipo ?? "",
-      buffer_dias: Number(x.buffer_dias ?? 14),
-    })).filter(x => x.referencia);
-
-    // Index por referencia
-    const catByRef = new Map();
-    for(const it of cat) catByRef.set(it.referencia, it);
-
-    // Filtra por tipo
-    const allowedRefs = cat.filter(it => filtros.tipo === "ALL" || it.tipo === filtros.tipo).map(it => it.referencia);
-    const allowedSet = new Set(allowedRefs);
-
-    // Stock central: suma por ref (cantidad)
-    const centralByRef = new Map();
-    const lotesCentral = [];
-    for(const p of (productosQC||[])){
-      const ref = String(p.referencia || "").trim();
-      if(!allowedSet.has(ref)) continue;
-      const cant = Number(p.cantidad ?? 0);
-      if(cant <= 0) continue;
-      centralByRef.set(ref, (centralByRef.get(ref) || 0) + cant);
-      lotesCentral.push({
-        referencia: ref,
-        nombre: p.nombre ?? "",
-        fabricante: p.fabricante ?? "",
-        lote: p.lote ?? "",
-        caducidad: p.caducidad ?? "",
-        cantidad: cant,
-        origen: "CENTRAL",
-      });
-    }
-
-    // Stock unidades: historicos col -> cantidad
-    const unidadesByRef = new Map(); // ref -> total
-    const unidadesDetalle = []; // rows
-    for(const h of (historicosQC||[])){
-      const ref = String(h.referencia || "").trim();
-      if(!allowedSet.has(ref)) continue;
-      const um = String(h.unidad_medica || h.unidad || "").trim();
-      const val = Number(h[columnaCorte] ?? 0);
-      if(!Number.isFinite(val) || val <= 0) continue;
-      // filtro unidad
-      if(filtros.unidad !== "ALL" && um !== filtros.unidad) continue;
-      unidadesByRef.set(ref, (unidadesByRef.get(ref) || 0) + val);
-      unidadesDetalle.push({ referencia: ref, unidad_medica: um, cantidad: val, origen: "UNIDAD" });
-    }
-
-    // Consumo: suma por ref y por mes
-    const consumoByRef = new Map();
-    const consumoMensual = new Map(); // yyyy-mm -> total
-    const consumoMensualByTipo = new Map(); // yyyy-mm -> {IQC,EQC}
-    for(const c of (consumoQC||[])){
-      const ref = String(c.referencia || "").trim();
-      if(!allowedSet.has(ref)) continue;
-      if(filtros.unidad !== "ALL" && String(c.unidad_medica||"").trim() !== filtros.unidad) continue;
-      const tipo = String(c.tipo || "ALL").toUpperCase();
-      if(filtros.tipo !== "ALL" && tipo !== filtros.tipo) continue;
-      const cantidad = Number(c.cantidad ?? 0);
-      if(!Number.isFinite(cantidad) || cantidad <= 0) continue;
-      consumoByRef.set(ref, (consumoByRef.get(ref) || 0) + cantidad);
-      const f = String(c.fecha || "").slice(0,10);
-      const ym = (f && f.length>=7) ? f.slice(0,7) : "S/F";
-      consumoMensual.set(ym, (consumoMensual.get(ym) || 0) + cantidad);
-      const bucket = consumoMensualByTipo.get(ym) || { IQC:0, EQC:0 };
-      if(tipo === "EQC") bucket.EQC += cantidad; else bucket.IQC += cantidad;
-      consumoMensualByTipo.set(ym, bucket);
-    }
-
-    // Rango días
-    const daysRange = Math.max(1, Math.round((new Date(filtros.hasta+"T00:00:00") - new Date(filtros.desde+"T00:00:00")) / (1000*60*60*24)));
-    const consumoTotal = Array.from(consumoByRef.values()).reduce((a,b)=>a+b,0);
-    const consumoDiario = consumoTotal / daysRange;
-
-    // Stock total por ref
-    const stockTotalByRef = new Map();
-    for(const ref of allowedRefs){
-      const central = filtros.incluirCentral ? (centralByRef.get(ref) || 0) : 0;
-      const unid = unidadesByRef.get(ref) || 0;
-      stockTotalByRef.set(ref, central + unid);
-    }
-
-    // Coverage global (días)
-    const stockTotal = Array.from(stockTotalByRef.values()).reduce((a,b)=>a+b,0);
-    const coberturaGlobal = consumoDiario > 0 ? (stockTotal / consumoDiario) : Infinity;
-
-    // Ventanas caducidad (por lote central)
-    const bins = { "0-7":0, "8-15":0, "16-30":0, "31-90":0, ">90":0, "S/C":0 };
-    const critCad = [];
-    for(const r of lotesCentral){
-      const d = qcDiasRestantes(r.caducidad);
-      if(d === Infinity) { bins["S/C"] += 1; continue; }
-      if(d <= 7) bins["0-7"] += 1;
-      else if(d <= 15) bins["8-15"] += 1;
-      else if(d <= 30) bins["16-30"] += 1;
-      else if(d <= 90) bins["31-90"] += 1;
-      else bins[">90"] += 1;
-      if(d <= 30) critCad.push({ ...r, dias: d });
-    }
-
-    // Compra sugerida por ref
-    const leadTimeDias = 14; // default (ajustable)
-    const compra = [];
-    const criticos = [];
-    for(const ref of allowedRefs){
-      const stock = stockTotalByRef.get(ref) || 0;
-      const cons = consumoByRef.get(ref) || 0;
-      const consDiarioRef = cons / daysRange;
-      const it = catByRef.get(ref) || { buffer_dias: 14, tipo: "ALL" };
-      const buffer = Number(it.buffer_dias ?? 14);
-      const target = consDiarioRef > 0 ? Math.ceil(consDiarioRef * (leadTimeDias + buffer)) : 0;
-      const sugerido = Math.max(0, target - stock);
-      const cobertura = consDiarioRef > 0 ? (stock / consDiarioRef) : Infinity;
-      compra.push({ referencia: ref, tipo: it.tipo || "", stock, consumo: cons, cobertura, sugerido, buffer_dias: buffer });
-      const coberturaCrit = cobertura !== Infinity && cobertura <= 14;
-      if(coberturaCrit || sugerido > 0){
-        criticos.push({ referencia: ref, tipo: it.tipo || "", stock, consumo: cons, cobertura, sugerido, motivo: coberturaCrit ? "Cobertura baja" : "Reponer" });
-      }
-    }
-
-    // Filtro sólo críticos
-    const compraFiltrada = filtros.soloCrit ? compra.filter(x => x.sugerido > 0) : compra;
-    const critFinal = filtros.soloCrit ? criticos : [...criticos];
-    // Añade caducidades críticas como ítems (por lote)
-    for(const x of critCad){
-      critFinal.push({ referencia: x.referencia, tipo: catByRef.get(x.referencia)?.tipo || "", stock: x.cantidad, consumo: 0, cobertura: Infinity, sugerido: 0, motivo: `Caduca en ${x.dias}d`, lote: x.lote, caducidad: x.caducidad, origen: x.origen });
-    }
-
-    // Cobertura por almacén (simple): usamos central CUU/65/66 como "almacenes" + unidades como "UNIDADES"
-    // Nota: central por almacén real requiere una tabla que relacione productos->almacén; aquí asumimos CENTRAL agregado.
-    const coberturaPorAlmacen = [
-      { key: "CENTRAL", label: "Central", stock: filtros.incluirCentral ? Array.from(centralByRef.values()).reduce((a,b)=>a+b,0) : 0 },
-      { key: "UNIDADES", label: "Unidades", stock: Array.from(unidadesByRef.values()).reduce((a,b)=>a+b,0) },
-    ].map(x => ({ ...x, cobertura: consumoDiario>0 ? (x.stock/consumoDiario) : Infinity }));
-
-    // Ordena
-    compraFiltrada.sort((a,b)=> (b.sugerido - a.sugerido) || (a.referencia.localeCompare(b.referencia)));
-    critFinal.sort((a,b)=>{
-      const ac = a.cobertura ?? Infinity, bc = b.cobertura ?? Infinity;
-      return (ac - bc) || (String(a.referencia).localeCompare(String(b.referencia)));
-    });
-
-    return {
-      kpis: {
-        stockTotal,
-        consumoTotal,
-        consumoDiario,
-        coberturaGlobal,
-        caducidadesCriticas: critCad.length,
-        itemsReponer: compra.filter(x=>x.sugerido>0).length,
-      },
-      charts: {
-        consumoMensualByTipo,
-        coberturaPorAlmacen,
-        cadBins: bins,
-      },
-      tablas: {
-        criticos: critFinal,
-        compra: compraFiltrada,
-      },
-      meta: { daysRange, columnaCorte }
-    };
-  }
-
-  // ---------- Render ----------
-  function qcRenderKPIs(kpis){
-    const wrap = document.getElementById("qcKPIs");
-    if(!wrap) return;
-    const card = (title, value, sub="") => `
-      <div class="space-card p-4">
-        <div class="text-xs text-white/60">${qcEsc(title)}</div>
-        <div class="text-2xl font-extrabold text-white/90 mt-1">${qcEsc(value)}</div>
-        ${sub ? `<div class="text-xs text-white/55 mt-1">${qcEsc(sub)}</div>` : ""}
-      </div>
-    `;
-    const cov = (kpis.coberturaGlobal === Infinity) ? "∞" : qcFmt2(kpis.coberturaGlobal);
-    wrap.innerHTML = [
-      card("Stock total QC", qcFmt2(kpis.stockTotal), "central + unidades"),
-      card("Consumo (rango)", qcFmt2(kpis.consumoTotal), "unidades consumidas"),
-      card("Consumo diario", qcFmt2(kpis.consumoDiario), "promedio"),
-      card("Cobertura global (días)", cov, "stock / consumo"),
-      card("Críticos", qcFmt2(kpis.caducidadesCriticas + kpis.itemsReponer), "caducidad + reponer"),
-    ].join("\n");
-  }
-
-  async function qcRenderCharts(ch){
-    const ok = await qcEnsureChart();
-    if(!ok) return;
-    const Chart = window.Chart;
-
-    // Consumo mensual
-    const c1 = document.getElementById("qcChartConsumo");
-    if(c1){
-      const labels = Array.from(ch.consumoMensualByTipo.keys()).sort();
-      const iqc = labels.map(k => ch.consumoMensualByTipo.get(k)?.IQC || 0);
-      const eqc = labels.map(k => ch.consumoMensualByTipo.get(k)?.EQC || 0);
-      const data = {
-        labels,
-        datasets: [
-          { label: "IQC", data: iqc, tension: 0.25, order: 1 },
-          { label: "EQC", data: eqc, tension: 0.25, order: 2 },
-        ]
-      };
-      if(window.qcState.charts.consumo) window.qcState.charts.consumo.destroy();
-      window.qcState.charts.consumo = new Chart(c1.getContext("2d"), {
-        type: "line",
-        data,
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { labels: { color: "rgba(255,255,255,.75)", sort: safeLegendSort } },
-            tooltip: { enabled: true }
-          },
-          scales: {
-            x: { ticks: { color: "rgba(255,255,255,.6)" }, grid: { color: "rgba(255,255,255,.06)" } },
-            y: { ticks: { color: "rgba(255,255,255,.6)" }, grid: { color: "rgba(255,255,255,.06)" } },
-          }
-        }
-      });
-    }
-
-    // Cobertura por almacén
-    const c2 = document.getElementById("qcChartCobertura");
-    if(c2){
-      const labels = ch.coberturaPorAlmacen.map(x => x.label);
-      const vals = ch.coberturaPorAlmacen.map(x => (x.cobertura===Infinity?0:x.cobertura));
-      if(window.qcState.charts.cobertura) window.qcState.charts.cobertura.destroy();
-      window.qcState.charts.cobertura = new Chart(c2.getContext("2d"), {
-        type: "bar",
-        data: { labels, datasets: [{ label: "Días", data: vals, order: 1 }] },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { labels: { color: "rgba(255,255,255,.75)" } } },
-          scales: {
-            x: { ticks: { color: "rgba(255,255,255,.6)" }, grid: { color: "rgba(255,255,255,.06)" } },
-            y: { ticks: { color: "rgba(255,255,255,.6)" }, grid: { color: "rgba(255,255,255,.06)" } },
-          }
-        }
-      });
-    }
-
-    // Caducidades ventanas
-    const c3 = document.getElementById("qcChartCaducidad");
-    if(c3){
-      const labels = Object.keys(ch.cadBins);
-      const vals = labels.map(k => ch.cadBins[k] || 0);
-      if(window.qcState.charts.caducidad) window.qcState.charts.caducidad.destroy();
-      window.qcState.charts.caducidad = new Chart(c3.getContext("2d"), {
-        type: "doughnut",
-        data: { labels, datasets: [{ label: "Lotes", data: vals }] },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { labels: { color: "rgba(255,255,255,.75)" } } }
-        }
-      });
-    }
-  }
-
-  function qcRenderTablaCriticos(rows){
-    const wrap = document.getElementById("qcTablaCriticos");
-    if(!wrap) return;
-
-    if(!rows?.length){
-      wrap.innerHTML = `<div class="p-4 text-sm text-white/70">✅ Sin críticos con los filtros actuales.</div>`;
-      return;
-    }
-
-    const head = `
-      <table class="cadu-table">
-        <thead>
-          <tr>
-            <th>Referencia</th>
-            <th>Tipo</th>
-            <th>Stock</th>
-            <th>Cobertura</th>
-            <th>Motivo</th>
-          </tr>
-        </thead>
-        <tbody>
-    `;
-
-    const body = rows.slice(0, 120).map(r => {
-      const cov = (r.cobertura === Infinity) ? "∞" : qcFmt2(r.cobertura);
-      const motivo = r.motivo || "";
-      return `
-        <tr>
-          <td class="whitespace-nowrap font-mono">${qcEsc(r.referencia)}</td>
-          <td>${qcEsc(r.tipo || "")}</td>
-          <td class="text-right">${qcFmt2(r.stock || 0)}</td>
-          <td class="text-right">${qcEsc(cov)}</td>
-          <td>${qcEsc(motivo)}${r.caducidad ? `<span class="cadu-sub">Lote ${qcEsc(r.lote||"")} · ${qcEsc(r.caducidad)} · ${qcPillDias(qcDiasRestantes(r.caducidad))}</span>` : ""}</td>
-        </tr>
-      `;
-    }).join("\n");
-
-    const foot = `</tbody></table>`;
-    wrap.innerHTML = head + body + foot;
-  }
-
-  function qcRenderTablaCompra(rows){
-    const wrap = document.getElementById("qcTablaCompra");
-    if(!wrap) return;
-    if(!rows?.length){
-      wrap.innerHTML = `<div class="p-4 text-sm text-white/70">— Sin sugerencias de compra con los filtros actuales.</div>`;
-      return;
-    }
-    const head = `
-      <table class="cadu-table">
-        <thead>
-          <tr>
-            <th>Referencia</th>
-            <th>Tipo</th>
-            <th>Stock</th>
-            <th>Consumo</th>
-            <th>Sugerido</th>
-          </tr>
-        </thead>
-        <tbody>
-    `;
-    const body = rows.slice(0, 160).map(r => `
-      <tr>
-        <td class="whitespace-nowrap font-mono">${qcEsc(r.referencia)}</td>
-        <td>${qcEsc(r.tipo || "")}</td>
-        <td class="text-right">${qcFmt2(r.stock || 0)}</td>
-        <td class="text-right">${qcFmt2(r.consumo || 0)}</td>
-        <td class="text-right font-extrabold">${qcFmt2(r.sugerido || 0)}</td>
-      </tr>
-    `).join("\n");
-    wrap.innerHTML = head + body + `</tbody></table>`;
-  }
-
-  // ---------- Orquestador ----------
-  async function qc_refrescarDashboard(){
-    const modal = document.getElementById("modalQC");
-    if(modal && modal.classList.contains("hidden")) {
-      // si está cerrado, no corremos por accidente
-      qclog("⏭️ QC refresh ignorado (modal cerrado)");
-      return;
-    }
-
-    loaderReset?.();
-    mostrarLoader?.(true);
-    try{
-      qcSetDefaultDates();
-      const filtros = qcGetFilters();
-      const columnaCorte = qcColumnaCorteVigente();
-
-      qclog("▶ Iniciando QC refresh", { filtros, columnaCorte });
-      loaderPush?.("QC: cargando catálogo (qc_items)");
-      const catalogo = await qcSbSelect("qc_items", "referencia,tipo,analito,plataforma_equipo,buffer_dias");
-      window.qcState.catalogo = catalogo;
-
-      if(!catalogo.length){
-        qclog("⚠️ qc_items vacío. El dashboard mostrará datos incompletos.");
-      }
-
-      // refs a consultar
-      const refs = catalogo.map(x => String(x.referencia||"").trim()).filter(Boolean);
-      const uniqueRefs = Array.from(new Set(refs));
-
-      loaderPush?.("QC: cargando productos (stock central)");
-      const productosQC = uniqueRefs.length
-        ? await qcSbSelect("productos", "referencia,nombre,fabricante,lote,caducidad,cantidad", { in: { referencia: uniqueRefs } })
-        : [];
-      window.qcState.productosQC = productosQC;
-
-      loaderPush?.("QC: cargando historicos (stock unidades)");
-      const histSelect = `unidad_medica,referencia,${columnaCorte}`;
-      const historicosQC = uniqueRefs.length
-        ? await qcSbSelect("historicos", histSelect, { in: { referencia: uniqueRefs } })
-        : [];
-      window.qcState.historicosQC = historicosQC;
-
-      loaderPush?.("QC: cargando consumo (qc_consumo)");
-      const consumoQC = await qcSbSelect("qc_consumo", "fecha,unidad_medica,referencia,tipo,cantidad", {
-        gte: { fecha: filtros.desde },
-        lte: { fecha: filtros.hasta },
-      });
-      window.qcState.consumoQC = consumoQC;
-
-      const computed = qcCompute({ catalogo, productosQC, historicosQC, consumoQC, filtros, columnaCorte });
-      window.qcState.computed = computed;
-      window.qcState.lastRunAt = new Date().toISOString();
-
-      // Render
-      qcRenderKPIs(computed.kpis);
-      await qcRenderCharts(computed.charts);
-      qcRenderTablaCriticos(computed.tablas.criticos);
-      qcRenderTablaCompra(computed.tablas.compra);
-
-      qclog("✅ QC dashboard listo", { kpis: computed.kpis, meta: computed.meta });
-    } catch(e){
-      qclog("❌ Error en QC refresh", { err: String(e?.message || e) });
-      const t1 = document.getElementById("qcTablaCriticos");
-      const t2 = document.getElementById("qcTablaCompra");
-      if(t1) t1.innerHTML = `<div class="p-4 text-sm text-rose-200">❌ Error cargando QC: ${qcEsc(String(e?.message||e))}</div>`;
-      if(t2) t2.innerHTML = `<div class="p-4 text-sm text-rose-200">❌ Error cargando QC: ${qcEsc(String(e?.message||e))}</div>`;
-    } finally {
-      ocultarLoader?.();
-    }
-  }
-
-  function qc_exportarCSV(){
-    try{
-      const comp = window.qcState.computed;
-      if(!comp){
-        qclog("⏭️ No hay datos para exportar (corre Refrescar)");
-        return;
-      }
-      const rows1 = comp.tablas.compra || [];
-      const rows2 = comp.tablas.criticos || [];
-      const esc = (v) => {
-        const s = String(v ?? "").replaceAll('"','""');
-        return `"${s}"`;
-      };
-      const head1 = ["referencia","tipo","stock","consumo","cobertura_dias","sugerido"].map(esc).join(",");
-      const csv1 = rows1.map(r => [r.referencia,r.tipo,r.stock,r.consumo,r.cobertura,r.sugerido].map(esc).join(",")).join("\n");
-      const head2 = ["referencia","tipo","stock","cobertura_dias","motivo","lote","caducidad"].map(esc).join(",");
-      const csv2 = rows2.map(r => [r.referencia,r.tipo,r.stock,r.cobertura,r.motivo||"",r.lote||"",r.caducidad||""].map(esc).join(",")).join("\n");
-      const out = [
-        "# QC Command - Compra sugerida",
-        head1,
-        csv1,
-        "",
-        "# QC Command - Críticos",
-        head2,
-        csv2,
-        "",
-        `# Meta: columnaCorte=${comp.meta?.columnaCorte || ""} daysRange=${comp.meta?.daysRange || ""}`,
-      ].join("\n");
-
-      const blob = new Blob([out], { type: "text/csv;charset=utf-8" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `qc_command_${new Date().toISOString().slice(0,10)}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      qclog("⬇️ CSV exportado");
-    } catch(e){
-      qclog("❌ Error exportando CSV", { err: String(e?.message || e) });
-    }
-  }
-
-  function abrirModalQC(){
-    const modal = document.getElementById("modalQC");
-    if(!modal) return;
-    modal.classList.remove("hidden");
-    modal.classList.add("flex");
-    qcSetDefaultDates();
-    qcCargarUnidadesSelect();
-    qclog("🛰️ QC modal abierto");
-    // Auto-refresh al abrir (primera vez o siempre)
-    qc_refrescarDashboard();
-  }
-
-  function cerrarModalQC(){
-    const modal = document.getElementById("modalQC");
-    if(!modal) return;
-    modal.classList.add("hidden");
-    modal.classList.remove("flex");
-    qclog("🛰️ QC modal cerrado");
-  }
-
-  // Exponer APIs globales
-  window.abrirModalQC = abrirModalQC;
-  window.cerrarModalQC = cerrarModalQC;
-  window.qc_refrescarDashboard = qc_refrescarDashboard;
-  window.qc_exportarCSV = qc_exportarCSV;
-
-  // Listeners
-  document.addEventListener("DOMContentLoaded", () => {
-    qcSetDefaultDates();
-    qcCargarUnidadesSelect();
-    const btn = document.getElementById("btnQC");
-    if(btn) btn.addEventListener("click", () => abrirModalQC());
-    ["qcTipo","qcAlmacen","qcUnidad","qcDesde","qcHasta","qcSoloCriticos","qcIncluirCentral"].forEach(id => {
-      const el = document.getElementById(id);
-      if(el) el.addEventListener("change", () => qclog("🔁 Filtro cambiado", { id, value: (el.type==="checkbox"?el.checked:el.value) }));
-    });
-  });
-
-  document.addEventListener("keydown", (e) => {
-    if(e.key === "Escape"){
-      const modal = document.getElementById("modalQC");
-      if(modal && !modal.classList.contains("hidden")) cerrarModalQC();
-    }
-  });
-
-})();
-
 // Abre el modal y prepara el selector:
 window.abrirModalReporteMensual = function () {
   console.log("🟢 abrirModalReporteMensual ejecutado");
@@ -11131,42 +9638,135 @@ function cerrarSesion() {
   // ✅ Mostrar confirmación
   mostrarModal("🔒 Sesión cerrada", "#6b7280");
 }
+//#endregion
+//=======================QC Command=======================
+//#region QC Command
 
-// =========================
-// ☀️☀️☀️ Sol Nacional (SVG WEDGES)
-// =========================
-(function(){
-  // --- Helpers ---
-  function polarToXY(cx, cy, r, angleDeg){
-    const a = (angleDeg * Math.PI) / 180;
-    return {
-      x: cx + r * Math.cos(a),
-      y: cy + r * Math.sin(a)
-    };
+// =================================================================================================
+// 🛰️🧪 QC COMMAND (Supervisor de Calidad)
+// - Requiere tablas: qc_items (catálogo), qc_consumo (consumo)
+// - Usa productos (stock central/lotes/caducidad) + historicos (stock unidades por corte)
+// - FULL LOGGING (console + panel)
+// =================================================================================================
+
+(function initQCModule(){
+  window.qcState = window.qcState || {
+    catalogo: [],
+    productosQC: [],
+    historicosQC: [],
+    consumoQC: [],
+    computed: null,
+    charts: { consumo: null, cobertura: null, caducidad: null },
+    lastRunAt: null,
+  };
+
+  function qclog(msg, obj){
+    try{
+      // ✅ Solo consola (NO UI)
+      if (obj !== undefined) console.log("🛰️[QC]", msg, obj);
+      else console.log("🛰️[QC]", msg);
+    } catch (_){ /* no-op */ }
+  }
+  // =========================
+  // ☀️ Sol Logístico: Motor SVG
+  // =========================
+
+  // 🎨 Paleta única para el Sol (consistente con UI obsidiana/teal)
+  const QC_SOL_PALETTE = [
+    "#17A2A6", // teal primario
+    "#0EA5E9", // sky
+    "#38BDF8", // cyan claro
+    "#1E40AF", // azul profundo
+    "#388df8", // violeta (acento)
+    "#EAB308", // ámbar
+    "#F59E0B"  // naranja (acento)
+  ];
+
+  function normalizeHex(hex){
+    const s = String(hex||"").trim();
+    if(!s) return "";
+    return s.startsWith("#") ? s.toUpperCase() : ("#"+s).toUpperCase();
+  }
+
+  function isPaletteColor(hex){
+    const h = normalizeHex(hex);
+    return QC_SOL_PALETTE.includes(h);
+  }
+
+  function colorFromPalette(key){
+    const s = String(key||"");
+    let hash = 0;
+    for(let i=0;i<s.length;i++){
+      hash = ((hash << 5) - hash) + s.charCodeAt(i);
+      hash |= 0;
+    }
+    return QC_SOL_PALETTE[Math.abs(hash) % QC_SOL_PALETTE.length];
+  }
+
+//#region ==========GRAFICO SOLAR==========
+  // 1) Orden fijo (tu arreglo real)
+  const REPRESENTACIONES_RADIALES = [
+    { id: "CUU",   nombre: "ALMACÉN CHIHUAHUA",      angulo: 330, color: "#17A2A6" },
+    { id: "65",    nombre: "ALMACÉN JUÁREZ",          angulo: 345, color: "#1E40AF" },
+    { id: "66",    nombre: "ALMACÉN PARRAL",          angulo: 315, color: "#EAB308" },
+
+    { id: "BCS",   nombre: "BAJA CALIFORNIA SUR",     angulo: 250, color: "#0EA5E9" },
+    { id: "DUR",   nombre: "DURANGO",                 angulo: 305, color: "#38BDF8" },
+    { id: "NAY",  nombre: "NAYARIT",  angulo: 270, color: "#17A2A6" },
+    { id: "SIN",  nombre: "SINALOA",  angulo: 290, color: "#0EA5E9" },
+
+    { id: "TAM",   nombre: "TAMAULIPAS",              angulo:  20, color: "#F59E0B" },
+    { id: "COA",   nombre: "COAHUILA",                angulo: 350, color: "#A78BFA" },
+
+    { id: "CHP",  nombre: "CHIAPAS",  angulo: 140, color: "#38BDF8" },
+    { id: "OAX",   nombre: "OAXACA",                  angulo: 165, color: "#17A2A6" },
+    { id: "TAB",   nombre: "TABASCO",                 angulo: 110, color: "#0EA5E9" },
+    { id: "CAM",   nombre: "CAMPECHE",                angulo: 120, color: "#A78BFA" },
+    { id: "QROO",  nombre: "QUINTANA ROO",            angulo:  90, color: "#38BDF8" },
+    { id: "GRO",   nombre: "GUERRERO",                angulo: 200, color: "#0EA5E9" },
+    { id: "EDOMEX",nombre: "EDO. DE MÉXICO",          angulo: 230, color: "#EAB308" },
+    { id: "HGO",   nombre: "HIDALGO",                 angulo:  40, color: "#1E40AF" },
+    // 🔥 agrega aquí las que quieras, siempre con angulo fijo
+  ];
+
+  // 2) Utilidades (mínimas)
+  function solLog(msg, obj){
+    try{
+      // ✅ Solo consola (NO UI)
+      if (obj !== undefined) console.log("☀️[SOL]", msg, obj);
+      else console.log("☀️[SOL]", msg);
+    } catch (_){ /* no-op */ }
+  }
+
+  function svgEl(name){
+    return document.createElementNS("http://www.w3.org/2000/svg", name);
+  }
+
+  function polarToXY(cx, cy, r, deg){
+    const rad = (deg - 90) * Math.PI / 180; // 0° arriba
+    return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
   }
 
   function deg2rad(deg){ return (deg * Math.PI) / 180; }
 
-  // SVG arc flag helper
+  // arc flags for SVG
   function arcFlag(a0, a1){
     let d = ((a1 - a0) % 360 + 360) % 360;
     return d > 180 ? 1 : 0;
   }
 
-  // Returns an SVG path "d" for a donut-wedge between radii r0..r1 and angles a0..a1 (degrees)
+  // Donut-wedge path. IMPORTANT: uses same angle convention as polarToXY (0° arriba).
   function wedgePathD(cx, cy, r0, r1, a0, a1){
-    // normalize
-    const A0 = a0;
-    const A1 = a1;
+    const A0 = a0 - 90;
+    const A1 = a1 - 90;
 
     const p0o = { x: cx + r1 * Math.cos(deg2rad(A0)), y: cy + r1 * Math.sin(deg2rad(A0)) };
     const p1o = { x: cx + r1 * Math.cos(deg2rad(A1)), y: cy + r1 * Math.sin(deg2rad(A1)) };
     const p0i = { x: cx + r0 * Math.cos(deg2rad(A0)), y: cy + r0 * Math.sin(deg2rad(A0)) };
     const p1i = { x: cx + r0 * Math.cos(deg2rad(A1)), y: cy + r0 * Math.sin(deg2rad(A1)) };
 
-    const laf = arcFlag(A0, A1);
+    const laf = arcFlag(a0, a1);
 
-    // Sweep outer arc forward (1), inner arc backward (0)
     return [
       `M ${p0o.x.toFixed(2)} ${p0o.y.toFixed(2)}`,
       `A ${r1.toFixed(2)} ${r1.toFixed(2)} 0 ${laf} 1 ${p1o.x.toFixed(2)} ${p1o.y.toFixed(2)}`,
@@ -11176,82 +9776,1022 @@ function cerrarSesion() {
     ].join(" ");
   }
 
-  // Main render function for Sol Nacional (and drill/logs)
-  function renderSolNacional(rows, metric, svg, barsGroup, logLines, L_MAX){
-    // Configuración
-    const CX = 450, CY = 450, R0 = 170;
-    const Lmax = L_MAX || 260;
-    const N = Math.max(1, rows.length);
-    const slotDeg = 360 / N;
-    const GAP_DEG = 2;                 // separación entre wedges
-    const WEDGE_DEG = Math.max(2, Math.min(10, slotDeg - GAP_DEG)); // cuña visible
-
-    logLines.push(`MODE: wedges | N=${N} | slot=${slotDeg.toFixed(2)}° | wedge=${WEDGE_DEG.toFixed(2)}° | gap=${GAP_DEG}°`);
-
-    // Limpiar grupo
-    while (barsGroup.firstChild) barsGroup.removeChild(barsGroup.firstChild);
-
-    // Calcular máximo
-    let Ls = [];
-    for (const r of rows) {
-      let L = Math.max(18, Math.min(Lmax, r.valor ?? 0));
-      Ls.push(L);
+  function computeMinAngleGap(data){
+    const angs = (data||[]).map(d => Number(d.angulo)).filter(n => Number.isFinite(n));
+    if(angs.length < 2) return 18;
+    angs.sort((a,b)=>a-b);
+    let min = 360;
+    for(let i=0;i<angs.length;i++){
+      const a = angs[i];
+      const b = angs[(i+1)%angs.length] + (i===angs.length-1 ? 360 : 0);
+      min = Math.min(min, b-a);
     }
-    // Render wedges
-    for (let i = 0; i < rows.length; ++i) {
-      const r = rows[i];
-      const ang = (i * slotDeg) - 90; // -90 para empezar arriba
-      const L = Ls[i];
+    return min;
+  }
 
-      // --- WEDGE (donut slice) ---
-      const a0 = ang - (WEDGE_DEG / 2);
-      const a1 = ang + (WEDGE_DEG / 2);
+  function clamp01(x){ return Math.max(0, Math.min(1, x)); }
 
-      // Sombra/ghost (fondo) para “llenar” el círculo sin afectar lectura
-      const ghost = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      ghost.setAttribute("d", wedgePathD(CX, CY, R0, R0 + Lmax, a0, a1));
+  // Escala bonita: sqrt (suave y legible)
+  function scaleSqrt(v, vMax, Lmin=18, Lmax=240){
+    if (!vMax || vMax <= 0) return Lmin;
+    const t = clamp01(v / vMax);
+    return Lmin + (Lmax - Lmin) * Math.sqrt(t);
+  }
+
+  // Formato de número
+  function fmtNum(n){ return Number(n||0).toLocaleString(); }
+  function fmtMoney(n){ return "$" + Number(n||0).toLocaleString() + " MXN"; }
+
+  // 3) Builder del SVG completo (grid + hub + barras)
+  function buildSolSVG(svg, { title="ROMA • CDMX", subtitle="", onBarClick=null }){
+    svg.innerHTML = "";
+
+    // defs
+    const defs = svgEl("defs");
+
+    const filter = svgEl("filter");
+    filter.setAttribute("id", "solGlow");
+    filter.setAttribute("x", "-40%");
+    filter.setAttribute("y", "-40%");
+    filter.setAttribute("width", "180%");
+    filter.setAttribute("height", "180%");
+    const blur = svgEl("feGaussianBlur");
+    blur.setAttribute("stdDeviation", "3");
+    blur.setAttribute("result", "b");
+    const merge = svgEl("feMerge");
+    const mn1 = svgEl("feMergeNode"); mn1.setAttribute("in", "b");
+    const mn2 = svgEl("feMergeNode"); mn2.setAttribute("in", "SourceGraphic");
+    merge.appendChild(mn1); merge.appendChild(mn2);
+    filter.appendChild(blur); filter.appendChild(merge);
+
+    defs.appendChild(filter);
+    svg.appendChild(defs);
+
+    const cx=450, cy=450;
+
+    // Grid
+    const grid = svgEl("g");
+    grid.setAttribute("opacity", "0.55");
+
+    const rings = [140, 200, 260, 320, 380];
+    rings.forEach((r,i)=>{
+      const c = svgEl("circle");
+      c.setAttribute("cx", cx);
+      c.setAttribute("cy", cy);
+      c.setAttribute("r", r);
+      c.setAttribute("fill", "none");
+      c.setAttribute("stroke", i===0||i===rings.length-1 ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.07)");
+      c.setAttribute("stroke-width", i===rings.length-1 ? "1.4" : "1.2");
+      grid.appendChild(c);
+    });
+
+    const vline = svgEl("line");
+    vline.setAttribute("x1", cx); vline.setAttribute("y1", 70);
+    vline.setAttribute("x2", cx); vline.setAttribute("y2", 830);
+    vline.setAttribute("stroke", "rgba(255,255,255,0.05)");
+    vline.setAttribute("stroke-width", "1");
+    grid.appendChild(vline);
+
+    const hline = svgEl("line");
+    hline.setAttribute("x1", 70); hline.setAttribute("y1", cy);
+    hline.setAttribute("x2", 830); hline.setAttribute("y2", cy);
+    hline.setAttribute("stroke", "rgba(255,255,255,0.05)");
+    hline.setAttribute("stroke-width", "1");
+    grid.appendChild(hline);
+
+    svg.appendChild(grid);
+
+    // Hub
+    const hub = svgEl("g");
+    hub.setAttribute("filter", "url(#solGlow)");
+
+    const hubCircle = svgEl("circle");
+    hubCircle.setAttribute("cx", cx);
+    hubCircle.setAttribute("cy", cy);
+    hubCircle.setAttribute("r", 62);
+    hubCircle.setAttribute("fill", "rgba(23,162,166,0.18)");
+    hubCircle.setAttribute("stroke", "rgba(23,162,166,0.35)");
+    hubCircle.setAttribute("stroke-width", "1.5");
+    hub.appendChild(hubCircle);
+
+    const dot = svgEl("circle");
+    dot.setAttribute("cx", cx); dot.setAttribute("cy", cy); dot.setAttribute("r", 6);
+    dot.setAttribute("fill", "rgba(255,255,255,0.85)");
+    hub.appendChild(dot);
+
+    const txt = svgEl("text");
+    txt.setAttribute("x", cx);
+    txt.setAttribute("y", cy+2);
+    txt.setAttribute("text-anchor", "middle");
+    txt.setAttribute("fill", "rgba(255,255,255,0.82)");
+    txt.setAttribute("font-size", "12");
+    txt.setAttribute("font-weight", "700");
+    txt.setAttribute("font-family", "system-ui");
+    txt.textContent = title;
+    hub.appendChild(txt);
+
+    if (subtitle){
+      const st = svgEl("text");
+      st.setAttribute("x", cx);
+      st.setAttribute("y", cy+18);
+      st.setAttribute("text-anchor", "middle");
+      st.setAttribute("fill", "rgba(255,255,255,0.55)");
+      st.setAttribute("font-size", "11");
+      st.setAttribute("font-family", "system-ui");
+      st.textContent = subtitle;
+      hub.appendChild(st);
+    }
+
+    svg.appendChild(hub);
+
+    // Contenedor de barras
+    const barras = svgEl("g");
+    barras.setAttribute("id", "barras");
+    svg.appendChild(barras);
+
+    // Return API
+    return {
+      setBars: (bars, metricKey, opts={}) => renderBars(barras, bars, metricKey, onBarClick, opts)
+    };
+  }
+
+  function renderBars(g, data, metricKey, onBarClick, opts={}){
+    const cx=450, cy=450;
+    const R0=140;
+    const Lmax=240;
+
+    g.innerHTML = "";
+
+    const maxVal = Math.max(...data.map(d => Number(d[metricKey]||0)));
+    const minGap = computeMinAngleGap(data);
+    const GAP_DEG = Math.max(1.2, Math.min(3, minGap * 0.12));
+    const WEDGE_DEG = Math.max(3, Math.min(14, minGap - GAP_DEG));
+
+    data.forEach(d=>{
+      const ang = Number(d.angulo||0);
+      const v = Number(d[metricKey]||0);
+
+      const L = scaleSqrt(v, maxVal, 18, Lmax);
+
+      const a0 = ang - (WEDGE_DEG/2);
+      const a1 = ang + (WEDGE_DEG/2);
+
+      // Ghost wedge para “llenar” el círculo (fondo)
+      const ghost = svgEl("path");
+      ghost.setAttribute("d", wedgePathD(cx, cy, R0, R0 + Lmax, a0, a1));
       ghost.setAttribute("fill", "rgba(255,255,255,0.04)");
       ghost.setAttribute("stroke", "rgba(255,255,255,0.03)");
       ghost.setAttribute("stroke-width", "1");
       ghost.setAttribute("pointer-events", "none");
-      barsGroup.appendChild(ghost);
+      g.appendChild(ghost);
+
+      // Tooltip nativo (texto)
+      const tipText =
+        `${d.nombre}\n` +
+        `Stock: ${fmtNum(d.stock)}\n` +
+        `Valor: ${fmtMoney(d.valor)}\n` +
+        `Cad <30d: ${Number(d.cad30||0)}%`;
 
       // Wedge real
-      const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      p.setAttribute("d", wedgePathD(CX, CY, R0, R0 + L, a0, a1));
-      p.setAttribute("fill", r.color || "#17A2A6");
-      p.setAttribute("fill-opacity", "0.88");
-      p.setAttribute("stroke", "rgba(255,255,255,0.08)");
+      const p = svgEl("path");
+      p.setAttribute("d", wedgePathD(cx, cy, R0, R0 + L, a0, a1));
+      const fillColor = isPaletteColor(d.color) ? normalizeHex(d.color) : colorFromPalette(d.id || d.nombre);
+      p.setAttribute("fill", fillColor);
+      p.setAttribute("fill-opacity", "0.90");
+      p.setAttribute("stroke", "rgba(255,255,255,0.09)");
       p.setAttribute("stroke-width", "1");
 
-      // target invisible para hover/click (más fácil de atinar)
-      const hit = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      hit.setAttribute("d", wedgePathD(CX, CY, R0, R0 + L, a0, a1));
+      // title en wedge
+      const titleP = svgEl("title");
+      titleP.textContent = tipText;
+      p.appendChild(titleP);
+
+      // Hit area (más fácil hover/click)
+      const hit = svgEl("path");
+      hit.setAttribute("d", wedgePathD(cx, cy, R0, R0 + Lmax, a0, a1)); // 👈 mejor: hit grande (Lmax)
       hit.setAttribute("fill", "transparent");
       hit.setAttribute("stroke", "transparent");
       hit.setAttribute("stroke-width", "18");
-      hit.style.cursor = "pointer";
+      hit.style.cursor = (typeof onBarClick === "function") ? "pointer" : "default";
 
-      // tooltips / click: conserva exactamente la misma lógica que ya tenías para el line
-      // Si tu código actual hace line.addEventListener('mousemove', ...) y line.addEventListener('click', ...)
-      // cámbialo para que se lo pongas a `hit` y al path `p`.
-      // EJEMPLO (ajusta al handler real existente):
-      // hit.addEventListener('mousemove', (ev)=> onHoverRep(ev, r, metric));
-      // hit.addEventListener('mouseleave', hideTooltip);
-      // hit.addEventListener('click', ()=> openDrill(r.id, r.nombre));
+      // title también en hit (para que el hover siempre lo agarre)
+      const titleH = svgEl("title");
+      titleH.textContent = tipText;
+      hit.appendChild(titleH);
 
-      barsGroup.appendChild(p);
-      barsGroup.appendChild(hit);
+      if (typeof onBarClick === "function"){
+        hit.addEventListener("click", ()=> onBarClick(d));
+      }
+
+      hit.addEventListener("mouseenter", () => {
+        solLog("Hover", { id: d.id, nombre: d.nombre, stock: d.stock, valor: d.valor, cad30: d.cad30 });
+      });
+      hit.addEventListener("mouseleave", () => {
+        // opcional
+      });
+
+      g.appendChild(p);
+      g.appendChild(hit);
+    });
+
+    solLog("Render bars", { metricKey, count: data.length });
+  }
+
+  // =========================
+  // Datos: fetch / mock (placeholder)
+  // =========================
+
+  // 🔥 Debe venir de Supabase: agregados por representación
+  // Forma esperada por cada representación:
+  // { id, nombre, angulo, color, stock, valor, cad30 }
+  async function solFetchRepresentaciones(){
+    // TODO: aquí conectamos a Supabase real.
+    // Por ahora: demo usando tu arreglo + valores random
+    return REPRESENTACIONES_RADIALES.map(r=>({
+      ...r,
+      stock: Math.floor(Math.random()*2400)+150,
+      valor: Math.floor(Math.random()*12000000)+500000,
+      cad30: Math.floor(Math.random()*22),
+      strokeWidth: 10
+    }));
+  }
+
+  // 🔥 Debe venir de Supabase: agregados por unidad médica dentro de una representación
+  // Forma esperada:
+  // { id, nombre, angulo, color, stock, valor, cad30 }
+  async function solFetchUnidadesDeRepresentacion(repId){
+    // TODO: Supabase real.
+    // Demo: generamos 18 unidades con ángulos fijos alrededor del círculo (sin geo)
+    const n = 18;
+    const base = 360 / n;
+
+    return Array.from({length:n}).map((_,i)=>({
+      id: `${repId}_UM_${i+1}`,
+      nombre: `Unidad ${i+1} (${repId})`,
+      angulo: (i*base + 10) % 360,
+      color: "#38BDF8",
+      stock: Math.floor(Math.random()*700)+30,
+      valor: Math.floor(Math.random()*3200000)+150000,
+      cad30: Math.floor(Math.random()*18),
+      strokeWidth: 8
+    }));
+  }
+
+  // =========================
+  // Controller: toggle + drilldown
+  // =========================
+  let solMetric = "stock"; // "stock" | "valor"
+  let solAPI = null;
+  let solDrillAPI = null;
+  let solDataRep = [];
+  let solDataUM = [];
+  let solSelectedRep = null;
+
+  async function solInit(){
+    const svgN = document.getElementById("solNacional");
+    const svgD = document.getElementById("solDrill");
+
+    if(!svgN || !svgD){
+      solLog("No SVG targets found");
+      return;
+    }
+
+    // build SVGs
+    solAPI = buildSolSVG(svgN, {
+      title: "ROMA  CDMX",
+      subtitle: "Representaciones",
+      onBarClick: async (rep)=> {
+        await solOpenDrill(rep);
+      }
+    });
+
+    solDrillAPI = buildSolSVG(svgD, {
+      title: "DRILLDOWN",
+      subtitle: "Unidades médicas",
+      onBarClick: null // (opcional) segundo nivel
+    });
+
+    // hook toggle buttons
+    const bS = document.getElementById("btnMetricStock");
+    const bV = document.getElementById("btnMetricValor");
+    if (bS && bV){
+      bS.addEventListener("click", ()=> solSetMetric("stock"));
+      bV.addEventListener("click", ()=> solSetMetric("valor"));
+    }
+
+    // close drill
+    const btnClose = document.getElementById("btnCerrarDrill");
+    btnClose?.addEventListener("click", ()=> solCloseDrill());
+
+    // initial fetch + render
+    solDataRep = await solFetchRepresentaciones();
+    solRenderMain();
+
+    solLog("Sol init OK", { metric: solMetric, reps: solDataRep.length });
+  }
+
+  function solSetMetric(m){
+    solMetric = m;
+
+    const bS = document.getElementById("btnMetricStock");
+    const bV = document.getElementById("btnMetricValor");
+    if(bS && bV){
+      const stockOn = (m==="stock");
+      bS.classList.toggle("opacity-60", !stockOn);
+      bV.classList.toggle("opacity-60", stockOn);
+    }
+
+    // re-render main + drill if open
+    solRenderMain();
+    if (solSelectedRep) solRenderDrill();
+
+    solLog("Metric changed", { solMetric });
+  }
+
+  function solRenderMain(){
+    const sub = document.getElementById("solSubtitulo");
+    if(sub) sub.textContent = `Vista por representación • métrica: ${solMetric === "stock" ? "Stock" : "Valor"}`;
+
+    solAPI?.setBars(solDataRep, solMetric);
+  }
+
+  async function solOpenDrill(rep){
+    solSelectedRep = rep;
+
+    const wrap = document.getElementById("solDrillWrap");
+    const title = document.getElementById("solDrillTitle");
+    if(wrap) wrap.classList.remove("hidden");
+    if(title) title.textContent = `🏥 ${rep.nombre} • Unidades médicas (${solMetric === "stock" ? "Stock" : "Valor"})`;
+
+    solDataUM = await solFetchUnidadesDeRepresentacion(rep.id);
+    solRenderDrill();
+
+    solLog("Open drill", { rep: rep.id, units: solDataUM.length });
+  }
+
+  function solRenderDrill(){
+    const rep = solSelectedRep;
+    if(!rep) return;
+
+    const svgD = document.getElementById("solDrill");
+    // Update hub text by rebuilding is overkill; simple: re-build once or just render bars.
+    // Aquí solo renderizamos barras, y el título ya lo pusimos afuera.
+
+    solDrillAPI?.setBars(solDataUM, solMetric);
+  }
+
+  function solCloseDrill(){
+    solSelectedRep = null;
+    solDataUM = [];
+    const wrap = document.getElementById("solDrillWrap");
+    wrap?.classList.add("hidden");
+    solLog("Close drill");
+  }
+
+//#endregion ======GRAFICO SOLAR============
+
+  window.addEventListener("DOMContentLoaded", ()=> {
+    try { solInit(); } catch(e){ solLog("Init error", { e: String(e?.message||e) }); }
+  });
+  function qcEsc(v){
+    return (typeof escapeHtml === "function") ? escapeHtml(v) : String(v ?? "");
+  }
+
+  function qcTodayISO(){
+    const d = new Date();
+    d.setHours(0,0,0,0);
+    return d.toISOString().slice(0,10);
+  }
+
+  function qcAddDaysISO(iso, days){
+    const d = new Date(iso + "T00:00:00");
+    d.setDate(d.getDate() + days);
+    return d.toISOString().slice(0,10);
+  }
+
+  function qcColumnaCorteVigente(){
+    const now = new Date();
+    const day = now.getDate();
+    let month = now.getMonth() + 1;
+    let year = now.getFullYear();
+    let corte = 10;
+
+    if(day < 10){
+      corte = 25;
+      month -= 1;
+      if(month <= 0){ month = 12; year -= 1; }
+    } else if(day >= 25){
+      corte = 25;
+    } else {
+      corte = 10;
+    }
+    return `${corte}_${month}_${year}`;
+  }
+
+  async function qcEnsureChart(){
+    const ok = await (typeof ensureChartJs === "function" ? ensureChartJs() : Promise.resolve(!!window.Chart));
+    if(!ok) qclog("❌ Chart.js no disponible");
+    return ok;
+  }
+
+  async function qcSbSelect(table, selectStr, opts={}){
+    const sb = window.sb;
+    if(!sb){
+      qclog("❌ Supabase client no disponible (window.sb)");
+      return [];
+    }
+    let q = sb.from(table).select(selectStr);
+    if(opts.eq){ for(const [k,v] of Object.entries(opts.eq)) q = q.eq(k, v); }
+    if(opts.in){ for(const [k,arr] of Object.entries(opts.in)) q = q.in(k, arr); }
+    if(opts.gte){ for(const [k,v] of Object.entries(opts.gte)) q = q.gte(k, v); }
+    if(opts.lte){ for(const [k,v] of Object.entries(opts.lte)) q = q.lte(k, v); }
+    if(opts.order){ q = q.order(opts.order.col, { ascending: opts.order.asc !== false }); }
+    if(opts.limit){ q = q.limit(opts.limit); }
+    const { data, error } = await q;
+    if(error){
+      qclog(`❌ Supabase error en ${table}`, { error: String(error.message || error) });
+      return [];
+    }
+    return Array.isArray(data) ? data : [];
+  }
+
+  function qcGetFilters(){
+    const tipo = document.getElementById("qcTipo")?.value || "ALL";
+    const almacen = document.getElementById("qcAlmacen")?.value || "ALL";
+    const unidad = document.getElementById("qcUnidad")?.value || "ALL";
+    const desde = document.getElementById("qcDesde")?.value || qcAddDaysISO(qcTodayISO(), -180);
+    const hasta = document.getElementById("qcHasta")?.value || qcTodayISO();
+    const soloCrit = !!document.getElementById("qcSoloCriticos")?.checked;
+    const incluirCentral = !!document.getElementById("qcIncluirCentral")?.checked;
+    return { tipo, almacen, unidad, desde, hasta, soloCrit, incluirCentral };
+  }
+
+    function qcSetDefaultDates(){
+    const desdeEl = document.getElementById("qcDesde");
+    const hastaEl = document.getElementById("qcHasta");
+    if(desdeEl && !desdeEl.value) desdeEl.value = qcAddDaysISO(qcTodayISO(), -180);
+    if(hastaEl && !hastaEl.value) hastaEl.value = qcTodayISO();
+  }
+
+  async function qcCargarUnidadesSelect(){
+    try{
+      const sel = document.getElementById("qcUnidad");
+      if(!sel) return;
+      // Si existe un selector global / caches de unidades, úsalo. Si no, usa diccionario local.
+      const entries = Object.entries(window.unidadesDestino || {}).filter(([k,_]) => String(k).trim());
+      const opts = ["<option value=\"ALL\" selected>Todas</option>"];
+      for(const [clave,nombre] of entries){
+        // omitimos almacenes que son CUU/65/66 si quieres separarlos
+        opts.push(`<option value=\"${qcEsc(clave)}\">${qcEsc(clave)} · ${qcEsc(nombre)}</option>`);
+      }
+      sel.innerHTML = opts.join("\n");
+    } catch(e){
+      qclog("❌ Error cargando selector unidades", { err: String(e?.message || e) });
     }
   }
 
-  // Expose to global for integration
-  window.renderSolNacional = renderSolNacional;
+  // ---------- Cálculos ----------
+  function qcParseCaducidadToDate(fecha){
+    if(!fecha || fecha === "S/C" || fecha === "0" || fecha === 0) return null;
+    // Excel serial
+    if(!isNaN(fecha)){
+      const serial = parseInt(fecha, 10);
+      if(serial > 1000) return new Date(1900, 0, serial - 2);
+    }
+    if(typeof fecha === "string"){
+      if(/^\d{4}-\d{2}-\d{2}$/.test(fecha)){
+        const [y,m,d] = fecha.split("-").map(Number);
+        return new Date(y, m-1, d);
+      }
+      if(/^\d{2}\/\d{2}\/\d{4}$/.test(fecha)){
+        const [d,m,y] = fecha.split("/").map(Number);
+        return new Date(y, m-1, d);
+      }
+    }
+    return null;
+  }
+
+  function qcDiasRestantes(fecha){
+    const dt = qcParseCaducidadToDate(fecha);
+    if(!dt || isNaN(dt.getTime())) return Infinity;
+    const hoy = new Date(); hoy.setHours(0,0,0,0);
+    dt.setHours(0,0,0,0);
+    return Math.floor((dt - hoy) / (1000*60*60*24));
+  }
+
+  function qcFmt2(n){
+    const x = Number(n);
+    if(!Number.isFinite(x)) return "-";
+    return x.toLocaleString("es-MX", { maximumFractionDigits: 2 });
+  }
+
+  function qcPillDias(dias){
+    if(dias === Infinity) return `<span class=\"cadu-pill\">S/C</span>`;
+    if(dias <= 7) return `<span class=\"cadu-pill cadu-pill--danger\">⛔ ${dias}d</span>`;
+    if(dias <= 30) return `<span class=\"cadu-pill cadu-pill--warn\">⚠️ ${dias}d</span>`;
+    return `<span class=\"cadu-pill cadu-pill--ok\">✅ ${dias}d</span>`;
+  }
+
+  function qcCompute({ catalogo, productosQC, historicosQC, consumoQC, filtros, columnaCorte }){
+    qclog("🧠 Computando dashboard", { columnaCorte, filtros, nCat: catalogo.length, nProd: productosQC.length, nHist: historicosQC.length, nCon: consumoQC.length });
+
+    // Normaliza catálogo
+    const cat = (catalogo || []).map(x => ({
+      referencia: String(x.referencia || "").trim(),
+      tipo: String(x.tipo || "ALL").toUpperCase(),
+      analito: x.analito ?? "",
+      plataforma: x.plataforma_equipo ?? "",
+      buffer_dias: Number(x.buffer_dias ?? 14),
+    })).filter(x => x.referencia);
+
+    // Index por referencia
+    const catByRef = new Map();
+    for(const it of cat) catByRef.set(it.referencia, it);
+
+    // Filtra por tipo
+    const allowedRefs = cat.filter(it => filtros.tipo === "ALL" || it.tipo === filtros.tipo).map(it => it.referencia);
+    const allowedSet = new Set(allowedRefs);
+
+    // Stock central: suma por ref (cantidad)
+    const centralByRef = new Map();
+    const lotesCentral = [];
+    for(const p of (productosQC||[])){
+      const ref = String(p.referencia || "").trim();
+      if(!allowedSet.has(ref)) continue;
+      const cant = Number(p.cantidad ?? 0);
+      if(cant <= 0) continue;
+      centralByRef.set(ref, (centralByRef.get(ref) || 0) + cant);
+      lotesCentral.push({
+        referencia: ref,
+        nombre: p.nombre ?? "",
+        fabricante: p.fabricante ?? "",
+        lote: p.lote ?? "",
+        caducidad: p.caducidad ?? "",
+        cantidad: cant,
+        origen: "CENTRAL",
+      });
+    }
+
+    // Stock unidades: historicos col -> cantidad
+    const unidadesByRef = new Map(); // ref -> total
+    const unidadesDetalle = []; // rows
+    for(const h of (historicosQC||[])){
+      const ref = String(h.referencia || "").trim();
+      if(!allowedSet.has(ref)) continue;
+      const um = String(h.unidad_medica || h.unidad || "").trim();
+      const val = Number(h[columnaCorte] ?? 0);
+      if(!Number.isFinite(val) || val <= 0) continue;
+      // filtro unidad
+      if(filtros.unidad !== "ALL" && um !== filtros.unidad) continue;
+      unidadesByRef.set(ref, (unidadesByRef.get(ref) || 0) + val);
+      unidadesDetalle.push({ referencia: ref, unidad_medica: um, cantidad: val, origen: "UNIDAD" });
+    }
+
+    // Consumo: suma por ref y por mes
+    const consumoByRef = new Map();
+    const consumoMensual = new Map(); // yyyy-mm -> total
+    const consumoMensualByTipo = new Map(); // yyyy-mm -> {IQC,EQC}
+    for(const c of (consumoQC||[])){
+      const ref = String(c.referencia || "").trim();
+      if(!allowedSet.has(ref)) continue;
+      if(filtros.unidad !== "ALL" && String(c.unidad_medica||"").trim() !== filtros.unidad) continue;
+      const tipo = String(c.tipo || "ALL").toUpperCase();
+      if(filtros.tipo !== "ALL" && tipo !== filtros.tipo) continue;
+      const cantidad = Number(c.cantidad ?? 0);
+      if(!Number.isFinite(cantidad) || cantidad <= 0) continue;
+      consumoByRef.set(ref, (consumoByRef.get(ref) || 0) + cantidad);
+      const f = String(c.fecha || "").slice(0,10);
+      const ym = (f && f.length>=7) ? f.slice(0,7) : "S/F";
+      consumoMensual.set(ym, (consumoMensual.get(ym) || 0) + cantidad);
+      const bucket = consumoMensualByTipo.get(ym) || { IQC:0, EQC:0 };
+      if(tipo === "EQC") bucket.EQC += cantidad; else bucket.IQC += cantidad;
+      consumoMensualByTipo.set(ym, bucket);
+    }
+
+    // Rango días
+    const daysRange = Math.max(1, Math.round((new Date(filtros.hasta+"T00:00:00") - new Date(filtros.desde+"T00:00:00")) / (1000*60*60*24)));
+    const consumoTotal = Array.from(consumoByRef.values()).reduce((a,b)=>a+b,0);
+    const consumoDiario = consumoTotal / daysRange;
+
+    // Stock total por ref
+    const stockTotalByRef = new Map();
+    for(const ref of allowedRefs){
+      const central = filtros.incluirCentral ? (centralByRef.get(ref) || 0) : 0;
+      const unid = unidadesByRef.get(ref) || 0;
+      stockTotalByRef.set(ref, central + unid);
+    }
+
+    // Coverage global (días)
+    const stockTotal = Array.from(stockTotalByRef.values()).reduce((a,b)=>a+b,0);
+    const coberturaGlobal = consumoDiario > 0 ? (stockTotal / consumoDiario) : Infinity;
+
+    // Ventanas caducidad (por lote central)
+    const bins = { "0-7":0, "8-15":0, "16-30":0, "31-90":0, ">90":0, "S/C":0 };
+    const critCad = [];
+    for(const r of lotesCentral){
+      const d = qcDiasRestantes(r.caducidad);
+      if(d === Infinity) { bins["S/C"] += 1; continue; }
+      if(d <= 7) bins["0-7"] += 1;
+      else if(d <= 15) bins["8-15"] += 1;
+      else if(d <= 30) bins["16-30"] += 1;
+      else if(d <= 90) bins["31-90"] += 1;
+      else bins[">90"] += 1;
+      if(d <= 30) critCad.push({ ...r, dias: d });
+    }
+
+    // Compra sugerida por ref
+    const leadTimeDias = 14; // default (ajustable)
+    const compra = [];
+    const criticos = [];
+    for(const ref of allowedRefs){
+      const stock = stockTotalByRef.get(ref) || 0;
+      const cons = consumoByRef.get(ref) || 0;
+      const consDiarioRef = cons / daysRange;
+      const it = catByRef.get(ref) || { buffer_dias: 14, tipo: "ALL" };
+      const buffer = Number(it.buffer_dias ?? 14);
+      const target = consDiarioRef > 0 ? Math.ceil(consDiarioRef * (leadTimeDias + buffer)) : 0;
+      const sugerido = Math.max(0, target - stock);
+      const cobertura = consDiarioRef > 0 ? (stock / consDiarioRef) : Infinity;
+      compra.push({ referencia: ref, tipo: it.tipo || "", stock, consumo: cons, cobertura, sugerido, buffer_dias: buffer });
+      const coberturaCrit = cobertura !== Infinity && cobertura <= 14;
+      if(coberturaCrit || sugerido > 0){
+        criticos.push({ referencia: ref, tipo: it.tipo || "", stock, consumo: cons, cobertura, sugerido, motivo: coberturaCrit ? "Cobertura baja" : "Reponer" });
+      }
+    }
+
+    // Filtro sólo críticos
+    const compraFiltrada = filtros.soloCrit ? compra.filter(x => x.sugerido > 0) : compra;
+    const critFinal = filtros.soloCrit ? criticos : [...criticos];
+    // Añade caducidades críticas como ítems (por lote)
+    for(const x of critCad){
+      critFinal.push({ referencia: x.referencia, tipo: catByRef.get(x.referencia)?.tipo || "", stock: x.cantidad, consumo: 0, cobertura: Infinity, sugerido: 0, motivo: `Caduca en ${x.dias}d`, lote: x.lote, caducidad: x.caducidad, origen: x.origen });
+    }
+
+    // Cobertura por almacén (simple): usamos central CUU/65/66 como "almacenes" + unidades como "UNIDADES"
+    // Nota: central por almacén real requiere una tabla que relacione productos->almacén; aquí asumimos CENTRAL agregado.
+    const coberturaPorAlmacen = [
+      { key: "CENTRAL", label: "Central", stock: filtros.incluirCentral ? Array.from(centralByRef.values()).reduce((a,b)=>a+b,0) : 0 },
+      { key: "UNIDADES", label: "Unidades", stock: Array.from(unidadesByRef.values()).reduce((a,b)=>a+b,0) },
+    ].map(x => ({ ...x, cobertura: consumoDiario>0 ? (x.stock/consumoDiario) : Infinity }));
+
+    // Ordena
+    compraFiltrada.sort((a,b)=> (b.sugerido - a.sugerido) || (a.referencia.localeCompare(b.referencia)));
+    critFinal.sort((a,b)=>{
+      const ac = a.cobertura ?? Infinity, bc = b.cobertura ?? Infinity;
+      return (ac - bc) || (String(a.referencia).localeCompare(String(b.referencia)));
+    });
+
+    return {
+      kpis: {
+        stockTotal,
+        consumoTotal,
+        consumoDiario,
+        coberturaGlobal,
+        caducidadesCriticas: critCad.length,
+        itemsReponer: compra.filter(x=>x.sugerido>0).length,
+      },
+      charts: {
+        consumoMensualByTipo,
+        coberturaPorAlmacen,
+        cadBins: bins,
+      },
+      tablas: {
+        criticos: critFinal,
+        compra: compraFiltrada,
+      },
+      meta: { daysRange, columnaCorte }
+    };
+  }
+
+  // ---------- Render ----------
+  function qcRenderKPIs(kpis){
+    const wrap = document.getElementById("qcKPIs");
+    if(!wrap) return;
+    const card = (title, value, sub="") => `
+      <div class="space-card p-4">
+        <div class="text-xs text-white/60">${qcEsc(title)}</div>
+        <div class="text-2xl font-extrabold text-white/90 mt-1">${qcEsc(value)}</div>
+        ${sub ? `<div class="text-xs text-white/55 mt-1">${qcEsc(sub)}</div>` : ""}
+      </div>
+    `;
+    const cov = (kpis.coberturaGlobal === Infinity) ? "∞" : qcFmt2(kpis.coberturaGlobal);
+    wrap.innerHTML = [
+      card("Stock total QC", qcFmt2(kpis.stockTotal), "central + unidades"),
+      card("Consumo (rango)", qcFmt2(kpis.consumoTotal), "unidades consumidas"),
+      card("Consumo diario", qcFmt2(kpis.consumoDiario), "promedio"),
+      card("Cobertura global (días)", cov, "stock / consumo"),
+      card("Críticos", qcFmt2(kpis.caducidadesCriticas + kpis.itemsReponer), "caducidad + reponer"),
+    ].join("\n");
+  }
+
+  async function qcRenderCharts(ch){
+    const ok = await qcEnsureChart();
+    if(!ok) return;
+    const Chart = window.Chart;
+
+    // Consumo mensual
+    const c1 = document.getElementById("qcChartConsumo");
+    if(c1){
+      const labels = Array.from(ch.consumoMensualByTipo.keys()).sort();
+      const iqc = labels.map(k => ch.consumoMensualByTipo.get(k)?.IQC || 0);
+      const eqc = labels.map(k => ch.consumoMensualByTipo.get(k)?.EQC || 0);
+      const data = {
+        labels,
+        datasets: [
+          { label: "IQC", data: iqc, tension: 0.25, order: 1 },
+          { label: "EQC", data: eqc, tension: 0.25, order: 2 },
+        ]
+      };
+      if(window.qcState.charts.consumo) window.qcState.charts.consumo.destroy();
+      window.qcState.charts.consumo = new Chart(c1.getContext("2d"), {
+        type: "line",
+        data,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: "rgba(255,255,255,.75)", sort: safeLegendSort } },
+            tooltip: { enabled: true }
+          },
+          scales: {
+            x: { ticks: { color: "rgba(255,255,255,.6)" }, grid: { color: "rgba(255,255,255,.06)" } },
+            y: { ticks: { color: "rgba(255,255,255,.6)" }, grid: { color: "rgba(255,255,255,.06)" } },
+          }
+        }
+      });
+    }
+
+    // Cobertura por almacén
+    const c2 = document.getElementById("qcChartCobertura");
+    if(c2){
+      const labels = ch.coberturaPorAlmacen.map(x => x.label);
+      const vals = ch.coberturaPorAlmacen.map(x => (x.cobertura===Infinity?0:x.cobertura));
+      if(window.qcState.charts.cobertura) window.qcState.charts.cobertura.destroy();
+      window.qcState.charts.cobertura = new Chart(c2.getContext("2d"), {
+        type: "bar",
+        data: { labels, datasets: [{ label: "Días", data: vals, order: 1 }] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: "rgba(255,255,255,.75)" } } },
+          scales: {
+            x: { ticks: { color: "rgba(255,255,255,.6)" }, grid: { color: "rgba(255,255,255,.06)" } },
+            y: { ticks: { color: "rgba(255,255,255,.6)" }, grid: { color: "rgba(255,255,255,.06)" } },
+          }
+        }
+      });
+    }
+
+    // Caducidades ventanas
+    const c3 = document.getElementById("qcChartCaducidad");
+    if(c3){
+      const labels = Object.keys(ch.cadBins);
+      const vals = labels.map(k => ch.cadBins[k] || 0);
+      if(window.qcState.charts.caducidad) window.qcState.charts.caducidad.destroy();
+      window.qcState.charts.caducidad = new Chart(c3.getContext("2d"), {
+        type: "doughnut",
+        data: { labels, datasets: [{ label: "Lotes", data: vals }] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: "rgba(255,255,255,.75)" } } }
+        }
+      });
+    }
+  }
+
+  function qcRenderTablaCriticos(rows){
+    const wrap = document.getElementById("qcTablaCriticos");
+    if(!wrap) return;
+
+    if(!rows?.length){
+      wrap.innerHTML = `<div class="p-4 text-sm text-white/70">✅ Sin críticos con los filtros actuales.</div>`;
+      return;
+    }
+
+    const head = `
+      <table class="cadu-table">
+        <thead>
+          <tr>
+            <th>Referencia</th>
+            <th>Tipo</th>
+            <th>Stock</th>
+            <th>Cobertura</th>
+            <th>Motivo</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    const body = rows.slice(0, 120).map(r => {
+      const cov = (r.cobertura === Infinity) ? "∞" : qcFmt2(r.cobertura);
+      const motivo = r.motivo || "";
+      return `
+        <tr>
+          <td class="whitespace-nowrap font-mono">${qcEsc(r.referencia)}</td>
+          <td>${qcEsc(r.tipo || "")}</td>
+          <td class="text-right">${qcFmt2(r.stock || 0)}</td>
+          <td class="text-right">${qcEsc(cov)}</td>
+          <td>${qcEsc(motivo)}${r.caducidad ? `<span class="cadu-sub">Lote ${qcEsc(r.lote||"")} · ${qcEsc(r.caducidad)} · ${qcPillDias(qcDiasRestantes(r.caducidad))}</span>` : ""}</td>
+        </tr>
+      `;
+    }).join("\n");
+
+    const foot = `</tbody></table>`;
+    wrap.innerHTML = head + body + foot;
+  }
+
+  function qcRenderTablaCompra(rows){
+    const wrap = document.getElementById("qcTablaCompra");
+    if(!wrap) return;
+    if(!rows?.length){
+      wrap.innerHTML = `<div class="p-4 text-sm text-white/70">— Sin sugerencias de compra con los filtros actuales.</div>`;
+      return;
+    }
+    const head = `
+      <table class="cadu-table">
+        <thead>
+          <tr>
+            <th>Referencia</th>
+            <th>Tipo</th>
+            <th>Stock</th>
+            <th>Consumo</th>
+            <th>Sugerido</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+    const body = rows.slice(0, 160).map(r => `
+      <tr>
+        <td class="whitespace-nowrap font-mono">${qcEsc(r.referencia)}</td>
+        <td>${qcEsc(r.tipo || "")}</td>
+        <td class="text-right">${qcFmt2(r.stock || 0)}</td>
+        <td class="text-right">${qcFmt2(r.consumo || 0)}</td>
+        <td class="text-right font-extrabold">${qcFmt2(r.sugerido || 0)}</td>
+      </tr>
+    `).join("\n");
+    wrap.innerHTML = head + body + `</tbody></table>`;
+  }
+
+  // ---------- Orquestador ----------
+  async function qc_refrescarDashboard(){
+    const modal = document.getElementById("modalQC");
+    if(modal && modal.classList.contains("hidden")) {
+      // si está cerrado, no corremos por accidente
+      qclog("⏭️ QC refresh ignorado (modal cerrado)");
+      return;
+    }
+
+    loaderReset?.();
+    mostrarLoader?.(true);
+    try{
+      qcSetDefaultDates();
+      const filtros = qcGetFilters();
+      const columnaCorte = qcColumnaCorteVigente();
+
+      qclog("▶ Iniciando QC refresh", { filtros, columnaCorte });
+      loaderPush?.("QC: cargando catálogo (qc_items)");
+      const catalogo = await qcSbSelect("qc_items", "referencia,tipo,analito,plataforma_equipo,buffer_dias");
+      window.qcState.catalogo = catalogo;
+
+      if(!catalogo.length){
+        qclog("⚠️ qc_items vacío. El dashboard mostrará datos incompletos.");
+      }
+
+      // refs a consultar
+      const refs = catalogo.map(x => String(x.referencia||"").trim()).filter(Boolean);
+      const uniqueRefs = Array.from(new Set(refs));
+
+      loaderPush?.("QC: cargando productos (stock central)");
+      const productosQC = uniqueRefs.length
+        ? await qcSbSelect("productos", "referencia,nombre,fabricante,lote,caducidad,cantidad", { in: { referencia: uniqueRefs } })
+        : [];
+      window.qcState.productosQC = productosQC;
+
+      loaderPush?.("QC: cargando historicos (stock unidades)");
+      const histSelect = `unidad_medica,referencia,${columnaCorte}`;
+      const historicosQC = uniqueRefs.length
+        ? await qcSbSelect("historicos", histSelect, { in: { referencia: uniqueRefs } })
+        : [];
+      window.qcState.historicosQC = historicosQC;
+
+      loaderPush?.("QC: cargando consumo (qc_consumo)");
+      const consumoQC = await qcSbSelect("qc_consumo", "fecha,unidad_medica,referencia,tipo,cantidad", {
+        gte: { fecha: filtros.desde },
+        lte: { fecha: filtros.hasta },
+      });
+      window.qcState.consumoQC = consumoQC;
+
+      const computed = qcCompute({ catalogo, productosQC, historicosQC, consumoQC, filtros, columnaCorte });
+      window.qcState.computed = computed;
+      window.qcState.lastRunAt = new Date().toISOString();
+
+      // Render
+      qcRenderKPIs(computed.kpis);
+      await qcRenderCharts(computed.charts);
+      qcRenderTablaCriticos(computed.tablas.criticos);
+      qcRenderTablaCompra(computed.tablas.compra);
+
+      qclog("✅ QC dashboard listo", { kpis: computed.kpis, meta: computed.meta });
+    } catch(e){
+      qclog("❌ Error en QC refresh", { err: String(e?.message || e) });
+      const t1 = document.getElementById("qcTablaCriticos");
+      const t2 = document.getElementById("qcTablaCompra");
+      if(t1) t1.innerHTML = `<div class="p-4 text-sm text-rose-200">❌ Error cargando QC: ${qcEsc(String(e?.message||e))}</div>`;
+      if(t2) t2.innerHTML = `<div class="p-4 text-sm text-rose-200">❌ Error cargando QC: ${qcEsc(String(e?.message||e))}</div>`;
+    } finally {
+      ocultarLoader?.();
+    }
+  }
+
+  function qc_exportarCSV(){
+    try{
+      const comp = window.qcState.computed;
+      if(!comp){
+        qclog("⏭️ No hay datos para exportar (corre Refrescar)");
+        return;
+      }
+      const rows1 = comp.tablas.compra || [];
+      const rows2 = comp.tablas.criticos || [];
+      const esc = (v) => {
+        const s = String(v ?? "").replaceAll('"','""');
+        return `"${s}"`;
+      };
+      const head1 = ["referencia","tipo","stock","consumo","cobertura_dias","sugerido"].map(esc).join(",");
+      const csv1 = rows1.map(r => [r.referencia,r.tipo,r.stock,r.consumo,r.cobertura,r.sugerido].map(esc).join(",")).join("\n");
+      const head2 = ["referencia","tipo","stock","cobertura_dias","motivo","lote","caducidad"].map(esc).join(",");
+      const csv2 = rows2.map(r => [r.referencia,r.tipo,r.stock,r.cobertura,r.motivo||"",r.lote||"",r.caducidad||""].map(esc).join(",")).join("\n");
+      const out = [
+        "# QC Command - Compra sugerida",
+        head1,
+        csv1,
+        "",
+        "# QC Command - Críticos",
+        head2,
+        csv2,
+        "",
+        `# Meta: columnaCorte=${comp.meta?.columnaCorte || ""} daysRange=${comp.meta?.daysRange || ""}`,
+      ].join("\n");
+
+      const blob = new Blob([out], { type: "text/csv;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `qc_command_${new Date().toISOString().slice(0,10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      qclog("⬇️ CSV exportado");
+    } catch(e){
+      qclog("❌ Error exportando CSV", { err: String(e?.message || e) });
+    }
+  }
+
+  function abrirModalQC(){
+    const modal = document.getElementById("modalQC");
+    if(!modal) return;
+    modal.classList.remove("hidden");
+    modal.classList.add("flex");
+    qcSetDefaultDates();
+    qcCargarUnidadesSelect();
+    qclog("🛰️ QC modal abierto");
+    // Auto-refresh al abrir (primera vez o siempre)
+    qc_refrescarDashboard();
+  }
+
+  function cerrarModalQC(){
+    const modal = document.getElementById("modalQC");
+    if(!modal) return;
+    modal.classList.add("hidden");
+    modal.classList.remove("flex");
+    qclog("🛰️ QC modal cerrado");
+  }
+
+  // Exponer APIs globales
+  window.abrirModalQC = abrirModalQC;
+  window.cerrarModalQC = cerrarModalQC;
+  window.qc_refrescarDashboard = qc_refrescarDashboard;
+  window.qc_exportarCSV = qc_exportarCSV;
+
+  // Listeners
+  document.addEventListener("DOMContentLoaded", () => {
+    qcSetDefaultDates();
+    qcCargarUnidadesSelect();
+    const btn = document.getElementById("btnQC");
+    if(btn) btn.addEventListener("click", () => abrirModalQC());
+    ["qcTipo","qcAlmacen","qcUnidad","qcDesde","qcHasta","qcSoloCriticos","qcIncluirCentral"].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.addEventListener("change", () => qclog("🔁 Filtro cambiado", { id, value: (el.type==="checkbox"?el.checked:el.value) }));
+    });
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if(e.key === "Escape"){
+      const modal = document.getElementById("modalQC");
+      if(modal && !modal.classList.contains("hidden")) cerrarModalQC();
+    }
+  });
 })();
-//#endregion
-
-
+//#endregion QC Command
   </script>
 </body>
 </html>
-
